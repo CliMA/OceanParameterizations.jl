@@ -423,9 +423,9 @@ version = "1.3.4"
 
 [[LatinHypercubeSampling]]
 deps = ["Random", "StatsBase", "Test"]
-git-tree-sha1 = "813997fe1d41fc14848055022451473491aa581e"
+git-tree-sha1 = "300e81dcaf5bbe9b341d6c3409ed060f39b78074"
 uuid = "a5e1c1ea-c99a-51d3-a14d-a9a37257b02d"
-version = "1.6.1"
+version = "1.6.2"
 
 [[LibGit2]]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
