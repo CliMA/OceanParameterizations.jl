@@ -21,17 +21,21 @@ tspan_npde = (0.0, Δt)
 diffusion_npde = NeuralODE(dudt_NN, tspan_npde, Tsit5(), reltol=1e-4, saveat=[Δt])
 
 loss_function(θ, uₙ, uₙ₊₁) = Flux.mse(uₙ₊₁, diffusion_npde(uₙ, θ))
+training_loss(θ, data) = sum([loss_function(θ, data[i]...) for i in 1:length(data)])
 
 opt = ADAM(1e-2)
 
 function cb(θ, args...)
-    train_loss = sum([loss_function(θ, training_data[i]...) for i in 1:Nt-1])
-    println("train_loss = $train_loss")
+    println("train_loss = $(training_loss(θ, training_data))")
     return false
 end
 
 cb(diffusion_npde.p)
+res1 = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, ADAM(1e-2), training_data, cb=cb, maxiters=500)
+display(res1)
+cb(res1.minimizer)
+res2 = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, LBFGS(), training_data, cb=cb, maxiters=500)
+display(res2)
+cb(res2.minimizer)
 
-DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, LBFGS(), training_data, cb=cb, maxiters=10)
-DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, ADAM(1e-2), training_data, cb=cb, maxiters=10)
-
+test_neural_de(sol, diffusion_npde, x)

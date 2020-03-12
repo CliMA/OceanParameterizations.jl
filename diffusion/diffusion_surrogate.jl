@@ -64,3 +64,22 @@ function animate_solution(x, sol; filename)
     mp4(anim, filename, fps=15)
 end
 
+function test_neural_de(sol, nde, x)
+    N, Nt = size(sol)
+
+    u_NN = zeros(N, Nt)
+    u_NN[:, 1] .= sol.u[1]
+
+    for n in 2:Nt
+        sol_NN = nde(u_NN[:, n-1])
+        u_NN[:, n] .= sol_NN.u[1]
+    end
+
+    anim = @animate for n=1:Nt
+        plot(x, sol.u[n],    linewidth=2, ylim=(0, 1), label="Data", show=false)
+        plot!(x, u_NN[:, n], linewidth=2, ylim=(0, 1), label="Neural PDE", show=false)
+    end
+
+    mp4(anim, "diffusing_gaussian_test.mp4", fps=15)
+end
+
