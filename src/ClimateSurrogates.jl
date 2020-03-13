@@ -1,5 +1,9 @@
 module ClimateSurrogates
 
-greet() = print("Hello World!")
+using DiffEqFlux
+
+export weights, bias
+
+include("utils.jl")
 
 end # module
