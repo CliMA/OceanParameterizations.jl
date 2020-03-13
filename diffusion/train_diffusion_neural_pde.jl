@@ -1,6 +1,7 @@
 using DiffEqFlux
 using Flux
 using Optim
+using ClimateSurrogates
 
 include("diffusion_surrogate.jl")
 
@@ -39,7 +40,6 @@ for opt in [ADAM(1e-2), ADAM(1e-3), LBFGS()]
             diffusion_npde.p .= res.minimizer
         end
     else
-        @info "Training with optimizer: $(typeof(opt))..."
         full_loss(θ) = training_loss(θ, training_data)
         res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb)
         display(res)
@@ -47,4 +47,5 @@ for opt in [ADAM(1e-2), ADAM(1e-3), LBFGS()]
     end
 end
 
-test_neural_de(sol, diffusion_npde, x)
+u_NN = animate_neural_de_test(sol, diffusion_npde, x)
+plot_conservation(u_NN, sol.t)

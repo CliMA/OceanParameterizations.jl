@@ -64,7 +64,7 @@ function animate_solution(x, sol; filename)
     mp4(anim, filename, fps=15)
 end
 
-function test_neural_de(sol, nde, x)
+function animate_neural_de_test(sol, nde, x)
     N, Nt = size(sol)
 
     u_NN = zeros(N, Nt)
@@ -81,5 +81,15 @@ function test_neural_de(sol, nde, x)
     end
 
     mp4(anim, "diffusing_gaussian_test.mp4", fps=15)
+
+    return u_NN
 end
 
+function plot_conservation(u_NN, t)
+    N, Nt = size(u_NN)
+    Σu = sum(u_NN[:, 1])
+    Σu_NN = [sum(u_NN[:, n]) for n in 1:Nt]
+
+    p = plot(t, Σu_NN .- Σu, linewidth=2, title="Conservation", label="")
+    savefig(p, "conservation.png")
+end
