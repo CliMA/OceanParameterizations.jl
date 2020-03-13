@@ -21,7 +21,7 @@ dudt_NN = FastChain(FastDense(N, N))
 tspan_npde = (0.0, Δt)
 diffusion_npde = NeuralODE(dudt_NN, tspan_npde, Tsit5(), reltol=1e-4, saveat=[Δt])
 
-loss_function(θ, uₙ, uₙ₊₁) = Flux.mse(uₙ₊₁, diffusion_npde(uₙ, θ))
+loss_function(θ, uₙ, uₙ₊₁) = Flux.mse(uₙ₊₁, diffusion_npde(uₙ, θ)) ./ sum(abs2, uₙ₊₁)
 training_loss(θ, data) = sum([loss_function(θ, data[i]...) for i in 1:length(data)])
 
 function cb(θ, args...)
@@ -29,15 +29,21 @@ function cb(θ, args...)
     return false
 end
 
-for opt in [ADAM(1e-2), ADAM(1e-3), ADAM(1e-4), LBFGS()]
-    epochs = opt isa ADAM ? 10 : 1
-    for e in 1:epochs
-        @info "Optimizer: $(typeof(opt)) epoch $e..."
-        res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb, maxiters=27)
+for opt in [ADAM(1e-2), ADAM(1e-3), LBFGS()]
+    @info "Training with optimizer: $(typeof(opt))..."
+    if opt isa ADAM
+        epochs = 10
+        for e in 1:epochs
+            @info "Training with optimizer: $(typeof(opt)) epoch $e..."
+            res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb)
+            diffusion_npde.p .= res.minimizer
+        end
+    else
+        @info "Training with optimizer: $(typeof(opt))..."
+        full_loss(θ) = training_loss(θ, training_data)
+        res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb)
         display(res)
         diffusion_npde.p .= res.minimizer
-        cb(diffusion_npde.p)
-        display(res.minimum)
     end
 end
 
