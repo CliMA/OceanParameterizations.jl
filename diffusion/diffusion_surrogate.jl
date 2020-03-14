@@ -38,8 +38,8 @@ function solve_diffusion_equation(; u₀, N, L, κ, T, Nt)
     return solution, x, Δt
 end
 
-function generate_training_data(solution)
-    N, Nt = size(solution)
+function generate_training_data(sol)
+    N, Nt = size(sol)
 
     uₙ    = zeros(N, Nt-1)
     uₙ₊₁  = zeros(N, Nt-1)
@@ -57,14 +57,14 @@ end
 function animate_solution(x, sol; filename)
     Nt = length(sol)
     anim = @animate for n=1:Nt
-        plot(x, sol.u[n], linewidth=2, ylim=(0, 1), label="", show=false)
+        plot(x, sol.u[n], linewidth=2, ylim=(0, 2), label="", show=false)
     end
 
     @info "Saving $filename..."
     mp4(anim, filename, fps=15)
 end
 
-function animate_neural_de_test(sol, nde, x)
+function animate_neural_de_test(sol, nde, x; filename)
     N, Nt = size(sol)
 
     u_NN = zeros(N, Nt)
@@ -80,16 +80,16 @@ function animate_neural_de_test(sol, nde, x)
         plot!(x, u_NN[:, n], linewidth=2, ylim=(0, 1), label="Neural PDE", show=false)
     end
 
-    mp4(anim, "diffusing_gaussian_test.mp4", fps=15)
+    mp4(anim, filename, fps=15)
 
     return u_NN
 end
 
-function plot_conservation(u_NN, t)
+function plot_conservation(u_NN, t; filename)
     N, Nt = size(u_NN)
     Σu = sum(u_NN[:, 1])
     Σu_NN = [sum(u_NN[:, n]) for n in 1:Nt]
 
     p = plot(t, Σu_NN .- Σu, linewidth=2, title="Conservation", label="")
-    savefig(p, "conservation.png")
+    savefig(p, filename)
 end
