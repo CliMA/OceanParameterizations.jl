@@ -76,8 +76,8 @@ function animate_neural_de_test(sol, nde, x; filename)
     end
 
     anim = @animate for n=1:Nt
-        plot(x, sol.u[n],    linewidth=2, ylim=(0, 1), label="Data", show=false)
-        plot!(x, u_NN[:, n], linewidth=2, ylim=(0, 1), label="Neural PDE", show=false)
+        plot(x, sol.u[n],    linewidth=2, ylim=(0, 2), label="Data", show=false)
+        plot!(x, u_NN[:, n], linewidth=2, ylim=(0, 2), label="Neural PDE", show=false)
     end
 
     mp4(anim, filename, fps=15)

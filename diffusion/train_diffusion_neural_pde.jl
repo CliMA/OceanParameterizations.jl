@@ -60,11 +60,18 @@ end
 ##### Set up neural differential equation
 #####
 
-dudt_NN = FastChain(FastDense(N, N))
-#  dudt_NN = FastChain(FastDense(N, 100, tanh),
-#                      FastDense(100, N))
+# dudt_NN = FastChain(FastDense(N, N))
+# dudt_NN = FastChain(FastDense(N, 100, tanh),
+#                     FastDense(100, N))
 
-Δt = 0.1 / Nt
+# Conservation matrix
+C = Matrix{Float64}(I, N, N)
+C[end, 1:end-1] .= -1
+C[end, end] = 0
+
+dudt_NN = Chain(Dense(N, N),
+                u -> C*u)
+
 tspan_npde = (0.0, Δt)
 diffusion_npde = NeuralODE(dudt_NN, tspan_npde, Tsit5(), reltol=1e-4, saveat=[Δt])
 
@@ -86,12 +93,12 @@ for opt in [ADAM(1e-3), ADAM(1e-4), LBFGS()]
         epochs = 10
         for e in 1:epochs
             @info "Training with optimizer: $(typeof(opt)) epoch $e..."
-            res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb)
+            res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=Flux.throttle(cb, 5))
             diffusion_npde.p .= res.minimizer
         end
     else
         full_loss(θ) = training_loss(θ, training_data)
-        res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb, maxiters=1000)
+        res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb, maxiters=100)
         display(res)
         diffusion_npde.p .= res.minimizer
     end
