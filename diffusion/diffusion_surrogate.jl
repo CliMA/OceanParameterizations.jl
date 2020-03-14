@@ -35,7 +35,7 @@ function solve_diffusion_equation(; u₀, N, L, κ, T, Nt)
     prob = ODEProblem(diffusion!, ic, tspan, params)
     solution = solve(prob, Tsit5(), saveat=t)
 
-    return solution, x, Δt
+    return solution
 end
 
 function generate_training_data(sol)
@@ -91,5 +91,7 @@ function plot_conservation(u_NN, t; filename)
     Σu_NN = [sum(u_NN[:, n]) for n in 1:Nt]
 
     p = plot(t, Σu_NN .- Σu, linewidth=2, title="Conservation", label="")
+    
+    @info "Saving $filename..."
     savefig(p, filename)
 end

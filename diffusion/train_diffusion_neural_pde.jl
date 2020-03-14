@@ -34,14 +34,20 @@ testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 ##### Generate truth solutions for training and testing
 #####
 
-const N = 16
-const Nt = 32
+const N = 16  # Number of grid points
+const L = 2   # Domain size -L/2 <= x <= L/2
+const κ = 1   # Diffusivity
+const T = 0.1 # Time span 0 <= T <= 0.1
+const Nt = 32 # Number of time snapshots to save
+
+const Δt = T / Nt
+const x = range(-L/2, L/2, length=N)
 
 solutions = Dict()
 training_data = []
 
 for u₀ in (training_functions..., testing_functions...)
-    sol, x, Δt = solve_diffusion_equation(u₀=u₀, N=N, L=2, κ=1, T=0.1, Nt=Nt)
+    sol = solve_diffusion_equation(u₀=u₀, N=N, L=L, κ=κ, T=T, Nt=Nt)
     solutions[function_name(u₀)] = sol
 
     u₀ in training_functions && append!(training_data, generate_training_data(sol))
@@ -95,7 +101,6 @@ end
 ##### Test!
 #####
 
-x = range(-1, 1, length=N)
 for (name, sol) in solutions
     u_NN = animate_neural_de_test(sol, diffusion_npde, x, filename="test_$name.mp4")
     plot_conservation(u_NN, sol.t, filename="conservation_$name.mp4")
