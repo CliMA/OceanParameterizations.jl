@@ -49,18 +49,18 @@ function train_diffusion_neural_pde(training_data, NN, optimizers)
     # Train!
     for opt in optimizers
         @info "Training with optimizer: $(typeof(opt))..."
-        if opt isa ADAM
+        if opt isa Optim.AbstractOptimizer
+            full_loss(θ) = training_loss(θ, training_data)
+            res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb, maxiters=100)
+            display(res)
+            diffusion_npde.p .= res.minimizer
+        else
             epochs = 10
             for e in 1:epochs
                 @info "Training with optimizer: $(typeof(opt)) epoch $e..."
                 res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb)
                 diffusion_npde.p .= res.minimizer
             end
-        else
-            full_loss(θ) = training_loss(θ, training_data)
-            res = DiffEqFlux.sciml_train(full_loss, diffusion_npde.p, opt, cb=cb, maxiters=100)
-            display(res)
-            diffusion_npde.p .= res.minimizer
         end
     end
 
