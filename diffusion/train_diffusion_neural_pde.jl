@@ -15,7 +15,7 @@ const Nt = 32 # Number of time snapshots to save
 const Δt = T / Nt
 const x = range(-L/2, L/2, length=N)
 
-function train_diffusion_neural_pde(NN, optimizers, training_functions, testing_functions)
+function generate_solutions(training_functions, testing_functions)
     # Generate truth solutions for training and testing
     solutions = Dict()
     training_data = []
@@ -30,6 +30,10 @@ function train_diffusion_neural_pde(NN, optimizers, training_functions, testing_
         animate_solution(x, sol, filename=fname)
     end
 
+    return solutions, training_data
+end
+
+function train_diffusion_neural_pde(training_data, NN, optimizers)
     # Set up neural differential equation
     tspan_npde = (0.0, Δt)
     diffusion_npde = NeuralODE(NN, tspan_npde, Tsit5(), reltol=1e-4, saveat=[Δt])
@@ -49,7 +53,7 @@ function train_diffusion_neural_pde(NN, optimizers, training_functions, testing_
             epochs = 10
             for e in 1:epochs
                 @info "Training with optimizer: $(typeof(opt)) epoch $e..."
-                res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=Flux.throttle(cb, 5))
+                res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb)
                 diffusion_npde.p .= res.minimizer
             end
         else
@@ -60,12 +64,14 @@ function train_diffusion_neural_pde(NN, optimizers, training_functions, testing_
         end
     end
 
-    # Test!
+    return diffusion_npde
+end
+
+function test_diffusion_neural_pde(npde, solutions)
     for (name, sol) in solutions
-        u_NN = animate_neural_de_test(sol, diffusion_npde, x, filename="test_$name.mp4")
+        u_NN = animate_neural_de_test(sol, npde, x, filename="test_$name.mp4")
         plot_conservation(u_NN, sol.t, filename="conservation_$name.mp4")
     end
-
     return nothing
 end
 
@@ -95,6 +101,7 @@ training_functions = (u₀_Gaussian, u₀_cos, u₀_shifted_sin, u₀_zero)
 testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 
 #####
+##### Neural network architecture
 #####
 
 # dudt_NN = FastChain(FastDense(N, N))
@@ -109,7 +116,10 @@ C[end, end] = 0
 dudt_NN = Chain(Dense(N, N),
                 u -> C*u)
 
-optimizers = [ADAM(1e-3), ADAM(1e-4), LBFGS()]
+solutions, training_data = generate_solutions(training_functions, testing_functions)
 
-train_diffusion_neural_pde(dudt_NN, optimizers, training_functions, testing_functions)
+optimizers = [Descent(1e-5), LBFGS()]
+diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers) 
+
+test_diffusion_neural_pde(diffusion_npde, solutions)
 
