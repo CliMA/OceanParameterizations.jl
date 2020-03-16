@@ -44,7 +44,14 @@ solutions, training_data =
 ##### Train and test a neural differential equation
 #####
 
-optimizers = [Descent(1e-5), LBFGS()]
-diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers)
+# optimizers = [Descent(1e-5), LBFGS()]
+# diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers)
+# test_diffusion_neural_pde(diffusion_npde, solutions)
 
-test_diffusion_neural_pde(diffusion_npde, solutions)
+#####
+##### Train and test a Gaussian process
+#####
+
+kernel = generate_gp_kernel()
+gp = train_diffusion_gp(training_data, kernel)
+test_diffusion_gp(gp, solutions)

@@ -72,7 +72,7 @@ function generate_solutions(training_functions, testing_functions; N, L, κ, T, 
         u₀ in training_functions && append!(training_data, generate_training_data(sol))
 
         fname = "diffusing_$(function_name(u₀)).mp4"
-        animate_solution(x, sol, filename=fname)
+        animate_solution(sol, filename=fname)
     end
 
     return solutions, training_data
@@ -86,7 +86,6 @@ function animate_solution(sol; filename, fps=15)
         plot(x, sol.u[n], linewidth=2, ylim=(0, 2), label="", show=false)
     end
 
-    @info "Saving $filename..."
     mp4(anim, filename, fps=fps)
 end
 
@@ -175,7 +174,56 @@ function animate_neural_pde_test(sol, nde; filename, fps=15)
 end
 
 #####
-##### Testing
+##### Gaussian process
+#####
+
+const γ₁ = 0.0001
+const σ₁ = 1.0
+
+function generate_gp_kernel()
+    K(x, y) = σ₁ * exp(-γ₁ * norm(x - y)^2)
+    return K
+end
+
+function train_diffusion_gp(training_data, kernel)
+    # Split data as y = GP(x)
+    x_train = [data[1] for data in training_data]
+    y_train = [data[2] for data in training_data]
+
+    return construct_gpr(x_train, y_train, kernel)
+end
+
+function test_diffusion_gp(gp, solutions)
+    for (name, sol) in solutions
+        u_GP = animate_gp_test(sol, gp, filename="GP_test_$name.mp4")
+        plot_conservation(u_GP, sol.t, filename="GP_conservation_$name.png")
+    end
+    return nothing
+end
+
+function animate_gp_test(sol, gp; filename, fps=15)
+    N, Nt = size(sol)
+    x = sol.prob.p.x
+
+    u_GP = zeros(N, Nt)
+    u_GP[:, 1] .= sol.u[1]
+
+    for n in 2:Nt
+        u_GP[:, n] .= prediction([u_GP[:, n-1]], gp)
+    end
+
+    anim = @animate for n=1:Nt
+        plot(x, sol.u[n],    linewidth=2, ylim=(0, 2), label="Data", show=false)
+        plot!(x, u_GP[:, n], linewidth=2, ylim=(0, 2), label="GP", show=false)
+    end
+
+    mp4(anim, filename, fps=fps)
+
+    return u_GP
+end
+
+#####
+##### General testing
 #####
 
 function plot_conservation(u, t; filename)
