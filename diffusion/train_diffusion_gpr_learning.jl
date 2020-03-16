@@ -72,5 +72,27 @@ const γ₁ = 0.0001
 const σ₁ = 1.0
 K(x, y) = σ₁ * exp(-γ₁ * norm(x - y)^2)
 gp = construct_gpr(x_train, y_train, K)
-prediction([zeros(N)], gp)
 
+function animate_gp_test(sol, gp, x; filename)
+    N, Nt = size(sol)
+
+    u_GP = zeros(N, Nt)
+    u_GP[:, 1] .= sol.u[1]
+
+    for n in 2:Nt
+        u_GP[:, n] .= prediction([u_GP[:, n-1]], gp)
+    end
+
+    anim = @animate for n=1:Nt
+        plot(x, sol.u[n],    linewidth=2, ylim=(0, 2), label="Data", show=false)
+        plot!(x, u_GP[:, n], linewidth=2, ylim=(0, 2), label="GP", show=false)
+    end
+
+    mp4(anim, filename, fps=15)
+
+    return u_GP
+end
+
+for (name, sol) in solutions
+    u_GP = animate_gp_test(sol, gp, x, filename="GP_test_$name.mp4")
+end
