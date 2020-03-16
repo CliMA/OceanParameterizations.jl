@@ -41,7 +41,7 @@ Constructs the posterior distribution for a GP. In other words this does the 'tr
 
 """
 function construct_gpr(x_data, y_data, kernel; hyperparameters = [], sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
-    K = compute_kernel_matrix(k, x_data)
+    K = compute_kernel_matrix(kernel, x_data)
     # get the maximum entry for scaling and sparsity checking
     mK = maximum(K)
 
@@ -62,15 +62,9 @@ function construct_gpr(x_data, y_data, kernel; hyperparameters = [], sparsity_th
         CK = cholesky(K)
     end
 
-    # get prediction weights FIX THIS SO THAT IT ALWAYS WORKS
-    #=
-    # old version
-    predictor = CK \ y_data
-    =#
     y = hcat(y_data...)'
     predictor = CK \ y
 
-    # construct struct
     return GP(kernel, x_data, predictor, K, CK)
 end
 
