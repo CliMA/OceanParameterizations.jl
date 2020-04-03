@@ -4,7 +4,7 @@ using DiffEqFlux
 
 export
     weights, bias,
-    GP, construct_gpr, prediction
+    GaussianProcess, predict
 
 
 include("utils.jl")

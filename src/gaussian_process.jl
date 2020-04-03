@@ -1,34 +1,35 @@
 using LinearAlgebra
 
 """
-GP
+    GaussianProcess{K, D, P, M, C}
+
 # Description
-- data structure for typical GPR computations
+Data structure for typical GPR computations.
+
 # Data Structure and Description
-    kernel::ℱ, a function
-    data::𝒮 , an array of vectors
-    predictor::𝒮2 , an array
-    K::𝒰 , matrix or sparse matrix
-    CK::𝒱, cholesky factorization of K
+    kernel::K, a function
+    data::D, an array of vectors
+    predictor::P, an array
+    K::M, matrix or sparse matrix
+    CK::C, cholesky factorization of K
 """
-struct GP{ℱ, 𝒮, 𝒮2, 𝒰, 𝒱}
-    kernel::ℱ
-    data::𝒮
-    predictor::𝒮2
-    K::𝒰
-    CK::𝒱
+struct GaussianProcess{K, D, P, M, C}
+       kernel :: K
+         data :: D
+    predictor :: P
+            K :: M
+           CK :: C
 end
 
-
 """
-construct_gpr(x_data, y_data, kernel; hyperparameters = [], sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
+GaussianProcess(x, y, kernel; hyperparameters = [], sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
 
 # Description
 Constructs the posterior distribution for a GP. In other words this does the 'training' automagically.
 
 # Arguments
-- 'x_data': (array). predictor, must be an array of states
-- 'y_data': (array). prediction, must have the same number as x_data
+- 'x': (array). predictor, must be an array of states
+- 'y': (array). prediction, must have the same number as x
 - 'kernel': (function). maps predictor x predictor to real numbers
 
 # Keyword Arguments
@@ -40,19 +41,22 @@ Constructs the posterior distribution for a GP. In other words this does the 'tr
 - 'GP Object': (GP).
 
 """
-function construct_gpr(x_data, y_data, kernel; hyperparameters = [], sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
-    K = compute_kernel_matrix(kernel, x_data)
-    # get the maximum entry for scaling and sparsity checking
-    mK = maximum(K)
+function GaussianProcess(x, y, kernel; hyperparameters=[], sparsity_threshold=0.0,
+                         robust=true, entry_threshold=√(eps(1.0)))
+    K = compute_kernel_matrix(kernel, x)
 
-    # make Cholesky factorization work by adding a small amount to the diagonal
+    # Get the maximum entry for scaling and sparsity checking.
+    K_max = maximum(K)
+
+    # Make Cholesky factorization work by adding a small amount to the diagonal.
     if robust
-        K += mK*sqrt(eps(1.0))*I
+        K += K_max * entry_threshold * I
     end
 
-    # check sparsity, should make this a seperate Module
-    bools = K .> entry_threshold * mK
+    # Check sparsity, should make this a seperate Module.
+    bools = K .> entry_threshold * K_max
     sparsity = sum(bools) / length(bools)
+
     if sparsity < sparsity_threshold
         sparse_K = similar(K) .* 0
         sparse_K[bools] = sK[bools]
@@ -62,17 +66,17 @@ function construct_gpr(x_data, y_data, kernel; hyperparameters = [], sparsity_th
         CK = cholesky(K)
     end
 
-    y = hcat(y_data...)'
+    y = hcat(y...)'
     predictor = CK \ y
 
-    return GP(kernel, x_data, predictor, K, CK)
+    return GaussianProcess(kernel, x, predictor, K, CK)
 end
 
 """
-prediction(x, 𝒢::GP)
+predict(gp, x)
 
 # Description
-- Given state x and GP 𝒢, make a prediction
+- Given state x and GP, make a prediction
 
 # Arguments
 - 'x': state
@@ -80,16 +84,13 @@ prediction(x, 𝒢::GP)
 # Return
 - 'y': prediction
 """
-function prediction(x, 𝒢::GP)
-    y =  𝒢.predictor' * 𝒢.kernel.(x, 𝒢.data)
-    return y
-end
+predict(gp, x) = gp.predictor' * gp.kernel.(x, gp.data)
 
 """
-uncertainty(x, 𝒢::GP)
+uncertainty(gp, x)
 
 # Description
-- Given state x and GP 𝒢, output the variance at a point
+- Given state x and GP, output the variance at a point
 
 # Arguments
 - 'x': state
@@ -97,18 +98,19 @@ uncertainty(x, 𝒢::GP)
 # Return
 - 'var': variance
 """
-function uncertainty(x, 𝒢::GP)
-    tmpv = zeros(size(𝒢.data)[1])
-    for i in eachindex(𝒢.data)
-        tmpv[i] = 𝒢.kernel(x, 𝒢.data[i])
+function uncertainty(gp, x)
+    tmpv = zeros(size(gp.data)[1])
+    for i in eachindex(gp.data)
+        tmpv[i] = gp.kernel(x, 𝒢.data[i])
     end
+
     # no ldiv for suitesparse
-    tmpv2 = 𝒢.CK \ tmpv
-    var = k(x, x) - tmpv'*tmpv2
+    tmpv2 = gp.CK \ tmpv
+    var = k(x, x) - tmpv' * tmpv2
+
     return var
 end
 
-###
 """
 compute_kernel_matrix(k, x)
 
@@ -126,7 +128,7 @@ function compute_kernel_matrix(k, x; hyperparameters = [])
     if isempty(hyperparameters)
         K = [k(x[i], x[j]) for i in eachindex(x), j in eachindex(x)]
     else
-        K = [k(x[i], x[j], hyperparameters = hyperparameters) for i in eachindex(x), j in eachindex(x)]
+        K = [k(x[i], x[j], hyperparameters=hyperparameters) for i in eachindex(x), j in eachindex(x)]
     end
 
     if typeof(K[1,1]) <: Number
@@ -134,48 +136,6 @@ function compute_kernel_matrix(k, x; hyperparameters = [])
     else
         sK = K
     end
+
     return sK
-end
-
-
-"""
-gaussian_kernel(x,y; γ = 1.0, σ = 1.0)
-
-# Description
-- Outputs a Gaussian kernel with hyperparameter γ
-
-# Arguments
-- x: first coordinate
-- y: second coordinate
-
-# Keyword Arguments
--The first is γ, the second is σ where, k(x,y) = σ * exp(- γ * d(x,y))
-- γ = 1.0: (scalar). hyperparameter in the Gaussian Kernel.
-- σ = 1.0; (scalar). hyperparameter in the Gaussian Kernel.
-"""
-function gaussian_kernel(x,y; γ = 1.0, σ = 1.0)
-    y = σ * exp(- γ * d(x,y))
-    return y
-end
-
-"""
-closure_gaussian_kernel(x,y; γ = 1.0, σ = 1.0)
-
-# Description
-- Outputs a function that computes a Gaussian kernel
-
-# Arguments
-- d: distance function. d(x,y)
-
-# Keyword Arguments
--The first is γ, the second is σ where, k(x,y) = σ * exp(- γ * d(x,y))
-- γ = 1.0: (scalar). hyperparameter in the Gaussian Kernel.
-- σ = 1.0; (scalar). hyperparameter in the Gaussian Kernel.
-"""
-function closure_guassian_closure(d; hyperparameters = [1.0, 1.0])
-    function gaussian_kernel(x,y)
-        y = hyperparameters[2] * exp(- hyperparameters[1] * d(x,y))
-        return y
-    end
-    return gaussian_kernel
 end
