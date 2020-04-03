@@ -190,7 +190,7 @@ function train_diffusion_gp(training_data, kernel)
     x_train = [data[1] for data in training_data]
     y_train = [data[2] for data in training_data]
 
-    return construct_gpr(x_train, y_train, kernel)
+    return GaussianProcess(x_train, y_train, kernel)
 end
 
 function test_diffusion_gp(gp, solutions)
@@ -209,7 +209,7 @@ function animate_gp_test(sol, gp; filename, fps=15)
     u_GP[:, 1] .= sol.u[1]
 
     for n in 2:Nt
-        u_GP[:, n] .= prediction([u_GP[:, n-1]], gp)
+        u_GP[:, n] .= predict(gp, [u_GP[:, n-1]])
     end
 
     anim = @animate for n=1:Nt
