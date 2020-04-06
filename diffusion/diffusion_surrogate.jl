@@ -18,7 +18,7 @@ function diffusion!(∂u∂t, u, p, t)
         for i in 2:N-1
             ∂u∂t[i] = κ * (u[i-1] -2u[i] + u[i+1]) / Δx
         end
-∂u∂t[N] = κ * (u[N-1] -2u[N] + u[1]) / Δx
+        ∂u∂t[N] = κ * (u[N-1] -2u[N] + u[1]) / Δx
     end
     return nothing
 end

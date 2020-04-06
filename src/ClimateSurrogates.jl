@@ -4,7 +4,8 @@ using DiffEqFlux
 
 export
     weights, bias,
-    GaussianProcess, predict
+    GaussianProcess, predict, uncertainty,
+    SquaredExponential
 
 
 include("utils.jl")

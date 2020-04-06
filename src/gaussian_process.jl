@@ -22,7 +22,8 @@ struct GaussianProcess{K, D, P, M, C}
 end
 
 """
-GaussianProcess(x, y, kernel; hyperparameters = [], sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
+    GaussianProcess(x, y, kernel; hyperparameters=[], sparsity_threshold=0.0,
+                    robust=true, entry_threshold=√(eps(1.0)))
 
 # Description
 Constructs the posterior distribution for a GP. In other words this does the 'training' automagically.
@@ -73,7 +74,7 @@ function GaussianProcess(x, y, kernel; hyperparameters=[], sparsity_threshold=0.
 end
 
 """
-predict(gp, x)
+    predict(gp, x)
 
 # Description
 - Given state x and GP, make a prediction
@@ -87,7 +88,7 @@ predict(gp, x)
 predict(gp, x) = gp.predictor' * gp.kernel.(x, gp.data)
 
 """
-uncertainty(gp, x)
+    uncertainty(gp, x)
 
 # Description
 - Given state x and GP, output the variance at a point
@@ -138,4 +139,13 @@ function compute_kernel_matrix(k, x; hyperparameters = [])
     end
 
     return sK
+end
+
+#####
+##### Kernels
+#####
+
+function SquaredExponential(l, σ²)
+    K(x, x′) = σ² * exp(-norm(x - x′)^2 / 2l)
+    return K
 end
