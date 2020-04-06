@@ -1,7 +1,9 @@
 using DifferentialEquations
 using DiffEqFlux
 using Flux
+using Gen
 using Plots
+using ClimateSurrogates
 
 # For quick headless plotting without warnings.
 # See: https://github.com/jheinen/GR.jl/issues/278
@@ -188,20 +190,57 @@ end
 ##### Gaussian process
 #####
 
-const γ₁ = 0.0001
-const σ₁ = 1.0
-
-function generate_gp_kernel()
-    K(x, y) = σ₁ * exp(-γ₁ * norm(x - y)^2)
-    return K
+@gen function generate_gp_kernel()
+    l ~ gamma(1, 2)
+    σ² ~ gamma(1, 2)
+    kernel = SquaredExponential(l, σ²)
+    return kernel
 end
 
-function train_diffusion_gp(training_data, kernel)
-    # Split data as y = GP(x)
+@gen function train_diffusion_gp(training_data)
+    kernel ~ generate_gp_kernel()
+
+    # Split data such that y = GP(x)
     x_train = [data[1] for data in training_data]
     y_train = [data[2] for data in training_data]
 
     return GaussianProcess(x_train, y_train, kernel)
+end
+
+@gen function predict_diffusion_gp(training_data, u₀, Nt)
+    gp ~ train_diffusion_gp(training_data)
+
+    N = length(u₀)
+    u_GP = zeros(N, Nt)
+    u_GP[:, 1] .= u₀
+
+    for n in 2:Nt
+        u_GP[:, n] .= predict(gp, [u_GP[:, n-1]])
+        for i in 1:N
+            {(:u, n, i)} ~ normal(u_GP[i, n], 0.01)
+        end
+    end
+
+    return u_GP
+end
+
+function infer_gp_hyperparameters(training_data, sol; iters)
+    u₀ = sol.u[1]
+    N, Nt = size(sol)
+
+    observations = Gen.choicemap()
+    for n in 2:Nt, i in 1:N
+        observations[(:u, n, i)] = sol.u[n][i]
+    end
+
+    trace, _ = Gen.generate(predict_diffusion_gp, (training_data, u₀, Nt), observations)
+
+    gp_hyperparameters = select(:gp => :kernel => :l, :gp => :kernel => :σ²)
+    for _ in 1:iters
+        trace, _ = metropolis_hastings(trace, gp_hyperparameters)
+    end
+
+    return trace
 end
 
 function test_diffusion_gp(gp, solutions)
