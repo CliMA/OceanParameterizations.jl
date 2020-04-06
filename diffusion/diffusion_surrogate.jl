@@ -60,22 +60,33 @@ function generate_training_data(sol)
     return training_data
 end
 
-function generate_solutions(training_functions, testing_functions; N, L, κ, T, Nt)
+function generate_solutions(training_functions, testing_functions; N, L, κ, T, Nt, animate=false)
     # Generate truth solutions for training and testing
     solutions = Dict()
+    training_solutions = Dict()
+    testing_solutions = Dict()
     training_data = []
+    testing_data = []
 
     for u₀ in (training_functions..., testing_functions...)
         sol = solve_diffusion_equation(u₀=u₀, N=N, L=L, κ=κ, T=T, Nt=Nt)
         solutions[function_name(u₀)] = sol
 
-        u₀ in training_functions && append!(training_data, generate_training_data(sol))
+        if u₀ in training_functions
+            training_solutions[function_name(u₀)] = sol
+            append!(training_data, generate_training_data(sol))
+        elseif u₀ in testing_functions
+            testing_solutions[function_name(u₀)] = sol
+            append!(testing_data, generate_training_data(sol))
+        end
 
-        fname = "diffusing_$(function_name(u₀)).mp4"
-        animate_solution(sol, filename=fname)
+        if animate
+            fname = "diffusing_$(function_name(u₀)).mp4"
+            animate_solution(sol, filename=fname)
+        end
     end
 
-    return solutions, training_data
+    return solutions, training_solutions, testing_solutions, training_data, testing_data
 end
 
 function animate_solution(sol; filename, fps=15)

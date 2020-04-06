@@ -37,8 +37,8 @@ function_name(::typeof(u₀_one)) = "one"
 training_functions = (u₀_Gaussian, u₀_cos, u₀_shifted_sin, u₀_zero)
 testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 
-solutions, training_data =
-    generate_solutions(training_functions, testing_functions; N=N, L=L, κ=κ, T=T, Nt=Nt)
+solutions, training_solutions, testing_solutions, training_data, testing_data =
+    generate_solutions(training_functions, testing_functions; N=N, L=L, κ=κ, T=T, Nt=Nt, animate=false)
 
 #####
 ##### Train and test a neural differential equation
@@ -52,6 +52,5 @@ solutions, training_data =
 ##### Train and test a Gaussian process
 #####
 
-kernel = generate_gp_kernel()
-gp = train_diffusion_gp(training_data, kernel)
-test_diffusion_gp(gp, solutions)
+# gp = train_diffusion_gp(training_data)
+# test_diffusion_gp(gp, solutions)
