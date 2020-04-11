@@ -40,6 +40,9 @@ testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 solutions, training_solutions, testing_solutions, training_data, testing_data =
     generate_solutions(training_functions, testing_functions; N=N, L=L, κ=κ, T=T, Nt=Nt, animate=false)
 
+x_train = [data[1] for data in training_data]
+y_train = [data[2] for data in training_data]
+
 #####
 ##### Train and test a neural differential equation
 #####

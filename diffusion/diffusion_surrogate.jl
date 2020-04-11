@@ -197,50 +197,51 @@ end
     return kernel
 end
 
-@gen function train_diffusion_gp(training_data)
+@gen function train_diffusion_gp(x_train, y_train)
     kernel ~ generate_gp_kernel()
-
-    # Split data such that y = GP(x)
-    x_train = [data[1] for data in training_data]
-    y_train = [data[2] for data in training_data]
-
     return GaussianProcess(x_train, y_train, kernel)
 end
 
-@gen function predict_diffusion_gp(training_data, u₀, Nt)
-    gp ~ train_diffusion_gp(training_data)
+@gen function predict_diffusion_gp(x_train, y_train, solutions)
+    gp ~ train_diffusion_gp(x_train, y_train)
 
-    N = length(u₀)
-    u_GP = zeros(N, Nt)
-    u_GP[:, 1] .= u₀
+    for (name, sol) in solutions
+        N, Nt = size(sol)
+        u = sol.u[1]
 
-    for n in 2:Nt
-        u_GP[:, n] .= predict(gp, [u_GP[:, n-1]])
-        for i in 1:N
-            {(:u, n, i)} ~ normal(u_GP[i, n], 0.01)
+        for n in 2:Nt
+            u = predict(gp, [u])
+            for i in 1:N
+                {(:u, name, n, i)} ~ normal(u[i], 0.01)
+            end
         end
     end
 
-    return u_GP
+    return nothing
 end
 
-function infer_gp_hyperparameters(training_data, sol; iters)
-    u₀ = sol.u[1]
-    N, Nt = size(sol)
-
+function infer_gp_hyperparameters(x_train, y_train, solutions; iters)
     observations = Gen.choicemap()
-    for n in 2:Nt, i in 1:N
-        observations[(:u, n, i)] = sol.u[n][i]
+
+    for (name, sol) in solutions
+        N, Nt = size(sol)
+        u = sol.u[1]
+        for n in 2:Nt, i in 1:N
+            observations[(:u, name, n, i)] = sol.u[n][i]
+        end
     end
 
-    trace, _ = Gen.generate(predict_diffusion_gp, (training_data, u₀, Nt), observations)
+    trace, _ = Gen.generate(predict_diffusion_gp, (x_train, y_train, solutions), observations)
 
     gp_hyperparameters = select(:gp => :kernel => :l, :gp => :kernel => :σ²)
+
+    traces = []
     for _ in 1:iters
         trace, _ = metropolis_hastings(trace, gp_hyperparameters)
+        push!(traces, trace)
     end
 
-    return trace
+    return traces
 end
 
 function test_diffusion_gp(gp, solutions)
