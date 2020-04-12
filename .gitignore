@@ -17,7 +17,11 @@ deps/src/
 docs/build/
 docs/site/
 
-# Output
+# Oceananigans output
+*.nc
+*.jld2
+
+# Plotting output
 *.mp4
 *.gif
 *.png
