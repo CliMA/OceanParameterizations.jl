@@ -83,10 +83,10 @@ Generative model for free convection.
 """
 @gen function free_convection_model(ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
     # Uniform priors on all four KPP parameters.
-    CSL  = @trace(uniform(0, 1), :CSL)
-    CNL  = @trace(uniform(0, 8), :CNL)
-    Cb_T = @trace(uniform(0, 6), :Cb_T)
-    CKE  = @trace(uniform(0, 5), :CKE)
+    CSL  ~ uniform(0, 1)
+    CNL  ~ uniform(0, 8)
+    Cb_T ~ uniform(0, 6)
+    CKE  ~ uniform(0, 5)
 
     parameters = KPP.Parameters(CSL=CSL, CNL=CNL, Cb_T=Cb_T, CKE=CKE)
 
@@ -112,7 +112,7 @@ Generative model for free convection.
     # Put prior distributions on the temperature at every
     # grid point at every time step with a tiny bit of noise.
     for n in 1:Nt, i in 1:N
-        @trace(normal(solution[i, n], 0.01), (:T, i, n))
+        {(:T, i, n)} ~ normal(solution[i, n], 0.01)
     end
 
     return solution, model.grid.zc
@@ -167,6 +167,14 @@ for n in 1:Nt
     T_cs[n, :] .= avg(T[n, :], N)
 end
 
+@gen function kpp_proposal(trace)
+    CSL  ~ normal(trace[:CSL],  0.1)
+    CNL  ~ normal(trace[:CNL],  0.1)
+    Cb_T ~ normal(trace[:Cb_T], 0.1)
+    CKE  ~ normal(trace[:CKE],  0.1)
+    return nothing
+end
+
 function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     # Create a choice map that maps model addresses (:T, i, n)
     # to observed data T[i, n]. We leave the four KPP parameters
@@ -179,8 +187,6 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
         observations[(:T, i, n)] = data[n, i]
     end
 
-    KPP_parameters = select(:CSL, :CNL, :Cb_T, :CKE)
-
     traces = []
     CSL_samples = zeros(n_samples)
     CNL_samples = zeros(n_samples)
@@ -192,7 +198,7 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
+        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
         if accepted
             n_accepted_steps = n_accepted_steps + 1
             push!(traces, trace)
@@ -205,7 +211,7 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
         end
         n_steps = n_steps + 1
         @show n_steps, n_accepted_steps
-        n_steps > max_iters && break
+        n_steps >= max_iters && break
     end
 
     println("# of accepted steps: $n_accepted_steps")
@@ -216,7 +222,7 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 end
 
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=5)
+traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100)
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
 CNL_hist = histogram(CNL,  bins=range(0, 8, length=10), xlabel="CNL",  label="")
