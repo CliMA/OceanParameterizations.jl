@@ -167,7 +167,7 @@ for n in 1:Nt
     T_cs[n, :] .= avg(T[n, :], N)
 end
 
-function do_inference(model, model_args, data, samples)
+function do_inference(model, model_args, data, iters)
     # Create a choice map that maps model addresses (:T, i, n)
     # to observed data T[i, n]. We leave the four KPP parameters
     # (:CSL, :CNL, :Cb_T, :CKE) unconstrained, because we want them
@@ -179,16 +179,25 @@ function do_inference(model, model_args, data, samples)
         observations[(:T, i, n)] = data[n, i]
     end
 
-    # Call importance_resampling to obtain a likely trace consistent
-    # with our observations.
-    trace, lml_est = Gen.importance_sampling(model, model_args, observations, samples)
+    trace, _ = Gen.generate(model, model_args, observations)
+    KPP_parameters = select(:CSL, :CNL, :Cb_T, :CKE)
+    for _ in 1:iters
+        trace, _ = metropolis_hastings(trace, KPP_parameters)
+    end
 
     return trace
 end
 
-N_samples = 1000
+n_samples = 50
+mh_iters = 50
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces = do_inference(free_convection_model, model_args, T_coarse_grained, N_samples)
+
+traces = []
+for i in 1:n_samples
+    @info "[$(Dates.now())] Sample $i/$n_samples"
+    trace = do_inference(free_convection_model, model_args, T_coarse_grained, mh_iters)
+    push!(traces, trace)
+end
 
 N_traces = length(traces)
 CSL  = zeros(N_traces)
