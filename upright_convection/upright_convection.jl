@@ -5,6 +5,9 @@ using OceanTurb
 using JLD2
 using Plots
 
+import PyPlot
+const plt = PyPlot
+
 # For quick headless plotting without warnings.
 # See: https://github.com/jheinen/GR.jl/issues/278
 ENV["GKSwstype"] = "100"
@@ -187,6 +190,8 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
         observations[(:T, i, n)] = data[n, i]
     end
 
+    KPP_parameters = Gen.select(:CSL, :CNL, :Cb_T, :CKE)
+
     traces = []
     CSL_samples = zeros(n_samples)
     CNL_samples = zeros(n_samples)
@@ -198,7 +203,8 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
+        trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
+        # trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
         if accepted
             n_accepted_steps = n_accepted_steps + 1
             push!(traces, trace)
@@ -222,7 +228,8 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 end
 
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100)
+traces, CSL, CNL, Cb_T, CKE =
+    do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=1000)
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
 CNL_hist = histogram(CNL,  bins=range(0, 8, length=10), xlabel="CNL",  label="")
@@ -250,3 +257,25 @@ anim = @animate for n=1:5:Nt
 end
 
 gif(anim, "deepening_mixed_layer_KPP_ensemble.gif", fps=15)
+
+function plot_pdfs(CSL, CNL, Cb_T, CKE; bins)
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 9))
+
+    axes[1, 1].hist(CSL, bins=bins, density=true)
+    axes[1, 1].set_xlabel("CSL")
+
+    axes[1, 2].hist(CNL, bins=bins, density=true)
+    axes[1, 2].set_xlabel("CNL")
+
+    axes[2, 1].hist(Cb_T, bins=bins, density=true)
+    axes[2, 1].set_xlabel("Cb_T")
+
+    axes[2, 2].hist(CKE, bins=bins, density=true)
+    axes[2, 2].set_xlabel("CKE")
+
+    plt.savefig("KPP_parameter_marginal_posteriors.png")
+
+    return nothing
+end
+
+plot_pdfs(CSL, CNL, Cb_T, CKE, bins=20)
