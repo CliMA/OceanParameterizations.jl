@@ -187,12 +187,12 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     CbT_samples = zeros(n_samples)
     CKE_samples = zeros(n_samples)
 
-    n_mh_steps = 0
+    n_steps = 0
     n_accepted_steps = 0
 
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        trace, accepted = metropolis_hastings(trace, KPP_parameters, observations=observations)
+        trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
         if accepted
             n_accepted_steps = n_accepted_steps + 1
             push!(traces, trace)
@@ -203,14 +203,14 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
             CbT_samples[n_accepted_steps] = choices[:Cb_T]
             CKE_samples[n_accepted_steps] = choices[:CKE]
         end
-        n_mh_steps = n_mh_steps + 1
-        @show n_mh_steps, n_accepted_steps
-        n_mh_steps > max_iters && break
+        n_steps = n_steps + 1
+        @show n_steps, n_accepted_steps
+        n_steps > max_iters && break
     end
 
     println("# of accepted steps: $n_accepted_steps")
-    println("# of MH steps: $n_mh_steps")
-    println("Acceptence ratio: $(n_accepted_steps/n_mh_steps)")
+    println("# of steps: $n_steps")
+    println("Acceptence ratio: $(n_accepted_steps/n_steps)")
 
     return traces, CSL_samples, CNL_samples, CbT_samples, CKE_samples
 end
