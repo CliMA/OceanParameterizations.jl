@@ -167,7 +167,7 @@ for n in 1:Nt
     T_cs[n, :] .= avg(T[n, :], N)
 end
 
-function do_inference(model, model_args, data, iters)
+function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     # Create a choice map that maps model addresses (:T, i, n)
     # to observed data T[i, n]. We leave the four KPP parameters
     # (:CSL, :CNL, :Cb_T, :CKE) unconstrained, because we want them
@@ -179,39 +179,44 @@ function do_inference(model, model_args, data, iters)
         observations[(:T, i, n)] = data[n, i]
     end
 
-    trace, _ = Gen.generate(model, model_args, observations)
     KPP_parameters = select(:CSL, :CNL, :Cb_T, :CKE)
-    for _ in 1:iters
-        trace, _ = metropolis_hastings(trace, KPP_parameters)
+
+    traces = []
+    CSL_samples = zeros(n_samples)
+    CNL_samples = zeros(n_samples)
+    CbT_samples = zeros(n_samples)
+    CKE_samples = zeros(n_samples)
+
+    n_mh_steps = 0
+    n_accepted_steps = 0
+
+    trace, _ = Gen.generate(model, model_args, observations)
+    while n_accepted_steps < n_samples
+        trace, accepted = metropolis_hastings(trace, KPP_parameters, observations=observations)
+        if accepted
+            n_accepted_steps = n_accepted_steps + 1
+            push!(traces, trace)
+
+            choices = Gen.get_choices(trace)
+            CSL_samples[n_accepted_steps] = choices[:CSL]
+            CNL_samples[n_accepted_steps] = choices[:CNL]
+            CbT_samples[n_accepted_steps] = choices[:Cb_T]
+            CKE_samples[n_accepted_steps] = choices[:CKE]
+        end
+        n_mh_steps = n_mh_steps + 1
+        @show n_mh_steps, n_accepted_steps
+        n_mh_steps > max_iters && break
     end
 
-    return trace
+    println("# of accepted steps: $n_accepted_steps")
+    println("# of MH steps: $n_mh_steps")
+    println("Acceptence ratio: $(n_accepted_steps/n_mh_steps)")
+
+    return traces, CSL_samples, CNL_samples, CbT_samples, CKE_samples
 end
 
-n_samples = 50
-mh_iters = 50
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-
-traces = []
-for i in 1:n_samples
-    @info "[$(Dates.now())] Sample $i/$n_samples"
-    trace = do_inference(free_convection_model, model_args, T_coarse_grained, mh_iters)
-    push!(traces, trace)
-end
-
-N_traces = length(traces)
-CSL  = zeros(N_traces)
-CNL  = zeros(N_traces)
-Cb_T = zeros(N_traces)
-CKE  = zeros(N_traces)
-
-for (i, trace) in enumerate(traces)
-    choices = Gen.get_choices(trace)
-    CSL[i]  = choices[:CSL]
-    CNL[i]  = choices[:CNL]
-    Cb_T[i] = choices[:Cb_T]
-    CKE[i]  = choices[:CKE]
-end
+traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=5)
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
 CNL_hist = histogram(CNL,  bins=range(0, 8, length=10), xlabel="CNL",  label="")
@@ -230,13 +235,12 @@ anim = @animate for n=1:5:Nt
          xlabel="Temperature (C)", ylabel="Depth (z)",
          title=title, dpi=200, show=false)
 
-    for i in 2:N_traces
+    for i in 2:length(traces)
         KPP_solution, KPP_zC = traces[i].retval
         plot!(p, KPP_solution[:, n], KPP_zC, linewidth=2, label="")
     end
 
     plot!(p, T[n, :], zC, linewidth=2, label="LES data", legend=:bottomright)
 end
-
 
 gif(anim, "deepening_mixed_layer_KPP_ensemble.gif", fps=15)
