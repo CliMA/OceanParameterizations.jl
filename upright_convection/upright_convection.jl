@@ -1,3 +1,4 @@
+using LinearAlgebra
 using Dates
 using Printf
 using Gen
@@ -196,19 +197,24 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     n_steps = 0
     n_accepted_steps = 0
 
+    μ, Σ = 0.0, 1.0
+
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
-        if accepted
-            n_accepted_steps = n_accepted_steps + 1
-            push!(traces, trace)
+        trace = Gen.elliptical_slice(trace, :CSL,  trace[:CSL],  Σ, observations=observations)
+        trace = Gen.elliptical_slice(trace, :CNL,  trace[:CNL],  Σ, observations=observations)
+        trace = Gen.elliptical_slice(trace, :Cb_T, trace[:Cb_T], Σ, observations=observations)
+        trace = Gen.elliptical_slice(trace, :CKE,  trace[:CKE],  Σ, observations=observations)
+        n_accepted_steps = n_accepted_steps + 1
+        @show trace[:CSL], trace[:CNL], trace[:Cb_T], trace[:CKE]
 
-            choices = Gen.get_choices(trace)
-            CSL_samples[n_accepted_steps] = choices[:CSL]
-            CNL_samples[n_accepted_steps] = choices[:CNL]
-            CbT_samples[n_accepted_steps] = choices[:Cb_T]
-            CKE_samples[n_accepted_steps] = choices[:CKE]
-        end
+        push!(traces, trace)
+        choices = Gen.get_choices(trace)
+        CSL_samples[n_accepted_steps] = choices[:CSL]
+        CNL_samples[n_accepted_steps] = choices[:CNL]
+        CbT_samples[n_accepted_steps] = choices[:Cb_T]
+        CKE_samples[n_accepted_steps] = choices[:CKE]
+
         n_steps = n_steps + 1
         @show n_steps, n_accepted_steps
         n_steps >= max_iters && break
