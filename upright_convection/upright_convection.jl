@@ -192,22 +192,20 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        for param in (:CSL, :CNL, :Cb_T, :CKE)
-            trace, accepted = Gen.metropolis_hastings(trace, Gen.select(param), observations=observations)
-            if accepted
-                n_accepted_steps = n_accepted_steps + 1
-                push!(traces, trace)
+        trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
+        if accepted
+            n_accepted_steps = n_accepted_steps + 1
+            push!(traces, trace)
 
-                choices = Gen.get_choices(trace)
-                CSL_samples[n_accepted_steps] = choices[:CSL]
-                CNL_samples[n_accepted_steps] = choices[:CNL]
-                CbT_samples[n_accepted_steps] = choices[:Cb_T]
-                CKE_samples[n_accepted_steps] = choices[:CKE]
-            end
-            n_steps = n_steps + 1
+            choices = Gen.get_choices(trace)
+            CSL_samples[n_accepted_steps] = choices[:CSL]
+            CNL_samples[n_accepted_steps] = choices[:CNL]
+            CbT_samples[n_accepted_steps] = choices[:Cb_T]
+            CKE_samples[n_accepted_steps] = choices[:CKE]
         end
+        n_steps = n_steps + 1
         @show n_steps, n_accepted_steps
-        n_steps >= max_iters && break
+        n_steps > max_iters && break
     end
 
     println("# of accepted steps: $n_accepted_steps")
@@ -218,7 +216,7 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 end
 
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100)
+traces, CSL, CNL, Cb_T, CKE = do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=5)
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
 CNL_hist = histogram(CNL,  bins=range(0, 8, length=10), xlabel="CNL",  label="")
