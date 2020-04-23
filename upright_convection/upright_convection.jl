@@ -39,7 +39,7 @@ end
 
 zC = file["grid/zC"]
 
-anim = @animate for n=1:10:Nt
+anim = @animate for n=1:5:Nt
     title = @sprintf("Deepening mixed layer: %.2f days", t[n] / 86400)
     plot(T[n, :], zC, linewidth=2,
          xlim=(19, 20), ylim=(-100, 0), label="",
@@ -153,7 +153,7 @@ choices = Gen.get_choices(trace)
 
 KPP_solution, KPP_zC = trace.retval
 
-anim = @animate for n=1:Nt
+anim = @animate for n=1:5:Nt
     title = @sprintf("Deepening mixed layer: %.2f days", t[n] / 86400)
     plot(T[n, :], zC, linewidth=2,
          xlim=(19, 20), ylim=(-100, 0), label="LES",
@@ -168,14 +168,6 @@ gif(anim, "deepening_mixed_layer_random_KPP_parameters.gif", fps=15)
 T_cs = T_coarse_grained = zeros(Nt, N)
 for n in 1:Nt
     T_cs[n, :] .= avg(T[n, :], N)
-end
-
-@gen function kpp_proposal(trace)
-    CSL  ~ normal(trace[:CSL],  0.1)
-    CNL  ~ normal(trace[:CNL],  0.1)
-    Cb_T ~ normal(trace[:Cb_T], 0.1)
-    CKE  ~ normal(trace[:CKE],  0.1)
-    return nothing
 end
 
 function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
@@ -204,7 +196,6 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
         trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
-        # trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
         if accepted
             n_accepted_steps = n_accepted_steps + 1
             push!(traces, trace)
@@ -228,8 +219,20 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 end
 
 model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE =
-    do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=1000)
+traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
+for _ in 1:2
+    _traces, _CSL, _CNL, _Cb_T, _CKE =
+        do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100)
+    append!(traces, _traces)
+    append!(CSL, _CSL)
+    append!(CNL, _CNL)
+    append!(Cb_T, _Cb_T)
+    append!(CKE, _CKE)
+end
+
+for L in [CSL, CNL, Cb_T, CKE]
+    filter!(x -> x != 0, L)
+end
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
 CNL_hist = histogram(CNL,  bins=range(0, 8, length=10), xlabel="CNL",  label="")
@@ -263,15 +266,19 @@ function plot_pdfs(CSL, CNL, Cb_T, CKE; bins)
 
     axes[1, 1].hist(CSL, bins=bins, density=true)
     axes[1, 1].set_xlabel("CSL")
+    axes[1, 1].set_xlim([0, 1])
 
     axes[1, 2].hist(CNL, bins=bins, density=true)
     axes[1, 2].set_xlabel("CNL")
+    axes[1, 2].set_xlim([0, 8])
 
     axes[2, 1].hist(Cb_T, bins=bins, density=true)
     axes[2, 1].set_xlabel("Cb_T")
+    axes[2, 1].set_xlim([0, 6])
 
     axes[2, 2].hist(CKE, bins=bins, density=true)
     axes[2, 2].set_xlabel("CKE")
+    axes[2, 2].set_xlim([0, 5])
 
     plt.savefig("KPP_parameter_marginal_posteriors.png")
 
