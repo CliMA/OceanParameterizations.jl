@@ -265,16 +265,17 @@ traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
 #     filter!(x -> x != 0, L)
 # end
 
-samples = 100
+samples = 10
 for n in 1:samples
     @info "Sample $n/$samples"
     trace = do_inference_one_sample(free_convection_model, model_args, T_coarse_grained, iters=100)
+    push!(traces, trace)
 
     choices = Gen.get_choices(trace)
-    append!(CSL, choices[:CSL])
-    append!(CNL, choices[:CNL])
-    append!(Cb_T, choices[:Cb_T])
-    append!(CKE, choices[:CKE])
+    push!(CSL, choices[:CSL])
+    push!(CNL, choices[:CNL])
+    push!(Cb_T, choices[:Cb_T])
+    push!(CKE, choices[:CKE])
 end
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
