@@ -170,6 +170,14 @@ for n in 1:Nt
     T_cs[n, :] .= avg(T[n, :], N)
 end
 
+@gen function kpp_proposal(trace)
+    CSL  ~ normal(trace[:CSL],  0.1)
+    CNL  ~ normal(trace[:CNL],  0.1)
+    Cb_T ~ normal(trace[:Cb_T], 0.1)
+    CKE  ~ normal(trace[:CKE],  0.1)
+    return nothing
+end
+
 function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     # Create a choice map that maps model addresses (:T, i, n)
     # to observed data T[i, n]. We leave the four KPP parameters
@@ -195,7 +203,7 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
 
     trace, _ = Gen.generate(model, model_args, observations)
     while n_accepted_steps < n_samples
-        trace, accepted = Gen.metropolis_hastings(trace, KPP_parameters, observations=observations)
+        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
         if accepted
             n_accepted_steps = n_accepted_steps + 1
             push!(traces, trace)
@@ -218,20 +226,55 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     return traces, CSL_samples, CNL_samples, CbT_samples, CKE_samples
 end
 
-model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
-for _ in 1:2
-    _traces, _CSL, _CNL, _Cb_T, _CKE =
-        do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100)
-    append!(traces, _traces)
-    append!(CSL, _CSL)
-    append!(CNL, _CNL)
-    append!(Cb_T, _Cb_T)
-    append!(CKE, _CKE)
+function do_inference_one_sample(model, model_args, data; iters)
+    # Create a choice map that maps model addresses (:T, i, n)
+    # to observed data T[i, n]. We leave the four KPP parameters
+    # (:CSL, :CNL, :Cb_T, :CKE) unconstrained, because we want them
+    # to be inferred.
+    observations = Gen.choicemap()
+
+    Nt, N = size(data)
+    for n in 1:Nt, i in 1:N
+        observations[(:T, i, n)] = data[n, i]
+    end
+
+    KPP_parameters = Gen.select(:CSL, :CNL, :Cb_T, :CKE)
+
+    trace, _ = Gen.generate(model, model_args, observations)
+    for _ in 1:iters
+        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
+    end
+
+    return trace
 end
 
-for L in [CSL, CNL, Cb_T, CKE]
-    filter!(x -> x != 0, L)
+model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
+traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
+
+# for _ in 1:25
+#     _traces, _CSL, _CNL, _Cb_T, _CKE =
+#         do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100, max_iters=500)
+#     append!(traces, _traces)
+#     append!(CSL, _CSL)
+#     append!(CNL, _CNL)
+#     append!(Cb_T, _Cb_T)
+#     append!(CKE, _CKE)
+# end
+#
+# for L in [CSL, CNL, Cb_T, CKE]
+#     filter!(x -> x != 0, L)
+# end
+
+samples = 100
+for n in 1:samples
+    @info "Sample $n/$samples"
+    trace = do_inference_one_sample(free_convection_model, model_args, T_coarse_grained, iters=100)
+
+    choices = Gen.get_choices(trace)
+    append!(CSL, choices[:CSL])
+    append!(CNL, choices[:CNL])
+    append!(Cb_T, choices[:Cb_T])
+    append!(CKE, choices[:CKE])
 end
 
 CSL_hist = histogram(CSL,  bins=range(0, 1, length=10), xlabel="CSL",  label="")
