@@ -289,7 +289,7 @@ traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
 #     filter!(x -> x != 0, L)
 # end
 
-samples = 10
+samples = 500
 for n in 1:samples
     @info "Sample $n/$samples"
     trace = do_inference_one_sample(free_convection_model, model_args, T_coarse_grained, iters=100)
@@ -319,12 +319,12 @@ anim = @animate for n=1:5:Nt
          xlabel="Temperature (C)", ylabel="Depth (z)",
          title=title, dpi=200, show=false)
 
-    for i in 2:length(traces)
+    for i in 2:10
         KPP_solution, KPP_zC = traces[i].retval
         plot!(p, KPP_solution[:, n], KPP_zC, linewidth=2, label="")
     end
 
-    plot!(p, T[n, :], zC, linewidth=2, label="LES data", legend=:bottomright)
+    plot!(p, T[n, :], zC, linewidth=2, label="LES", legend=:bottomright)
 end
 
 gif(anim, "deepening_mixed_layer_KPP_ensemble.gif", fps=15)
