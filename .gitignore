@@ -21,8 +21,10 @@ docs/site/
 *.nc
 *.jld2
 
+# Other output
+*.bson
+
 # Plotting output
 *.mp4
 *.gif
 *.png
-
