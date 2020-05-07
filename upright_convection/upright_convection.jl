@@ -5,12 +5,15 @@ using OceanTurb
 using JLD2
 using Plots
 
-import PyPlot
-const plt = PyPlot
-
-# For quick headless plotting without warnings.
+# For quick headless plotting with Plots.jl (without warnings).
 # See: https://github.com/jheinen/GR.jl/issues/278
 ENV["GKSwstype"] = "100"
+
+# Headless plotting with PyPlot
+ENV["MPLBACKEND"] = "Agg"
+
+import PyPlot
+const plt = PyPlot
 
 #####
 ##### Load Oceananigans free convection data from JLD2 file
@@ -20,6 +23,7 @@ file = jldopen("free_convection_profiles.jld2")
 
 Is = keys(file["timeseries/t"])
 
+zC = file["grid/zC"]
 Nz = file["grid/Nz"]
 Lz = file["grid/Lz"]
 Nt = length(Is)
@@ -34,10 +38,30 @@ for (i, I) in enumerate(Is)
 end
 
 #####
-##### Plot animation of T(z,t) from data
+##### Plot still figure of T(z, t) data
 #####
 
-zC = file["grid/zC"]
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 3.75), dpi=200)
+
+ax.plot(T[1, :], zC, label="t = 0")
+ax.plot(T[36, :], zC, label=@sprintf("t = %d hours", t[36]/3600))
+ax.plot(T[144, :], zC, label=@sprintf("t = %d day", t[144]/86400))
+ax.plot(T[432, :], zC, label=@sprintf("t = %d days", t[432]/86400))
+ax.plot(T[1152, :], zC, label=@sprintf("t = %d days", t[1152]/86400))
+
+ax.legend(loc="lower right", frameon=false)
+ax.set_xlabel("Temperature (°C)")
+ax.set_ylabel("z (m)")
+ax.set_xlim([19, 20])
+ax.set_ylim([-100, 0])
+
+plt.savefig("LES_figure.png", dpi="figure", bbox_inches="tight")
+
+error("Stopping")
+
+#####
+##### Plot animation of T(z,t) from data
+#####
 
 anim = @animate for n=1:5:Nt
     title = @sprintf("Deepening mixed layer: %.2f days", t[n] / 86400)
