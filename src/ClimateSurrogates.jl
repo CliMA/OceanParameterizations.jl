@@ -1,9 +1,9 @@
 module ClimateSurrogates
 
-using DiffEqFlux
+# using DiffEqFlux
 
 export
-    weights, bias,
+    weights, bias, coarse_grain,
     GaussianProcess, predict, uncertainty,
     SquaredExponential
 
