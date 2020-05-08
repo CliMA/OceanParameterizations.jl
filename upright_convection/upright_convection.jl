@@ -16,91 +16,35 @@ ENV["MPLBACKEND"] = "Agg"
 import PyPlot
 const plt = PyPlot
 
-#####
-##### Load Oceananigans free convection data from JLD2 file
-#####
+include("plot_LES.jl")
 
-file = jldopen("free_convection_profiles.jld2")
+function load_data(filepath)
+    file = jldopen(filepath)
 
-Is = keys(file["timeseries/t"])
+    Is = keys(file["timeseries/t"])
 
-zC = file["grid/zC"]
-Nz = file["grid/Nz"]
-Lz = file["grid/Lz"]
-Nt = length(Is)
+    zC = file["grid/zC"]
+    Nz = file["grid/Nz"]
+    Lz = file["grid/Lz"]
+    Nt = length(Is)
 
-t = zeros(Nt)
-T = T_data = zeros(Nt, Nz)
-wT = zeros(Nt, Nz)
+    t = zeros(Nt)
+    T = zeros(Nt, Nz)
 
-for (i, I) in enumerate(Is)
-    t[i] = file["timeseries/t/$I"]
-    T[i, :] = file["timeseries/T/$I"][1, 1, 2:Nz+1]
-end
-
-#####
-##### Plot still figure of T(z, t) data
-#####
-
-fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 3.75), dpi=200)
-
-ax.plot(T[1, :], zC, label="t = 0")
-ax.plot(T[36, :], zC, label=@sprintf("t = %d hours", t[36]/3600))
-ax.plot(T[144, :], zC, label=@sprintf("t = %d day", t[144]/86400))
-ax.plot(T[432, :], zC, label=@sprintf("t = %d days", t[432]/86400))
-ax.plot(T[1152, :], zC, label=@sprintf("t = %d days", t[1152]/86400))
-
-ax.legend(loc="lower right", frameon=false)
-ax.set_xlabel("Temperature (°C)")
-ax.set_ylabel("z (m)")
-ax.set_xlim([19, 20])
-ax.set_ylim([-100, 0])
-
-plt.savefig("LES_figure.png", dpi="figure", bbox_inches="tight")
-
-#####
-##### Plot animation of T(z,t) from data
-#####
-
-anim = @animate for n=1:5:Nt
-    title = @sprintf("Deepening mixed layer: %.2f days", t[n] / 86400)
-    plot(T[n, :], zC, linewidth=2,
-         xlim=(19, 20), ylim=(-100, 0), label="",
-         xlabel="Temperature (C)", ylabel="Depth (z)",
-         title=title, show=false)
-end
-
-gif(anim, "deepening_mixed_layer.gif", fps=15)
-
-# Code credit: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/utils.jl
-
-"""
-avg(Φ, n)
-# Description
-- Average a field down by n.
-- Requires field to have evenly spaced points. Size of N leq length(Φ).
-- Furthermore requires
-# Arguments
-- `Φ` :(vector) The field, an array
-- `n` :(Int) number of grid points to average down to.
-# Return
-- `Φ2` :(vector) The field with values averaged, an array
-"""
-function avg(Φ, n)
-    m = length(Φ)
-    scale = Int(floor(m/n))
-    if ( abs(Int(floor(m/n)) - m/n) > eps(1.0))
-        return error
+    for (i, I) in enumerate(Is)
+        t[i] = file["timeseries/t/$I"]
+        T[i, :] = file["timeseries/T/$I"][1, 1, 2:Nz+1]
     end
-    Φ2 = zeros(n)
-    for i in 1:n
-        Φ2[i] = 0
-            for j in 1:scale
-                Φ2[i] += Φ[scale*(i-1) + j] / scale
-            end
-    end
-    return Φ2
+
+    return T, zC, t
 end
+
+T, zC, t = load_data("free_convection_profiles.jld2")
+
+plot_LES_figure(T, zC, t)
+animate_LES_solution(T, zC, t)
+
+error("Stopping")
 
 # Modified from: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/ForwardMap/fm.jl
 
