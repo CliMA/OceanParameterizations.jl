@@ -1,69 +1,4 @@
-using Dates
-using Printf
-using Gen
-using OceanTurb
-using JLD2
-using Plots
-using ClimateSurrogates
-
-import PyPlot
-const plt = PyPlot
-
-# For quick headless plotting without warnings.
-# See: https://github.com/jheinen/GR.jl/issues/278
-ENV["GKSwstype"] = "100"
-
-#####
-##### Load Oceananigans free convection data from JLD2 file
-#####
-
-file = jldopen("free_convection_profiles.jld2")
-
-Is = keys(file["timeseries/t"])
-
-zC = file["grid/zC"]
-Nz = file["grid/Nz"]
-Lz = file["grid/Lz"]
-Nt = length(Is)
-
-t = zeros(Nt)
-T = T_data = zeros(Nt, Nz)
-wT = zeros(Nt, Nz)
-
-for (i, I) in enumerate(Is)
-    t[i] = file["timeseries/t/$I"]
-    T[i, :] = file["timeseries/T/$I"][1, 1, 2:Nz+1]
-end
-
-# Code credit: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/utils.jl
-
-"""
-avg(Φ, n)
-# Description
-- Average a field down by n.
-- Requires field to have evenly spaced points. Size of N leq length(Φ).
-- Furthermore requires
-# Arguments
-- `Φ` :(vector) The field, an array
-- `n` :(Int) number of grid points to average down to.
-# Return
-- `Φ2` :(vector) The field with values averaged, an array
-"""
-function avg(Φ, n)
-    m = length(Φ)
-    scale = Int(floor(m/n))
-    if ( abs(Int(floor(m/n)) - m/n) > eps(1.0))
-        return error
-    end
-    Φ2 = zeros(n)
-    for i in 1:n
-        Φ2[i] = 0
-            for j in 1:scale
-                Φ2[i] += Φ[scale*(i-1) + j] / scale
-            end
-    end
-    return Φ2
-end
+include("upright_convection.jl")
 
 @gen function generate_gp_kernel()
     l ~ gamma(1, 5000)
@@ -93,7 +28,7 @@ end
     return nothing
 end
 
-function infer_gp_hyperparameters(x_train, y_train, x_test, y_test; iters)
+function infer_gp_hyperparameters(x_train, y_train, x_test, y_test; iters, verbose=true)
     observations = Gen.choicemap()
 
     Nt, N = length(x_test), length(x_test[1])
@@ -102,10 +37,15 @@ function infer_gp_hyperparameters(x_train, y_train, x_test, y_test; iters)
     end
 
     gp_hyperparameters = select(:gp => :kernel => :l, :gp => :kernel => :σ²)
-
     trace, _ = Gen.generate(predict_convection_gp, (x_train, y_train, x_test, y_test), observations)
-    for _ in 1:iters
+    accepts = 0
+
+    for i in 1:iters
         trace, accepted = metropolis_hastings(trace, gp_hyperparameters, observations=observations)
+        accepts += accepted
+        if verbose
+            @info "Iteration $i, acceptance ratio: " * @sprintf("%.4f", accepts/i)
+        end
     end
 
     return trace
@@ -141,16 +81,18 @@ function animate_convection_gp(T, us)
     mp4(anim, "deepening_mixed_layer_GP.mp4", fps=15)
 end
 
+T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z = load_data("free_convection_profiles.jld2")
+
 Nt, N = size(T)
 coarse_resolution = cr = 16
 Tₙ    = zeros(cr, Nt-1)
 Tₙ₊₁  = zeros(cr, Nt-1)
 
-zC_cs = avg(zC, cr)
+zC_cs = coarse_grain(zC, cr)
 
 for i in 1:Nt-1
-      Tₙ[:, i] .=  avg(T[i, :], cr)
-    Tₙ₊₁[:, i] .=  avg(T[i+1, :], cr)
+      Tₙ[:, i] .=  coarse_grain(T[i, :], cr)
+    Tₙ₊₁[:, i] .=  coarse_grain(T[i+1, :], cr)
 end
 
 # n_train = round(Int, (Nt-1)/2)
@@ -169,10 +111,22 @@ y_train = [data[2] for data in training_data]
 x_test = [data[1] for data in testing_data]
 y_test = [data[2] for data in testing_data]
 
-trace = infer_gp_hyperparameters(x_train, y_train, x_test, y_test, iters=100)
+ls, σ²s = [], []
 
-l = trace[(:gp => :kernel => :l)]
-σ² = trace[(:gp => :kernel => :σ²)]
-gp = GaussianProcess(x_train, y_train, SquaredExponential(l, σ²))
-us = test_convection_gp(gp, x_train, y_train, x_test, y_test)
-animate_convection_gp(T, us)
+samples = 100
+for n in 1:samples
+    @info "Sample $n/$samples"
+    trace = infer_gp_hyperparameters(x_train, y_train, x_test, y_test, iters=100)
+    push!(ls, trace[(:gp => :kernel => :l)])
+    push!(σ²s, trace[(:gp => :kernel => :σ²)])
+end
+
+bson_filename = "inferred_GP_hyperparameters.bson"
+@info "Saving $bson_filename..."
+bson(bson_filename, Dict(:l => ls, :σ² => σ²s))
+
+# l = trace[(:gp => :kernel => :l)]
+# σ² = trace[(:gp => :kernel => :σ²)]
+# gp = GaussianProcess(x_train, y_train, SquaredExponential(l, σ²))
+# us = test_convection_gp(gp, x_train, y_train, x_test, y_test)
+# animate_convection_gp(T, us)
