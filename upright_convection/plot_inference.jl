@@ -2,17 +2,15 @@ using Statistics
 using OceanTurb
 using JLD2
 using BSON
+using ClimateSurrogates
 
 # Headless plotting with PyPlot
-# ENV["MPLBACKEND"] = "Agg"
+ENV["MPLBACKEND"] = "Agg"
 
 import PyPlot
 const plt = PyPlot
 const Line2D = plt.matplotlib.lines.Line2D
 const Patch = plt.matplotlib.patches.Patch
-
-data = BSON.load("inferred_KPP_parameters.bson")
-CSL, CNL, Cb_T, CKE = data[:CSL], data[:CNL], data[:Cb_T], data[:CKE]
 
 function plot_pdfs(CSL, CNL, Cb_T, CKE; bins)
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8, 6))
@@ -38,42 +36,12 @@ function plot_pdfs(CSL, CNL, Cb_T, CKE; bins)
     return nothing
 end
 
-plot_pdfs(CSL, CNL, Cb_T, CKE, bins=20)
-
-"""
-avg(Φ, n)
-# Description
-- Average a field down by n.
-- Requires field to have evenly spaced points. Size of N leq length(Φ).
-- Furthermore requires
-# Arguments
-- `Φ` :(vector) The field, an array
-- `n` :(Int) number of grid points to average down to.
-# Return
-- `Φ2` :(vector) The field with values averaged, an array
-"""
-function avg(Φ, n)
-    m = length(Φ)
-    scale = Int(floor(m/n))
-    if ( abs(Int(floor(m/n)) - m/n) > eps(1.0))
-        return error
-    end
-    Φ2 = zeros(n)
-    for i in 1:n
-        Φ2[i] = 0
-            for j in 1:scale
-                Φ2[i] += Φ[scale*(i-1) + j] / scale
-            end
-    end
-    return Φ2
-end
-
 function free_convection_model(parameters, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
     model = KPP.Model(N=N, H=L, stepper=:BackwardEuler, constants=constants, parameters=parameters)
 
     # Coarse grain initial condition from LES and set equal
     # to initial condition of parameterization.
-    model.solution.T.data[1:N] .= avg(T₀, N)
+    model.solution.T.data[1:N] .= coarse_grain(T₀, N)
 
     # Set boundary conditions
     model.bcs.T.top = FluxBoundaryCondition(FT)
@@ -171,3 +139,8 @@ custom_lines = [
 ax.legend(custom_lines, ["LES", "KPP mean", "KPP uncertainty"], loc="lower right", frameon=false)
 
 plt.savefig("KPP_uncertainty.png")
+
+data = BSON.load("inferred_KPP_parameters.bson")
+CSL, CNL, Cb_T, CKE = data[:CSL], data[:CNL], data[:Cb_T], data[:CKE]
+
+plot_pdfs(CSL, CNL, Cb_T, CKE, bins=20)
