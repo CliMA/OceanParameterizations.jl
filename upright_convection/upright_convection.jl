@@ -5,6 +5,7 @@ using OceanTurb
 using JLD2
 using Plots
 using BSON
+using ClimateSurrogates
 
 # For quick headless plotting with Plots.jl (without warnings).
 # See: https://github.com/jheinen/GR.jl/issues/278
@@ -36,22 +37,28 @@ function load_data(filepath)
         T[i, :] = file["timeseries/T/$I"][1, 1, 2:Nz+1]
     end
 
-    return T, zC, t
+    # Physical constants
+    ρ₀ = file["parameters/density"]
+    cₚ = file["parameters/specific_heat_capacity"]
+    f  = file["parameters/coriolis_parameter"]
+    α  = file["buoyancy/equation_of_state/α"]
+    β  = file["buoyancy/equation_of_state/β"]
+    g  = file["buoyancy/gravitational_acceleration"]
+
+    constants = OceanTurb.Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
+
+    Q = parse(Float64, file["parameters/surface_cooling"])
+    FT = -Q / (ρ₀*cₚ)
+    ∂T∂z = file["parameters/temperature_gradient"]
+
+    return T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z
 end
-
-T, zC, t = load_data("free_convection_profiles.jld2")
-
-plot_LES_figure(T, zC, t)
-animate_LES_solution(T, zC, t)
-
-error("Stopping")
-
-# Modified from: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/ForwardMap/fm.jl
 
 """
 Generative model for free convection.
+Modified from: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/ForwardMap/fm.jl
 """
-@gen function free_convection_model(ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
+@gen function free_convection_model(constants, N, L, Δt, times, T₀, FT, ∂T∂z)
     # Uniform priors on all four KPP parameters.
     CSL  ~ uniform(0, 1)
     CNL  ~ uniform(0, 8)
@@ -64,7 +71,7 @@ Generative model for free convection.
 
     # Coarse grain initial condition from LES and set equal
     # to initial condition of parameterization.
-    model.solution.T.data[1:N] .= avg(T₀, N)
+    model.solution.T.data[1:N] .= coarse_grain(T₀, N)
 
     # Set boundary conditions
     model.bcs.T.top = FluxBoundaryCondition(FT)
@@ -88,64 +95,15 @@ Generative model for free convection.
     return solution, model.grid.zc
 end
 
-# Physical constants
-ρ₀ = file["parameters/density"]
-cₚ = file["parameters/specific_heat_capacity"]
-f  = file["parameters/coriolis_parameter"]
-α  = file["buoyancy/equation_of_state/α"]
-β  = file["buoyancy/equation_of_state/β"]
-g  = file["buoyancy/gravitational_acceleration"]
-
-constants = Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
-
-# OceanTurb parameters
-N = 16
-L = file["grid/Lz"]
-Δt = 60
-
-Q = parse(Float64, file["parameters/surface_cooling"])
-FT = -Q / (ρ₀*cₚ)
-∂T∂z = file["parameters/temperature_gradient"]
-
-ℂ = (1.0, 1.0, 1.0, 1.0)
-Nt = 600
-times = t[1:Nt]
-T₀ = T[1, :]
-
-trace = Gen.simulate(free_convection_model, (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z))
-
-choices = Gen.get_choices(trace)
-@sprintf("Choices made: CSL=%.5f, CNL=%.5f, Cb_T=%.5f, CKE=%.5f",
-         choices[:CSL], choices[:CNL], choices[:Cb_T], choices[:CKE])
-
-KPP_solution, KPP_zC = trace.retval
-
-anim = @animate for n=1:5:Nt
-    title = @sprintf("Deepening mixed layer: %.2f days", t[n] / 86400)
-    plot(T[n, :], zC, linewidth=2,
-         xlim=(19, 20), ylim=(-100, 0), label="LES",
-         xlabel="Temperature (C)", ylabel="Depth (z)",
-         title=title, legend=:bottomright, show=false)
-
-    plot!(KPP_solution[:, n], KPP_zC, linewidth=2, label="KPP")
-end
-
-gif(anim, "deepening_mixed_layer_random_KPP_parameters.gif", fps=15)
-
-T_cs = T_coarse_grained = zeros(Nt, N)
-for n in 1:Nt
-    T_cs[n, :] .= avg(T[n, :], N)
-end
-
 @gen function kpp_proposal(trace)
-    CSL  ~ normal(trace[:CSL],  0.1)
-    CNL  ~ normal(trace[:CNL],  0.1)
-    Cb_T ~ normal(trace[:Cb_T], 0.1)
-    CKE  ~ normal(trace[:CKE],  0.1)
+    CSL  ~ normal(trace[:CSL],  0.1*trace[:CSL])
+    CNL  ~ normal(trace[:CNL],  0.1*trace[:CNL])
+    Cb_T ~ normal(trace[:Cb_T], 0.1*trace[:Cb_T])
+    CKE  ~ normal(trace[:CKE],  0.1*trace[:CKE])
     return nothing
 end
 
-function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
+function do_inference(model, model_args, data; iters, verbose=true)
     # Create a choice map that maps model addresses (:T, i, n)
     # to observed data T[i, n]. We leave the four KPP parameters
     # (:CSL, :CNL, :Cb_T, :CKE) unconstrained, because we want them
@@ -158,85 +116,43 @@ function do_inference(model, model_args, data; n_samples, max_iters=10n_samples)
     end
 
     KPP_parameters = Gen.select(:CSL, :CNL, :Cb_T, :CKE)
-
-    traces = []
-    CSL_samples = zeros(n_samples)
-    CNL_samples = zeros(n_samples)
-    CbT_samples = zeros(n_samples)
-    CKE_samples = zeros(n_samples)
-
-    n_steps = 0
-    n_accepted_steps = 0
-
     trace, _ = Gen.generate(model, model_args, observations)
-    while n_accepted_steps < n_samples
+    accepts = 0
+    for i in 1:iters
         trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
-        if accepted
-            n_accepted_steps = n_accepted_steps + 1
-            push!(traces, trace)
-
-            choices = Gen.get_choices(trace)
-            CSL_samples[n_accepted_steps] = choices[:CSL]
-            CNL_samples[n_accepted_steps] = choices[:CNL]
-            CbT_samples[n_accepted_steps] = choices[:Cb_T]
-            CKE_samples[n_accepted_steps] = choices[:CKE]
+        accepts += accepted
+        if verbose
+            @info "Iteration $i, acceptance ratio: " * @sprintf("%.4f", accepts/i)
         end
-        n_steps = n_steps + 1
-        @show n_steps, n_accepted_steps
-        n_steps >= max_iters && break
-    end
-
-    println("# of accepted steps: $n_accepted_steps")
-    println("# of steps: $n_steps")
-    println("Acceptence ratio: $(n_accepted_steps/n_steps)")
-
-    return traces, CSL_samples, CNL_samples, CbT_samples, CKE_samples
-end
-
-function do_inference_one_sample(model, model_args, data; iters)
-    # Create a choice map that maps model addresses (:T, i, n)
-    # to observed data T[i, n]. We leave the four KPP parameters
-    # (:CSL, :CNL, :Cb_T, :CKE) unconstrained, because we want them
-    # to be inferred.
-    observations = Gen.choicemap()
-
-    Nt, N = size(data)
-    for n in 1:Nt, i in 1:N
-        observations[(:T, i, n)] = data[n, i]
-    end
-
-    KPP_parameters = Gen.select(:CSL, :CNL, :Cb_T, :CKE)
-
-    trace, _ = Gen.generate(model, model_args, observations)
-    for _ in 1:iters
-        trace, accepted = Gen.metropolis_hastings(trace, kpp_proposal, (), observations=observations)
     end
 
     return trace
 end
 
-model_args = (ℂ, constants, N, L, Δt, times, T₀, FT, ∂T∂z)
-traces, CSL, CNL, Cb_T, CKE = [], [], [], [], []
+T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z = load_data("free_convection_profiles.jld2")
 
-# for _ in 1:25
-#     _traces, _CSL, _CNL, _Cb_T, _CKE =
-#         do_inference(free_convection_model, model_args, T_coarse_grained, n_samples=100, max_iters=500)
-#     append!(traces, _traces)
-#     append!(CSL, _CSL)
-#     append!(CNL, _CNL)
-#     append!(Cb_T, _Cb_T)
-#     append!(CKE, _CKE)
-# end
-#
-# for L in [CSL, CNL, Cb_T, CKE]
-#     filter!(x -> x != 0, L)
-# end
+# plot_LES_figure(T, zC, t)
+# animate_LES_solution(T, zC, t)
+
+# OceanTurb parameters
+N = 16
+L = Lz
+Δt = 60
+T₀ = T[1, :]
+
+Nt, _ = size(T)
+T_cs = T_coarse_grained = zeros(Nt, N)
+for n in 1:Nt
+    T_cs[n, :] .= coarse_grain(T[n, :], N)
+end
+
+model_args = (constants, N, L, Δt, t, T₀, FT, ∂T∂z)
+CSL, CNL, Cb_T, CKE = [], [], [], []
 
 samples = 10
 for n in 1:samples
     @info "Sample $n/$samples"
-    trace = do_inference_one_sample(free_convection_model, model_args, T_coarse_grained, iters=100)
-    push!(traces, trace)
+    trace = do_inference(free_convection_model, model_args, T_coarse_grained, iters=100)
 
     choices = Gen.get_choices(trace)
     push!(CSL, choices[:CSL])
@@ -245,4 +161,6 @@ for n in 1:samples
     push!(CKE, choices[:CKE])
 end
 
-bson("inferred_KPP_parameters.bson", Dict(:CSL => CSL, :CNL => CNL, :Cb_T => Cb_T, :CKE => CKE))
+bson_filename = "inferred_KPP_parameters.bson"
+@info "Saving $bson_filename..."
+bson(bson_filename, Dict(:CSL => CSL, :CNL => CNL, :Cb_T => Cb_T, :CKE => CKE))
