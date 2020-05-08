@@ -18,20 +18,26 @@ for n in 1:Nt
 end
 
 model_args = (constants, N, L, Δt, t, T₀, FT, ∂T∂z)
-CSL, CNL, Cb_T, CKE = [], [], [], []
+CSL, CNL, Cb_T, CKE, solutions = [], [], [], [], []
 
 samples = 10
 for n in 1:samples
     @info "Sample $n/$samples"
     trace = do_inference(free_convection_model, model_args, T_coarse_grained, iters=100)
 
-    choices = Gen.get_choices(trace)
-    push!(CSL, choices[:CSL])
-    push!(CNL, choices[:CNL])
-    push!(Cb_T, choices[:Cb_T])
-    push!(CKE, choices[:CKE])
+    push!(CSL, trace[:CSL])
+    push!(CNL, trace[:CNL])
+    push!(Cb_T, trace[:Cb_T])
+    push!(CKE, trace[:CKE])
+
+    global zc
+    sol, zc = trace.retval
+    push!(solutions, sol)
 end
 
 bson_filename = "inferred_KPP_parameters.bson"
 @info "Saving $bson_filename..."
-bson(bson_filename, Dict(:CSL => CSL, :CNL => CNL, :Cb_T => Cb_T, :CKE => CKE))
+
+data = Dict(:CSL => CSL, :CNL => CNL, :Cb_T => Cb_T, :CKE => CKE,
+            :T => T, :zC => zC, :solutions => solutions, :zC_cs => zc)
+bson(bson_filename, data)
