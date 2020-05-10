@@ -150,7 +150,7 @@ end
     for n in 2:Nt
         u = predict(gp, [u])
         for i in 1:N
-            {(:u, n, i)} ~ normal(u[i], 0.01)
+            {(:u, n, i)} ~ normal(u[i], 0.1u[i])
         end
     end
 
