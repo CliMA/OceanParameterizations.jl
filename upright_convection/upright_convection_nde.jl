@@ -1,6 +1,8 @@
 using LinearAlgebra
+using DifferentialEquations
 using DiffEqFlux
 using Flux
+using Optim
 
 include("upright_convection.jl")
 
@@ -94,13 +96,11 @@ heat_flux[2] = Q / (ρ₀ * cₚ * Δz_cr)
 #                NNDzT -> Dzᶜ * NNDzT + heat_flux)
 
 # Use NN to parameterize flux.
-dTdt_NN = Chain(Dense(cr+2,  2cr, tanh),
-                Dense(2cr,  cr+2),
-                NN -> Dzᶜ * NN + heat_flux)
+NN = dTdt_NN = Chain(Dense(cr+2,  2cr, tanh),
+                     Dense(2cr,  cr+2),
+                     NN -> Dzᶜ * NN + heat_flux)
 
 NN_params = Flux.params(dTdt_NN)
-
-error("Stopping")
 
 #####
 ##### Pre-train the neural network on (T, wT) data pairs
@@ -108,78 +108,50 @@ error("Stopping")
 
 pre_loss_function(∂zTₙ, wTₙ) = sum(abs2, dTdt_NN(∂zTₙ) .- wTₙ)
 
-popt = ADAM(0.01)
+popt = Flux.ADAM(0.01)
 
 function precb()
     loss = sum(abs2, [pre_loss_function(pre_training_data[i]...) for i in 1:N-1])
     println("loss = $loss")
 end
 
-pre_train_epochs = 5
+pre_train_epochs = 10
 for _ in 1:pre_train_epochs
-    Flux.train!(pre_loss_function, NN_params, pre_training_data, popt, cb = Flux.throttle(precb, 5))
+    Flux.train!(pre_loss_function, NN_params, pre_training_data, popt, cb=Flux.throttle(precb, 1))
 end
-
-#####
-##### Define loss function
-#####
-
-tspan = (0.0, 600.0)  # 10 minutes
-neural_pde_prediction(T₀) = neural_ode(dTdt_NN, T₀, tspan, Tsit5(), reltol=1e-4, save_start=false, saveat=tspan[2])
-
-loss_function(Tₙ, Tₙ₊₁) = sum(abs2, Tₙ₊₁ .- neural_pde_prediction(Tₙ))
-
-#####
-##### Choose optimization algorithm
-#####
-
-opt = ADAM(0.1)
-
-#####
-##### Callback function to observe training.
-#####
-
-function cb()
-    train_loss = sum([loss_function(Tₙ[:, i], Tₙ₊₁[:, i]) for i in 1:N])
-
-    nn_pred = neural_ode(dTdt_NN, Tₙ[:, 1], (t[1], t[N]), Tsit5(), saveat=t[1:N], reltol=1e-4) |> Flux.data
-    test_loss = sum(abs2, T_cr[:, 1:N] .- nn_pred)
-
-    println("train_loss = $train_loss, test_loss = $test_loss")
-    return train_loss
-end
-
-cb()
 
 #####
 ##### Train!
 #####
 
-epochs = 10
-best_loss = Inf
-last_improvement = 0
+optimizers = [Descent(1e-2), Descent(1e-3)]
 
-for epoch_idx in 1:epochs
-    global best_loss, last_improvement
+Δt = 600.0  # 10 minutes
+tspan_npde = (0.0, Δt)
+npde = NeuralODE(NN, tspan_npde, Tsit5(), reltol=1e-4, saveat=[Δt])
 
-    @info "Epoch $epoch_idx"
-    Flux.train!(loss_function, NN_params, training_data, opt, cb=cb) # cb=Flux.throttle(cb, 10))
+loss_function(θ, uₙ, uₙ₊₁) = Flux.mse(uₙ₊₁, npde(uₙ, θ)) ./ (sum(abs2, uₙ₊₁) + 1e-6)
+training_loss(θ, data) = sum([loss_function(θ, data[i]...) for i in 1:length(data)])
 
-    loss = cb()
+function cb(θ, args...)
+    println("train_loss = $(training_loss(θ, training_data))")
+    return false
+end
 
-    if loss <= best_loss
-        @info("Record low loss! Saving neural network out to dTdt_NN.bson")
-        BSON.@save "dTdt_NN.bson" dTdt_NN
-        best_loss = loss
-        last_improvement = epoch_idx
-    end
-
-    # If we haven't seen improvement in 2 epochs, drop our learning rate:
-    if epoch_idx - last_improvement >= 2 && opt.eta > 1e-6
-        opt.eta /= 2.0
-        @warn("Haven't improved in a while, dropping learning rate to $(opt.eta)")
-
-        # After dropping learning rate, give it a few epochs to improve
-        last_improvement = epoch_idx
+# Train!
+for opt in optimizers
+    @info "Training with optimizer: $(typeof(opt))..."
+    if opt isa Optim.AbstractOptimizer
+        full_loss(θ) = training_loss(θ, training_data)
+        res = DiffEqFlux.sciml_train(full_loss, npde.p, opt, cb=Flux.throttle(cb, 1), maxiters=100)
+        display(res)
+        npde.p .= res.minimizer
+    else
+        epochs = 10
+        for e in 1:epochs
+            @info "Training with optimizer: $(typeof(opt)) epoch $e..."
+            res = DiffEqFlux.sciml_train(loss_function, npde.p, opt, training_data, cb=Flux.throttle(cb, 1))
+            npde.p .= res.minimizer
+        end
     end
 end
