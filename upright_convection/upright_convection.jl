@@ -19,7 +19,7 @@ const plt = PyPlot
 
 include("plot_LES.jl")
 
-function load_data(filepath)
+function load_data(filepath; return_wT=false)
     file = jldopen(filepath)
 
     Is = keys(file["timeseries/t"])
@@ -31,10 +31,12 @@ function load_data(filepath)
 
     t = zeros(Nt)
     T = zeros(Nt, Nz)
+    wT = zeros(Nt, Nz)
 
     for (i, I) in enumerate(Is)
         t[i] = file["timeseries/t/$I"]
         T[i, :] = file["timeseries/T/$I"][1, 1, 2:Nz+1]
+        wT[i, :] = file["timeseries/wT/$I"][1, 1, 2:Nz+1]
     end
 
     # Physical constants
@@ -51,7 +53,11 @@ function load_data(filepath)
     FT = -Q / (ρ₀*cₚ)
     ∂T∂z = file["parameters/temperature_gradient"]
 
-    return T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z
+    if return_wT
+        return T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z, wT
+    else
+        return T, zC, t, Nz, Lz, constants, Q, FT, ∂T∂z
+    end
 end
 
 """
