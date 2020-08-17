@@ -1,15 +1,29 @@
-function generate_neural_pde_architecture(N; type)
+using LinearAlgebra
+using DiffEqFlux: FastLayer
+
+struct ConservativeDiffusionLayer{C, K} <: FastLayer
+    C :: C
+    κ :: K
+
+    function ConservativeDiffusionLayer(N, κ)
+        # Define conservation matrix.
+        @show N
+        C = Matrix(1.0I, N, N)
+        C[end, 1:end-1] .= -1
+        C[end, end] = 0
+        return new{typeof(C), typeof(κ)}(C, κ)
+    end
+end
+
+(L::ConservativeDiffusionLayer)(u, p) = L.κ * L.C * u
+
+function generate_neural_pde_architecture(N, κ; type)
+    @show N
     if type == :feed_forward
         dudt_NN = FastChain(FastDense(N, N))
     elseif type == :conservative_feed_forward
-        # Conservation matrix
-        C = Matrix{Float64}(I, N, N)
-        C[end, 1:end-1] .= -1
-        C[end, end] = 0
-
-        dudt_NN = FastChain(FastDense(N, N), (u, p) -> C*u)
+        dudt_NN = FastChain(FastDense(N, N), ConservativeDiffusionLayer(N, κ))
     end
-
     return dudt_NN
 end
 
@@ -35,7 +49,7 @@ function train_diffusion_neural_pde(training_data, NN, optimizers, Δt)
             display(res)
             diffusion_npde.p .= res.minimizer
         else
-            epochs = 10
+            epochs = 4
             for e in 1:epochs
                 @info "Training with optimizer: $(typeof(opt)) epoch $e..."
                 res = DiffEqFlux.sciml_train(loss_function, diffusion_npde.p, opt, training_data, cb=cb)

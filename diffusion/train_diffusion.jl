@@ -9,12 +9,12 @@ include("diffusion_npde.jl")
 include("diffusion_gp.jl")
 include("diffusion_test.jl")
 
-const N = 16  # Number of grid points
-const L = 2   # Domain size -L/2 <= x <= L/2
-const κ = 1   # Diffusivity
-const T = 0.1 # Time span 0 <= T <= 0.1
-const Nt = 32 # Number of time snapshots to save
-const Δt = T/Nt
+N = 16  # Number of grid points
+L = 2   # Domain size -L/2 <= x <= L/2
+κ = 1.5 # Diffusivity
+T = 0.1 # Time span 0 <= T <= 0.1
+Nt = 32 # Number of time snapshots to save
+Δt = T/Nt
 
 #####
 ##### Training and testing initial condition functions
@@ -51,7 +51,7 @@ y_train = [data[2] for data in training_data]
 ##### Train and test a neural differential equation
 #####
 
-dudt_NN = generate_neural_pde_architecture(N, type=:conservative_feed_forward)
+dudt_NN = generate_neural_pde_architecture(N, κ, type=:conservative_feed_forward)
 optimizers = [Descent(1e-5)]
 diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers, Δt)
 test_diffusion_neural_pde(diffusion_npde, solutions)
