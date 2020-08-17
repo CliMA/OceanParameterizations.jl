@@ -18,7 +18,6 @@ end
 (L::ConservativeDiffusionLayer)(u, p) = L.κ * L.C * u
 
 function generate_neural_pde_architecture(N, κ; type)
-    @show N
     if type == :feed_forward
         dudt_NN = FastChain(FastDense(N, N))
     elseif type == :conservative_feed_forward
