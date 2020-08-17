@@ -55,8 +55,8 @@ function print_simulation_stats(simulation)
     vmax = maximum(abs, model.velocities.v.data.parent)
     wmax = maximum(abs, model.velocities.w.data.parent)
 
-    @info @sprintf("[%05.2f%%] i: %d, t: %.2f rotation periods, umax: (%6.3g, %6.3g, %6.3g) m/s, CFL: %6.4g, next Δt: %.1f s",
-                   progress, i, t / rotation_period, umax, vmax, wmax, cfl(model), simulation.Δt.Δt)
+    @info @sprintf("[%05.2f%%] i: %d, t: %.3f days, umax: (%6.3g, %6.3g, %6.3g) m/s, CFL: %6.4g, next Δt: %.1f s",
+                   progress, i, t / days, umax, vmax, wmax, cfl(model), simulation.Δt.Δt)
 end
 
 # Set up simulation
