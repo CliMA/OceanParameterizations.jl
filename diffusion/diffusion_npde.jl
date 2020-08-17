@@ -1,15 +1,14 @@
-function generate_neural_pde_architecture(N)
-    # dudt_NN = FastChain(FastDense(N, N))
+function generate_neural_pde_architecture(N; type)
+    if type == :feed_forward
+        dudt_NN = FastChain(FastDense(N, N))
+    elseif type == :conservative_feed_forward
+        # Conservation matrix
+        C = Matrix{Float64}(I, N, N)
+        C[end, 1:end-1] .= -1
+        C[end, end] = 0
 
-    # dudt_NN = FastChain(FastDense(N, 100, tanh),
-    #                     FastDense(100, N))
-
-    # Conservation matrix
-    C = Matrix{Float64}(I, N, N)
-    C[end, 1:end-1] .= -1
-    C[end, end] = 0
-
-    dudt_NN = FastChain(FastDense(N, N))
+        dudt_NN = FastChain(FastDense(N, N), (u, p) -> C*u)
+    end
 
     return dudt_NN
 end

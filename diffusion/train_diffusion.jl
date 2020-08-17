@@ -51,10 +51,10 @@ y_train = [data[2] for data in training_data]
 ##### Train and test a neural differential equation
 #####
 
-dudt_NN = generate_neural_pde_architecture(N)
+dudt_NN = generate_neural_pde_architecture(N, type=:conservative_feed_forward)
 optimizers = [Descent(1e-5)]
 diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers, Δt)
-# test_diffusion_neural_pde(diffusion_npde, solutions, Δt)
+test_diffusion_neural_pde(diffusion_npde, solutions)
 
 #####
 ##### Train and test a Gaussian process
