@@ -796,8 +796,8 @@ version = "0.3.0"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDA", "Crayons", "Dates", "FFTW", "InteractiveUtils", "JLD2", "KernelAbstractions", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Pkg", "Printf", "Random", "SeawaterPolynomials", "Statistics"]
-git-tree-sha1 = "e5eee94029c50bd417c1a68b533d1dbdcade36e6"
-repo-rev = "ar/averages-with-halos"
+git-tree-sha1 = "0f0275876b220c7d3099fd4e33ce4fee59cff545"
+repo-rev = "master"
 repo-url = "https://github.com/CliMA/Oceananigans.jl.git"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 version = "0.34.1"

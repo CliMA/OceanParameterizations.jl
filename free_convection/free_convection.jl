@@ -96,13 +96,13 @@ global_attributes = Dict(
 u, v, w = model.velocities
 T = model.tracers.T
 
-L⁻²∫u_dxdy = Average(u, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫v_dxdy = Average(v, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫T_dxdy = Average(T, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫u_dxdy = Average(u, dims=(1, 2), return_type=Array)
+L⁻²∫v_dxdy = Average(v, dims=(1, 2), return_type=Array)
+L⁻²∫T_dxdy = Average(T, dims=(1, 2), return_type=Array)
 
-L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), return_type=Array)
+L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), return_type=Array)
+L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), return_type=Array)
 
 
 profile_output_attributes = Dict(
@@ -114,13 +114,15 @@ profile_output_attributes = Dict(
     "wT" => Dict("longname" => "Horizontally averaged heat flux in the z-direction", "units" => "°C m/s")
 )
 
+
+Hz = model.grid.Hz
 profiles = Dict(
-    "u"  => model -> L⁻²∫u_dxdy(model),
-    "v"  => model -> L⁻²∫v_dxdy(model),
-    "T"  => model -> L⁻²∫T_dxdy(model),
-    "uT" => model -> L⁻²∫uT_dxdy(model),
-    "vT" => model -> L⁻²∫vT_dxdy(model),
-    "wT" => model -> L⁻²∫wT_dxdy(model)
+    "u"  => model -> L⁻²∫u_dxdy(model)[1+Hz:end-Hz],
+    "v"  => model -> L⁻²∫v_dxdy(model)[1+Hz:end-Hz],
+    "T"  => model -> L⁻²∫T_dxdy(model)[1+Hz:end-Hz],
+    "uT" => model -> L⁻²∫uT_dxdy(model)[1+Hz:end-Hz],
+    "vT" => model -> L⁻²∫vT_dxdy(model)[1+Hz:end-Hz],
+    "wT" => model -> L⁻²∫wT_dxdy(model)[1+Hz:end-Hz]
 )
 
 profile_dims = Dict(k => ("zC",) for k in keys(profiles))
