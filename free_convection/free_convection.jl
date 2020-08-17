@@ -51,12 +51,14 @@ function print_simulation_stats(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
-    umax = maximum(abs, model.velocities.u.data.parent)
-    vmax = maximum(abs, model.velocities.v.data.parent)
-    wmax = maximum(abs, model.velocities.w.data.parent)
+    u_max = maximum(abs, model.velocities.u.data.parent)
+    v_max = maximum(abs, model.velocities.v.data.parent)
+    w_max = maximum(abs, model.velocities.w.data.parent)
+    T_min = minimum(abs, model.tracers.T.data.parent)
+    T_max = maximum(abs, model.tracers.T.data.parent)
 
-    @info @sprintf("[%05.2f%%] i: %d, t: %.3f days, umax: (%6.3g, %6.3g, %6.3g) m/s, CFL: %6.4g, next Δt: %.1f s",
-                   progress, i, t / day, umax, vmax, wmax, cfl(model), simulation.Δt.Δt)
+    @info @sprintf("[%05.2f%%] i: %d, t: %.3f days, umax: (%6.3g, %6.3g, %6.3g) m/s, T: (min=%6.4f, max=%6.4f), CFL: %6.4g, next Δt: %.1f s",
+                   progress, i, t / day, u_max, v_max, w_max, T_min, T_max, cfl(model), simulation.Δt.Δt)
 end
 
 # Set up simulation
