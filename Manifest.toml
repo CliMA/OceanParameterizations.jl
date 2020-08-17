@@ -104,9 +104,9 @@ version = "1.0.0"
 
 [[CUDA]]
 deps = ["AbstractFFTs", "Adapt", "BinaryProvider", "CEnum", "DataStructures", "ExprTools", "GPUArrays", "GPUCompiler", "LLVM", "Libdl", "LinearAlgebra", "Logging", "MacroTools", "NNlib", "Pkg", "Printf", "Random", "Reexport", "Requires", "SparseArrays", "Statistics", "TimerOutputs"]
-git-tree-sha1 = "d658b3881a25b317ea7fb128efbd82b5e63396ad"
+git-tree-sha1 = "2c007bb3931360013d32bcd53a727e0a7f144e00"
 uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
-version = "1.0.2"
+version = "1.2.1"
 
 [[CanonicalTraits]]
 deps = ["MLStyle"]
@@ -465,9 +465,9 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[GPUArrays]]
 deps = ["AbstractFFTs", "Adapt", "LinearAlgebra", "Printf", "Random", "Serialization"]
-git-tree-sha1 = "0aaa4ff7001086e190a00180495b93b00df8bb43"
+git-tree-sha1 = "9027d6128645d227fa9ba7d5b3aa00af696b9aaf"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "4.0.1"
+version = "5.0.0"
 
 [[GPUCompiler]]
 deps = ["DataStructures", "InteractiveUtils", "LLVM", "Libdl", "TimerOutputs", "UUIDs"]
@@ -634,6 +634,7 @@ uuid = "1d6d02ad-be62-4b6b-8a6d-2f90e265016e"
 version = "0.1.2"
 
 [[LibGit2]]
+deps = ["Printf"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 
 [[LibVPX_jll]]
@@ -795,7 +796,7 @@ version = "0.3.0"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDA", "Crayons", "Dates", "FFTW", "InteractiveUtils", "JLD2", "KernelAbstractions", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Pkg", "Printf", "Random", "SeawaterPolynomials", "Statistics"]
-git-tree-sha1 = "055c95efc7076ab2aa2e058b3efae2d5ac26c816"
+git-tree-sha1 = "e5eee94029c50bd417c1a68b533d1dbdcade36e6"
 repo-rev = "ar/averages-with-halos"
 repo-url = "https://github.com/CliMA/Oceananigans.jl.git"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
@@ -878,7 +879,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "1.0.10"
 
 [[Pkg]]
-deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Test", "UUIDs"]
+deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[PlotThemes]]
@@ -1081,9 +1082,9 @@ version = "0.3.1"
 
 [[SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
-git-tree-sha1 = "2ee666b24ab8be6a922f9d6c11a86e1a703a7dda"
+git-tree-sha1 = "daf7aec3fe3acb2131388f93a4c409b8c7f62226"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
-version = "0.9.2"
+version = "0.9.3"
 
 [[Sobol]]
 deps = ["DelimitedFiles", "Random"]
