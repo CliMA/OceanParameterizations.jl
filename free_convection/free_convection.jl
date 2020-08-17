@@ -56,7 +56,7 @@ function print_simulation_stats(simulation)
     wmax = maximum(abs, model.velocities.w.data.parent)
 
     @info @sprintf("[%05.2f%%] i: %d, t: %.3f days, umax: (%6.3g, %6.3g, %6.3g) m/s, CFL: %6.4g, next Δt: %.1f s",
-                   progress, i, t / days, umax, vmax, wmax, cfl(model), simulation.Δt.Δt)
+                   progress, i, t / day, umax, vmax, wmax, cfl(model), simulation.Δt.Δt)
 end
 
 # Set up simulation
