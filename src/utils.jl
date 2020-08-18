@@ -1,3 +1,5 @@
+using Statistics
+
 # weights(f::FastDense, θ) = reshape(θ[1:(f.out*f.in)], f.out, f.in)
 # bias(f::FastDense, θ) = θ[(f.out*f.in+1):end]
 
@@ -5,18 +7,13 @@
     coarse_grain(Φ, n)
 
 Average or coarse grain a field `Φ` down to a size `n`. `Φ` is required to have evenly spaced points and n <= length(Φ).
-
-Code credit: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/utils.jl
 """
 function coarse_grain(Φ, n)
-    m = length(Φ)
-    scale = Int(floor(m/n))
-    Φ̅ = zeros(n)
+    N = length(Φ)
+    Δ = Int(N / n)
+    Φ̅ = similar(Φ, n)
     for i in 1:n
-        Φ̅[i] = 0
-        for j in 1:scale
-            Φ̅[i] += Φ[scale*(i-1) + j] / scale
-        end
+        Φ̅[i] = mean(Φ[Δ*(i-1)+1:Δ*i])
     end
     return Φ̅
 end
