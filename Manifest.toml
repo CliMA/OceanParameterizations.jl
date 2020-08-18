@@ -104,7 +104,9 @@ version = "1.0.0"
 
 [[CUDA]]
 deps = ["AbstractFFTs", "Adapt", "BinaryProvider", "CEnum", "DataStructures", "ExprTools", "GPUArrays", "GPUCompiler", "LLVM", "Libdl", "LinearAlgebra", "Logging", "MacroTools", "NNlib", "Pkg", "Printf", "Random", "Reexport", "Requires", "SparseArrays", "Statistics", "TimerOutputs"]
-git-tree-sha1 = "2c007bb3931360013d32bcd53a727e0a7f144e00"
+git-tree-sha1 = "cf692b71f246c5b571fb2265a6675bd970f73952"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaGPU/CUDA.jl.git"
 uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
 version = "1.2.1"
 
@@ -465,9 +467,11 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[GPUArrays]]
 deps = ["AbstractFFTs", "Adapt", "LinearAlgebra", "Printf", "Random", "Serialization"]
-git-tree-sha1 = "9027d6128645d227fa9ba7d5b3aa00af696b9aaf"
+git-tree-sha1 = "600f45500060894487832c2f00c203fe3e0cb264"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaGPU/GPUArrays.jl.git"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "5.0.0"
+version = "5.1.0"
 
 [[GPUCompiler]]
 deps = ["DataStructures", "InteractiveUtils", "LLVM", "Libdl", "TimerOutputs", "UUIDs"]
@@ -796,8 +800,8 @@ version = "0.3.0"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDA", "Crayons", "Dates", "FFTW", "InteractiveUtils", "JLD2", "KernelAbstractions", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Pkg", "Printf", "Random", "SeawaterPolynomials", "Statistics"]
-git-tree-sha1 = "e5eee94029c50bd417c1a68b533d1dbdcade36e6"
-repo-rev = "ar/averages-with-halos"
+git-tree-sha1 = "0f0275876b220c7d3099fd4e33ce4fee59cff545"
+repo-rev = "master"
 repo-url = "https://github.com/CliMA/Oceananigans.jl.git"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 version = "0.34.1"
