@@ -1,11 +1,12 @@
+using DiffEqFlux
 using DiffEqFlux: FastLayer
 
 """
-    ConservativeFluxLayer{T, B} <: FastLayer
+    ConservativeFluxLayer{T, B}
 
 A neural network layer for imposing a specific flux at the top and bottom of a column model for some physical quantity.
 """
-struct ConservativeFluxLayer{T, B} <: FastLayer
+struct ConservativeFluxLayer{T, B}
               N :: Int
        top_flux :: T
     bottom_flux :: B
@@ -15,10 +16,9 @@ struct ConservativeFluxLayer{T, B} <: FastLayer
     end
 end
 
-(L::ConservativeFluxLayer)(ϕ, p) = [L.top_flux, ϕ..., L.bottom_flux]
+(L::ConservativeFluxLayer)(ϕ, p...) = [L.bottom_flux, ϕ..., L.top_flux]
 
-function neural_pde_architecture(N; top_flux, bottom_flux)
-    return FastChain(FastDense(N, 4N),
-                     FastDense(4N, N-2),
-                     ConservativeFluxLayer(N; top_flux=top_flux, bottom_flux=bottom_flux))
+function free_convection_neural_pde_architecture(N; top_flux, bottom_flux)
+    return Chain(Dense(N, 4N),
+                 Dense(4N, N))
 end
