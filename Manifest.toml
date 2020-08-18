@@ -104,7 +104,9 @@ version = "1.0.0"
 
 [[CUDA]]
 deps = ["AbstractFFTs", "Adapt", "BinaryProvider", "CEnum", "DataStructures", "ExprTools", "GPUArrays", "GPUCompiler", "LLVM", "Libdl", "LinearAlgebra", "Logging", "MacroTools", "NNlib", "Pkg", "Printf", "Random", "Reexport", "Requires", "SparseArrays", "Statistics", "TimerOutputs"]
-git-tree-sha1 = "2c007bb3931360013d32bcd53a727e0a7f144e00"
+git-tree-sha1 = "cf692b71f246c5b571fb2265a6675bd970f73952"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaGPU/CUDA.jl.git"
 uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
 version = "1.2.1"
 
