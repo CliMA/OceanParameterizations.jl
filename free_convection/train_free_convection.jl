@@ -84,27 +84,36 @@ function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
 
     for e in 1:epochs
         @info "Training on heat flux [epoch $e/$epochs]..."
-        Flux.train!(loss, Flux.params(NN), training_data, optimizer, cb=cb)
-
-        # # training_loss is declared local so it will be available for logging outside the gradient calculation.
-        # local training_loss
-        # ps = Flux.Params(NN)
-        # for d in training_data
-        #     gs = gradient(ps) do
-        #         training_loss = loss(d...)
-        #         # Code inserted here will be differentiated, unless you need that gradient information
-        #         # it is better to do the work outside this block.
-        #         return training_loss
-        #     end
-        #     # Insert whatever code you want here that needs training_loss, e.g. logging.
-        #     # logging_callback(training_loss)
-        #     # Insert what ever code you want here that needs gradient.
-        #     # E.g. logging with TensorBoardLogger.jl as histogram so you can see if it is becoming huge.
-        #     Flux.update!(optimizer, ps, gs)
-        #     # Here you might like to check validation set accuracy, and break out to do early stopping.
-        #     cb()
-        # end
+        Flux.train!(loss, Flux.params(NN), training_data, optimizer)
+        cb()
     end
+
+    return nothing
+end
+
+function animate_learned_heat_flux(ds, NN; grid_points, frameskip, fps)
+    T, wT, z = ds["T"], ds["wT"], ds["zC"]
+    Nz, Nt = size(T)
+
+    z_coarse = coarse_grain(z, grid_points)
+
+    anim = @animate for n=1:frameskip:Nt
+        @info "Plotting learned heat flux [$n/$Nt]..."
+
+        time_str = @sprintf("%.2f days", ds["time"][n] / day)
+
+        plot(wT[:, n], z, linewidth=2, xlim=(-1e-5, 3e-5), ylim=(-100, 0),
+             label="Oceananigans wT", xlabel="Heat flux", ylabel="Depth z (meters)",
+             title="Free convection: $time_str", legend=:bottomright, show=false)
+
+        wT_NN = coarse_grain(T[:, n], grid_points) |> NN
+
+        plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+    end
+
+    filename = "free_convection_learned_heat_flux.mp4"
+    @info "Saving $filename"
+    mp4(anim, filename, fps=fps)
 
     return nothing
 end
@@ -132,4 +141,5 @@ training_data_time_step = free_convection_time_step_training_data(ds, grid_point
 
 NN = free_convection_neural_pde_architecture(Nz, top_flux=surface_heat_flux, bottom_flux=0.0)
 
-# train_on_heat_flux!(NN, training_data_heat_flux, Descent(1e-2), epochs=1)
+# train_on_heat_flux!(NN, training_data_heat_flux, Descent(1e-6), epochs=10)
+# animate_learned_heat_flux(ds, NN, grid_points=Nz, frameskip=5, fps=15)
