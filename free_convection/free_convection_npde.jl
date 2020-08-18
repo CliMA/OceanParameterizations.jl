@@ -19,6 +19,7 @@ end
 (L::ConservativeFluxLayer)(ϕ, p...) = [L.bottom_flux, ϕ..., L.top_flux]
 
 function free_convection_neural_pde_architecture(N; top_flux, bottom_flux)
-    return Chain(Dense(N, 4N),
+    return Chain(Dense(N, 4N, relu),
+                 Dense(4N, 4N, relu),
                  Dense(4N, N))
 end
