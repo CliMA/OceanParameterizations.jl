@@ -16,10 +16,11 @@ struct ConservativeFluxLayer{T, B}
     end
 end
 
-(L::ConservativeFluxLayer)(ϕ, p...) = [L.bottom_flux, ϕ..., L.top_flux]
+(L::ConservativeFluxLayer)(ϕ, p...) = cat(L.bottom_flux, ϕ, L.top_flux, dims=1)
 
-function free_convection_neural_pde_architecture(N; top_flux, bottom_flux)
-    return Chain(Dense(N, 4N, relu),
-                 Dense(4N, 4N, relu),
-                 Dense(4N, N))
+function free_convection_neural_pde_architecture(N; top_flux, bottom_flux, activation=selu)
+    return Chain(Dense(N, 4N, activation),
+                 Dense(4N, 4N, activation),
+                 Dense(4N, N-2),
+                 ConservativeFluxLayer(N, top_flux=top_flux, bottom_flux=bottom_flux))
 end
