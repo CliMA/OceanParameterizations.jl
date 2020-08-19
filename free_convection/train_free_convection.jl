@@ -8,6 +8,8 @@ using Flux
 using ClimateSurrogates
 using Oceananigans.Utils
 
+using Flux.Data: DataLoader
+
 include("free_convection_npde.jl")
 
 function animate_variable(ds, var; grid_points, xlabel, xlim, frameskip, fps)
@@ -50,6 +52,7 @@ function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0)
     inputs = [coarse_grain(T[:, n], grid_points) for n in 1+skip_first:Nt]
     outputs = [ρ₀ * cₚ * coarse_grain(wT[:, n], grid_points) for n in 1+skip_first:Nt]
 
+    # return DataLoader((inputs, outputs), batchsize=32, shuffle=true)
     return zip(inputs, outputs) |> collect |> shuffle
 end
 
