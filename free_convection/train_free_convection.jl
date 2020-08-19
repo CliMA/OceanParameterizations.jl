@@ -4,6 +4,7 @@ using Printf
 using NCDatasets
 using Plots
 using Flux
+using BSON
 
 using ClimateSurrogates
 using Oceananigans.Utils
@@ -87,10 +88,10 @@ function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
         return loss
     end
 
+    NN_params = Flux.params(NN)
     for e in 1:epochs
         @info "Training on heat flux with $(typeof(optimizer))(η=$(optimizer.eta)) [epoch $e/$epochs]..."
-        Flux.train!(loss, Flux.params(NN), training_data, optimizer, cb=cb)
-        cb()
+        Flux.train!(loss, NN_params, training_data, optimizer, cb=Flux.throttle(cb, 2))
     end
 
     return nothing
@@ -131,11 +132,11 @@ ds = NCDataset("free_convection_horizontal_averages.nc")
 # Should not have saved constant units as strings...
 nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
 
-Q = nc_constant(ds, "Heat flux")
+Q  = nc_constant(ds, "Heat flux")
 ρ₀ = nc_constant(ds, "Reference density")
 cₚ = nc_constant(ds, "Specific_heat_capacity")
 
-surface_heat_flux = Q / (ρ₀ * cₚ)
+# surface_heat_flux = Q / (ρ₀ * cₚ)
 
 Nz = 16  # Number of grid points for the neural PDE.
 
@@ -146,13 +147,28 @@ future_time_steps = 1
 # animate_variable(ds, "wT", grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5, fps=15)
 
 training_data_heat_flux = free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first)
-@info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
 
-NN = free_convection_neural_pde_architecture(Nz, top_flux=surface_heat_flux, bottom_flux=0.0)
-
-for opt in [Descent(1e-3), Descent(1e-5), Descent(1e-7)]
-#     train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
+if training_data_heat_flux isa DataLoader
+    @info "Heat flux training data contains $(training_data_heat_flux.nobs) pairs (batchsize=$(training_data_heat_flux.batchsize))."
+else
+    @info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
 end
-# animate_learned_heat_flux(ds, NN, grid_points=Nz, frameskip=5, fps=15)
 
-# training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
+NN_heat_flux_filename = "NN_heat_flux.bson"
+if isfile(NN_heat_flux_filename)
+    @info "Loading $NN_heat_flux_filename..."
+    BSON.@load NN_heat_flux_filename NN
+else
+    NN = free_convection_neural_pde_architecture(Nz, top_flux=Q, bottom_flux=0.0)
+
+    for opt in [Descent(1e-1), Descent(5e-2), Descent(1e-2)]
+        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
+    end
+
+    @info "Saving $NN_heat_flux_filename..."
+    BSON.@save NN_heat_flux_filename NN
+
+    animate_learned_heat_flux(ds, NN, grid_points=Nz, frameskip=5, fps=15)
+end
+
+training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
