@@ -1,3 +1,4 @@
+using Random
 using Printf
 
 using NCDatasets
@@ -36,19 +37,20 @@ function animate_variable(ds, var; grid_points, xlabel, xlim, frameskip, fps)
     return nothing
 end
 
-function free_convection_heat_flux_training_data(ds; grid_points)
+function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0)
     T, wT = ds["T"], ds["wT"]
     Nz, Nt = size(T)
+
+    ρ₀ = nc_constant(ds, "Reference density")
+    cₚ = nc_constant(ds, "Specific_heat_capacity")
 
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
 
-    training_data =
-        [(coarse_grain( T[:, n], grid_points),
-          coarse_grain(wT[:, n], grid_points))
-         for n in 1:Nt]
+    inputs = [coarse_grain(T[:, n], grid_points) for n in 1+skip_first:Nt]
+    outputs = [ρ₀ * cₚ * coarse_grain(wT[:, n], grid_points) for n in 1+skip_first:Nt]
 
-    return training_data
+    return zip(inputs, outputs) |> collect |> shuffle
 end
 
 function free_convection_time_step_training_data(ds; grid_points, future_time_steps=1)
@@ -74,17 +76,17 @@ function free_convection_time_step_training_data(ds; grid_points, future_time_st
 end
 
 function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
-    loss(T, wT) = Flux.mse(NN(T), wT)
+    loss(T, ρ₀cₚwT) = Flux.mse(NN(T), ρ₀cₚwT) / sum(abs2, ρ₀cₚwT)
 
     function cb()
-        Σloss = [loss(T, wT) for (T, wT) in training_data] |> sum
+        Σloss = [loss(T, ρ₀cₚwT) for (T, ρ₀cₚwT) in training_data] |> sum
         @info "Training on heat flux... Σloss = $Σloss"
         return loss
     end
 
     for e in 1:epochs
-        @info "Training on heat flux [epoch $e/$epochs]..."
-        Flux.train!(loss, Flux.params(NN), training_data, optimizer)
+        @info "Training on heat flux with $(typeof(optimizer))(η=$(optimizer.eta)) [epoch $e/$epochs]..."
+        Flux.train!(loss, Flux.params(NN), training_data, optimizer, cb=cb)
         cb()
     end
 
@@ -94,6 +96,9 @@ end
 function animate_learned_heat_flux(ds, NN; grid_points, frameskip, fps)
     T, wT, z = ds["T"], ds["wT"], ds["zC"]
     Nz, Nt = size(T)
+
+    ρ₀ = nc_constant(ds, "Reference density")
+    cₚ = nc_constant(ds, "Specific_heat_capacity")
 
     z_coarse = coarse_grain(z, grid_points)
 
@@ -106,7 +111,7 @@ function animate_learned_heat_flux(ds, NN; grid_points, frameskip, fps)
              label="Oceananigans wT", xlabel="Heat flux", ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
-        wT_NN = coarse_grain(T[:, n], grid_points) |> NN
+        wT_NN = NN(coarse_grain(T[:, n], grid_points)) / (ρ₀ * cₚ)
 
         plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
     end
@@ -131,15 +136,20 @@ surface_heat_flux = Q / (ρ₀ * cₚ)
 
 Nz = 16  # Number of grid points for the neural PDE.
 
+skip_first = 5
 future_time_steps = 1
 
 # animate_variable(ds, "T", grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5, fps=15)
 # animate_variable(ds, "wT", grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5, fps=15)
 
-training_data_heat_flux = free_convection_heat_flux_training_data(ds, grid_points=Nz)
-training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
+training_data_heat_flux = free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first)
+@info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
 
 NN = free_convection_neural_pde_architecture(Nz, top_flux=surface_heat_flux, bottom_flux=0.0)
 
-# train_on_heat_flux!(NN, training_data_heat_flux, Descent(1e-6), epochs=10)
+for opt in [Descent(1e-3), Descent(1e-5), Descent(1e-7)]
+#     train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
+end
 # animate_learned_heat_flux(ds, NN, grid_points=Nz, frameskip=5, fps=15)
+
+# training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
