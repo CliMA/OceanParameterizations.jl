@@ -5,6 +5,9 @@ using NCDatasets
 using Plots
 using Flux
 using BSON
+using DifferentialEquations
+using DiffEqFlux
+using Optim
 
 using ClimateSurrogates
 using Oceananigans.Utils
@@ -125,6 +128,41 @@ function animate_learned_heat_flux(ds, NN; grid_points, frameskip, fps)
     mp4(anim, filename, fps=fps)
 
     return nothing
+end
+
+function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; epochs=1)
+    # Set up neural differential equation
+    tspan = (0.0, Δt)
+    npde = NeuralODE(NN, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
+
+    loss_function(θ, Tₙ, Tₙ₊₁) = Flux.mse(Tₙ₊₁, npde(Tₙ, θ))
+    training_loss(θ, data) = [loss_function(θ, d...) for d in training_data] |> sum
+
+    function cb(θ, args...)
+        Σloss = training_loss(θ, training_data)
+        println("Training free convection neural PDE... Σloss = $Σloss")
+        return Σloss
+    end
+
+    # Train!
+    for opt in optimizers
+        if opt isa Optim.AbstractOptimizer
+            full_loss(θ) = training_loss(θ, training_data)
+            for e in 1:epochs
+                @info "Training free convection neural PDE with $(typeof(opt)) [epoch $e/$epochs]..."
+                res = DiffEqFlux.sciml_train(full_loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=100)
+                display(res)
+                npde.p .= res.minimizer
+            end
+        else
+            for e in 1:epochs
+                @info "Training free convection neural PDE with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
+                res = DiffEqFlux.sciml_train(loss_function, npde.p, opt, training_data, cb=Flux.throttle(cb, 2))
+                display(res)
+                npde.p .= res.minimizer
+            end
+        end
+    end
 end
 
 ds = NCDataset("free_convection_horizontal_averages.nc")
