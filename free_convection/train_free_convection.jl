@@ -131,6 +131,9 @@ function animate_learned_heat_flux(ds, NN; grid_points, frameskip, fps)
 end
 
 function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; epochs=1)
+    # Set up neural network for PDE
+    dTdt_NN = Chain(NN, x -> x ./ (ρ₀ * cₚ))
+
     # Set up neural differential equation
     tspan = (0.0, Δt)
     npde = NeuralODE(NN, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
@@ -170,9 +173,9 @@ ds = NCDataset("free_convection_horizontal_averages.nc")
 # Should not have saved constant units as strings...
 nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
 
-Q  = nc_constant(ds, "Heat flux")
-ρ₀ = nc_constant(ds, "Reference density")
-cₚ = nc_constant(ds, "Specific_heat_capacity")
+const Q  = nc_constant(ds, "Heat flux")
+const ρ₀ = nc_constant(ds, "Reference density")
+const cₚ = nc_constant(ds, "Specific_heat_capacity")
 
 # surface_heat_flux = Q / (ρ₀ * cₚ)
 
@@ -209,4 +212,4 @@ else
     animate_learned_heat_flux(ds, NN, grid_points=Nz, frameskip=5, fps=15)
 end
 
-training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
+# training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
