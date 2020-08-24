@@ -18,9 +18,15 @@ end
 
 (L::ConservativeFluxLayer)(ϕ, p...) = cat(L.bottom_flux, ϕ, L.top_flux, dims=1)
 
-function free_convection_neural_pde_architecture(N; top_flux, bottom_flux, activation=relu)
-    return Chain(Dense(N, 4N, activation),
-                 Dense(4N, 4N, activation),
-                 Dense(4N, N-2),
-                 ConservativeFluxLayer(N, top_flux=top_flux, bottom_flux=bottom_flux))
+function free_convection_neural_pde_architecture(N; top_flux, bottom_flux, activation=relu, conservative=false)
+    if conservative
+        return Chain(Dense(N, 4N, activation),
+                     Dense(4N, 4N, activation),
+                     Dense(4N, N-2),
+                     ConservativeFluxLayer(N, top_flux=top_flux, bottom_flux=bottom_flux))
+    else
+        return Chain(Dense(N, 4N, activation),
+                     Dense(4N, 4N, activation),
+                     Dense(4N, N))
+    end
 end

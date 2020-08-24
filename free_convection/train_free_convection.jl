@@ -242,8 +242,6 @@ const Q  = nc_constant(ds, "Heat flux")
 const ρ₀ = nc_constant(ds, "Reference density")
 const cₚ = nc_constant(ds, "Specific_heat_capacity")
 
-# surface_heat_flux = Q / (ρ₀ * cₚ)
-
 Nz = 16  # Number of grid points for the neural PDE.
 
 skip_first = 5
