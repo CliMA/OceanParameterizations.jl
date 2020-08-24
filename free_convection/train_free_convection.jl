@@ -183,15 +183,15 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
     for opt in optimizers
         if opt isa Optim.AbstractOptimizer
             for e in 1:epochs
-                @info "Training free convection neural PDE with $(typeof(opt)) [epoch $e/$epochs]..."
+                @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt)) [epoch $e/$epochs]..."
                 res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb)
                 display(res)
                 npde.p .= res.minimizer
             end
         else
             for e in 1:epochs
-                @info "Training free convection neural PDE with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb, maxiters=2time_steps)
+                @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=time_steps)
                 display(res)
                 npde.p .= res.minimizer
             end
@@ -209,7 +209,8 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
     T₀_NN = coarse_grain(T[:, 1], grid_points) .|> S_T
     sol_npde = npde(T₀_NN) |> Array
 
-    anim = @animate for n=1:50
+    time_steps = size(sol_npde, 2)
+    anim = @animate for n=1:frameskip:time_steps
         @info "Plotting learned free convection [$n/$Nt]..."
 
         time_str = @sprintf("%.2f days", ds["time"][n] / day)
@@ -295,6 +296,8 @@ end
 
 FastChain(NN::Chain) = FastChain([make_layer_fast(layer) for layer in NN]...)
 
-npde = construct_neural_pde(FastChain(NN), ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
-
-# train_free_convection_neural_pde!(npde, training_data_time_step, [Descent()], 1.0)
+NN_fast = FastChain(NN)
+npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
+train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM()], epochs=5)
+npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=100)
+train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM()], epochs=5)
