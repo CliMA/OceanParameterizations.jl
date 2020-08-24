@@ -14,6 +14,8 @@ using Optim
 using ClimateSurrogates
 using Oceananigans.Utils
 
+import DiffEqFlux: FastChain
+
 using Flux.Data: DataLoader
 
 ENV["GKSwstype"] = "100"
@@ -164,30 +166,47 @@ function construct_neural_pde(NN, ds, standardization; grid_points, Δt, future_
     return NeuralODE(NN_∂T∂t, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
 end
 
-function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; epochs=1)
-    loss_function(θ, Tₙ, Tₙ₊₁) = Flux.mse(Tₙ₊₁, npde(Tₙ, θ))
-    training_loss(θ, data) = [loss_function(θ, d...) for d in training_data] |> sum
+function evolve_npde(npde, u₀, Nt)
+    Nz = length(u₀)
+    u = zeros(Nz, Nt)
+    u[:, 1] .= u₀
+    for n in 2:Nt
+        u[:, n] = npde(u[:, n-1]).u[end]
+    end
+    return u
+end
+
+function train_free_convection_neural_pde!(npde, training_data, optimizers, Δt; epochs=1)
+    Nt = 100
+    sol_correct = cat([training_data[n][1] for n in 1:Nt]..., dims=2)
+
+    loss(θ, Tₙ, Tₙ₊₁) = Flux.mse(npde(Tₙ, θ).u[end], Tₙ₊₁)
+
+    function Σloss(θ)
+        sol_npde = evolve_npde(npde, training_data[1][1], Nt)
+        return Flux.mse(sol_npde, sol_correct)
+    end
 
     function cb(θ, args...)
-        Σloss = training_loss(θ, training_data)
-        println("Training free convection neural PDE... Σloss = $Σloss")
+        println("Training free convection neural PDE... Σloss = $(Σloss(θ))")
         return false
     end
 
     # Train!
     for opt in optimizers
         if opt isa Optim.AbstractOptimizer
-            full_loss(θ) = training_loss(θ, training_data)
             for e in 1:epochs
                 @info "Training free convection neural PDE with $(typeof(opt)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(full_loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=100)
+                cb()
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt)
                 display(res)
                 npde.p .= res.minimizer
+                cb()
             end
         else
             for e in 1:epochs
                 @info "Training free convection neural PDE with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss_function, npde.p, opt, training_data, cb=Flux.throttle(cb, 2))
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, training_data, cb=Flux.throttle(cb, 2))
                 display(res)
                 npde.p .= res.minimizer
             end
@@ -292,7 +311,9 @@ function make_layer_fast(layer::Dense)
     N_out, N_in = size(layer.W)
     return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
 end
+
 FastChain(NN::Chain) = FastChain([make_layer_fast(layer) for layer in NN]...)
 
-npde = construct_neural_pde(FastChain(NN), ds, standardization, grid_points=Nz, Δt=1.0)
-train_free_convection_neural_pde!(npde, training_data_time_step, [Descent()], 1.0)
+npde = construct_neural_pde(FastChain(NN), ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
+
+# train_free_convection_neural_pde!(npde, training_data_time_step, [Descent()], 1.0)
