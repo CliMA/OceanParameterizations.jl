@@ -159,7 +159,7 @@ function construct_neural_pde(NN, ds, standardization; grid_points, Δt, future_
     # Set up neural network for PDE
     # ∂T/dt = - ∂z(wT) + ...
     σ_wT = standardization.wT.σ
-    NN_∂T∂t = Chain(NN, wT -> -Dzᶠ * wT)
+    NN_∂T∂t = FastChain(NN.layers..., (wT,_) -> -Dzᶠ * wT)
 
     # Set up neural differential equation
     tspan = (0.0, Δt)
@@ -173,7 +173,7 @@ function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; e
     function cb(θ, args...)
         Σloss = training_loss(θ, training_data)
         println("Training free convection neural PDE... Σloss = $Σloss")
-        return Σloss
+        return false
     end
 
     # Train!
@@ -253,4 +253,11 @@ else
     @info "Time step training data contains $(length(training_data_heat_flux)) pairs."
 end
 
-npde = construct_neural_pde(NN, ds, standardization; grid_points=Nz, Δt=1.0)
+function make_layer_fast(layer::Dense)
+    N_out, N_in = size(layer.W)
+    return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
+end
+FastChain(NN::Chain) = FastChain([make_layer_fast(layer) for layer in NN]...)
+
+npde = construct_neural_pde(FastChain(NN), ds, standardization, grid_points=Nz, Δt=1.0)
+train_free_convection_neural_pde!(npde, training_data_time_step, [Descent()], 1.0)
