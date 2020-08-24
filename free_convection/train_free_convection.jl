@@ -148,7 +148,7 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
     return nothing
 end
 
-function construct_neural_pde(NN, ds, standardization; grid_points, Δt, future_time_steps=1)
+function construct_neural_pde(NN, ds, standardization; grid_points, Δt, time_steps)
     Nz = grid_points
     zC = coarse_grain(ds["zC"], Nz)
     ΔzC = diff(zC)[1]
@@ -162,33 +162,20 @@ function construct_neural_pde(NN, ds, standardization; grid_points, Δt, future_
     NN_∂T∂t = FastChain(NN.layers..., (wT,_) -> -Dzᶠ * wT)
 
     # Set up neural differential equation
-    tspan = (0.0, Δt)
-    return NeuralODE(NN_∂T∂t, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
+    tspan = (0.0, time_steps * Δt)
+    tsteps = range(tspan[1], tspan[2], length = time_steps+1)
+    return NeuralODE(NN_∂T∂t, tspan, Tsit5(), reltol=1e-4, saveat=tsteps)
 end
 
-function evolve_npde(npde, u₀, Nt)
-    Nz = length(u₀)
-    u = zeros(Nz, Nt)
-    u[:, 1] .= u₀
-    for n in 2:Nt
-        u[:, n] = npde(u[:, n-1]).u[end]
-    end
-    return u
-end
+function train_free_convection_neural_pde!(npde, training_data, optimizers; epochs=1)
+    time_steps = length(npde.kwargs[:saveat])
+    sol_correct = cat([training_data[n][1] for n in 1:time_steps]..., dims=2)
 
-function train_free_convection_neural_pde!(npde, training_data, optimizers, Δt; epochs=1)
-    Nt = 100
-    sol_correct = cat([training_data[n][1] for n in 1:Nt]..., dims=2)
-
-    loss(θ, Tₙ, Tₙ₊₁) = Flux.mse(npde(Tₙ, θ).u[end], Tₙ₊₁)
-
-    function Σloss(θ)
-        sol_npde = evolve_npde(npde, training_data[1][1], Nt)
-        return Flux.mse(sol_npde, sol_correct)
-    end
+    T₀ = training_data[1][1]
+    loss(θ) = Flux.mse(Array(npde(T₀, θ)), sol_correct)
 
     function cb(θ, args...)
-        println("Training free convection neural PDE... Σloss = $(Σloss(θ))")
+        println("Training free convection neural PDE... loss = $(loss(θ))")
         return false
     end
 
@@ -197,16 +184,14 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers, Δt;
         if opt isa Optim.AbstractOptimizer
             for e in 1:epochs
                 @info "Training free convection neural PDE with $(typeof(opt)) [epoch $e/$epochs]..."
-                cb()
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt)
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb)
                 display(res)
                 npde.p .= res.minimizer
-                cb()
             end
         else
             for e in 1:epochs
                 @info "Training free convection neural PDE with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, training_data, cb=Flux.throttle(cb, 2))
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb, maxiters=2time_steps)
                 display(res)
                 npde.p .= res.minimizer
             end
@@ -221,9 +206,10 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
 
     S_T, S⁻¹_T = standardization.T.standardize, standardization.T.standardize⁻¹
 
-    T_NN = coarse_grain(T[:, 1], grid_points) .|> S_T
+    T₀_NN = coarse_grain(T[:, 1], grid_points) .|> S_T
+    sol_npde = npde(T₀_NN) |> Array
 
-    anim = @animate for n=1:100
+    anim = @animate for n=1:50
         @info "Plotting learned free convection [$n/$Nt]..."
 
         time_str = @sprintf("%.2f days", ds["time"][n] / day)
@@ -232,12 +218,7 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
              label="Oceananigans T(z,t)", xlabel="Temperature (°C)", ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
-        if n == 1
-            plot!(T_NN, z_coarse, linewidth=2, label="Neural PDE")
-        else
-            T_NN = npde(T_NN).u[end]
-            plot!(S⁻¹_T.(T_NN), z_coarse, linewidth=2, label="Neural PDE")
-        end
+        plot!(S⁻¹_T.(sol_npde[:, n]), z_coarse, linewidth=2, label="Neural PDE")
     end
 
     filename = "free_convection_neural_pde.mp4"
