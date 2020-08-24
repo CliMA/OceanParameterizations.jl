@@ -1,5 +1,6 @@
 using Interpolations
 using QuadGK
+using Jacobi
 using PyPlot
 
 function polynomial_decomposition(f, xs, ops, rtol=1e-8)
@@ -17,10 +18,9 @@ function polynomial_decomposition(f, xs, ops, rtol=1e-8)
     return cs, f′
 end
 
-xs = range(-π, π, length=101) |> collect
+xs = range(-π, π, length=101)
 f(x) = x/π + 2exp(-3(x+2)^2) -  3exp(-6(x-1)^2)
-
-Ns = (2, 8, 32)
+Ns = (2, 4, 16)
 
 cs_even, ℑf_even = Dict(), Dict()
 cs_odd,  ℑf_odd  = Dict(), Dict()
@@ -37,4 +37,23 @@ for N in Ns
 end
 plt.legend()
 plt.title("Fourier series decomposition")
+plt.savefig("fourier_decomposition.png")
+plt.close("all")
 
+xs = range(-1, 1, length=101)
+f(x) = x + 2exp(-2π*(x+2/π)^2) -  3exp(-6π*(x-1/π)^2)
+Ns = (4, 8, 32)
+
+cs, ℑf = Dict(), Dict()
+for N in  Ns
+    ops = [x -> legendre(x, n) for n in 1:N]
+    cs[N], ℑf[N] = polynomial_decomposition(f, xs, ops)
+end
+
+plot(xs, f.(xs), label="data")
+for N in Ns
+    plot(xs, ℑf[N].(xs), label="N=$N")
+end
+plt.legend()
+plt.title("Legendre series decomposition")
+plt.savefig("legendre_decomposition.png")
