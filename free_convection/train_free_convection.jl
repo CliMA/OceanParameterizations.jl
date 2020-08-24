@@ -1,6 +1,7 @@
 using Printf
 using Random
 using Statistics
+using LinearAlgebra
 
 using NCDatasets
 using Plots
@@ -67,25 +68,31 @@ function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0)
 
     training_data = [(inputs[:, n], outputs[:, n]) for n in 1:Nt-skip_first] |> shuffle
 
-    return training_data, standardize_T, standardize⁻¹_T, standardize_wT, standardize⁻¹_wT
+    standardization = (
+        T = (μ=μ_T, σ=σ_T, standardize=standardize_T, standardize⁻¹=standardize⁻¹_T),
+        wT = (μ=μ_wT, σ=σ_wT, standardize=standardize_wT, standardize⁻¹=standardize⁻¹_wT)
+    )
+
+    return training_data, standardization
 end
 
-function free_convection_time_step_training_data(ds; grid_points, future_time_steps=1)
+function free_convection_time_step_training_data(ds, standardization; grid_points, future_time_steps=1)
     T = ds["T"]
     Nz, Nt = size(T)
+    S_T = standardization.T.standardize
 
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
 
     if future_time_steps == 1
         training_data =
-            [(coarse_grain(T[:, n],   grid_points),
-              coarse_grain(T[:, n+1], grid_points))
+            [(coarse_grain(T[:, n],   grid_points) .|> S_T,
+              coarse_grain(T[:, n+1], grid_points) .|> S_T)
              for n in 1:Nt-1]
     else
         training_data =
-            [(coarse_grain(T[:, n], grid_points),
-              cat((coarse_grain(T[:, k], grid_points) for k in n+1:n+future_time_steps)..., dims=2))
+            [(coarse_grain(T[:, n], grid_points) .|> S_T,
+              cat((coarse_grain(T[:, k], grid_points) for k in n+1:n+future_time_steps)..., dims=2) .|> S_T)
              for n in 1:Nt-future_time_steps]
     end
 
@@ -110,7 +117,7 @@ function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
     return nothing
 end
 
-function animate_learned_heat_flux(ds, NN, Si, S⁻¹o; grid_points, frameskip, fps)
+function animate_learned_heat_flux(ds, NN, standardization; grid_points, frameskip, fps)
     T, wT, z = ds["T"], ds["wT"], ds["zC"]
     Nz, Nt = size(T)
 
@@ -128,7 +135,8 @@ function animate_learned_heat_flux(ds, NN, Si, S⁻¹o; grid_points, frameskip, 
              label="Oceananigans wT", xlabel="Heat flux", ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
-        wT_NN = coarse_grain(T[:, n], grid_points) .|> Si |> NN .|> S⁻¹o
+        S_T, S⁻¹_wT = standardization.T.standardize, standardization.wT.standardize⁻¹
+        wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T |> NN .|> S⁻¹_wT
 
         plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
     end
@@ -140,14 +148,25 @@ function animate_learned_heat_flux(ds, NN, Si, S⁻¹o; grid_points, frameskip, 
     return nothing
 end
 
-function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; epochs=1)
+function construct_neural_pde(NN, ds, standardization; grid_points, Δt, future_time_steps=1)
+    Nz = grid_points
+    zC = coarse_grain(ds["zC"], Nz)
+    ΔzC = diff(zC)[1]
+
+    # Computes the derivative from cell center to cell (f)aces
+    Dzᶠ = 1/ΔzC * Tridiagonal(-ones(Nz-1), ones(Nz), zeros(Nz-1))
+
     # Set up neural network for PDE
-    dTdt_NN = Chain(NN, x -> x ./ (ρ₀ * cₚ))
+    # ∂T/dt = - ∂z(wT) + ...
+    σ_wT = standardization.wT.σ
+    NN_∂T∂t = Chain(NN, wT -> -Dzᶠ * wT)
 
     # Set up neural differential equation
     tspan = (0.0, Δt)
-    npde = NeuralODE(NN, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
+    return NeuralODE(NN_∂T∂t, tspan, Tsit5(), reltol=1e-4, saveat=[Δt])
+end
 
+function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; epochs=1)
     loss_function(θ, Tₙ, Tₙ₊₁) = Flux.mse(Tₙ₊₁, npde(Tₙ, θ))
     training_loss(θ, data) = [loss_function(θ, d...) for d in training_data] |> sum
 
@@ -197,7 +216,7 @@ future_time_steps = 1
 # animate_variable(ds, "T", grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5, fps=15)
 # animate_variable(ds, "wT", grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5, fps=15)
 
-training_data_heat_flux, S_T, S⁻¹_T, S_wT, S⁻¹_wT =
+training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first)
 
 if training_data_heat_flux isa DataLoader
@@ -211,7 +230,9 @@ if isfile(NN_heat_flux_filename)
     @info "Loading $NN_heat_flux_filename..."
     BSON.@load NN_heat_flux_filename NN
 else
-    NN = free_convection_neural_pde_architecture(Nz, top_flux=Q, bottom_flux=0.0)
+    top_flux = standardization.wT.standardize(Q)
+    bot_flux = standardization.wT.standardize(0.0)
+    NN = free_convection_neural_pde_architecture(Nz, top_flux=top_flux, bottom_flux=bot_flux)
 
     for opt in [ADAM(1e-2), Descent(1e-2), Descent(1e-3)]
         train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
@@ -223,4 +244,13 @@ else
     animate_learned_heat_flux(ds, NN, S_T, S⁻¹_wT, grid_points=Nz, frameskip=5, fps=15)
 end
 
-# training_data_time_step = free_convection_time_step_training_data(ds, grid_points=Nz, future_time_steps=future_time_steps)
+training_data_time_step =
+    free_convection_time_step_training_data(ds, standardization, grid_points=Nz, future_time_steps=future_time_steps)
+
+if training_data_time_step isa DataLoader
+    @info "Time step training data contains $(training_data_heat_flux.nobs) pairs (batchsize=$(training_data_heat_flux.batchsize))."
+else
+    @info "Time step training data contains $(length(training_data_heat_flux)) pairs."
+end
+
+npde = construct_neural_pde(NN, ds, standardization; grid_points=Nz, Δt=1.0)
