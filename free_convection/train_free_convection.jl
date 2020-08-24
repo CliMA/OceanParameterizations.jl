@@ -165,7 +165,7 @@ function construct_neural_pde(NN, ds, standardization; grid_points, Δt, time_st
     # Set up neural differential equation
     tspan = (0.0, time_steps * Δt)
     tsteps = range(tspan[1], tspan[2], length = time_steps+1)
-    return NeuralODE(NN_∂T∂t, tspan, Tsit5(), reltol=1e-4, saveat=tsteps)
+    return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
 end
 
 function train_free_convection_neural_pde!(npde, training_data, optimizers; epochs=1)
