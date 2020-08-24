@@ -16,6 +16,8 @@ using Oceananigans.Utils
 
 using Flux.Data: DataLoader
 
+ENV["GKSwstype"] = "100"
+
 include("free_convection_npde.jl")
 
 function animate_variable(ds, var; grid_points, xlabel, xlim, frameskip, fps)
@@ -120,10 +122,6 @@ end
 function animate_learned_heat_flux(ds, NN, standardization; grid_points, frameskip, fps)
     T, wT, z = ds["T"], ds["wT"], ds["zC"]
     Nz, Nt = size(T)
-
-    ρ₀ = nc_constant(ds, "Reference density")
-    cₚ = nc_constant(ds, "Specific_heat_capacity")
-
     z_coarse = coarse_grain(z, grid_points)
 
     anim = @animate for n=1:frameskip:Nt
@@ -196,6 +194,43 @@ function train_free_convection_neural_pde!(NN, training_data, optimizers, Δt; e
         end
     end
 end
+
+function animate_learned_free_convection(ds, npde, standardization; grid_points, frameskip, fps)
+    T, wT, z = ds["T"], ds["wT"], ds["zC"]
+    Nz, Nt = size(T)
+    z_coarse = coarse_grain(z, grid_points)
+
+    S_T, S⁻¹_T = standardization.T.standardize, standardization.T.standardize⁻¹
+
+    T_NN = coarse_grain(T[:, 1], grid_points) .|> S_T
+
+    anim = @animate for n=1:100
+        @info "Plotting learned free convection [$n/$Nt]..."
+
+        time_str = @sprintf("%.2f days", ds["time"][n] / day)
+
+        plot(T[:, n], z, linewidth=2, xlim=(19, 20), ylim=(-100, 0),
+             label="Oceananigans T(z,t)", xlabel="Temperature (°C)", ylabel="Depth z (meters)",
+             title="Free convection: $time_str", legend=:bottomright, show=false)
+
+        if n == 1
+            plot!(T_NN, z_coarse, linewidth=2, label="Neural PDE")
+        else
+            T_NN = npde(T_NN).u[end]
+            plot!(S⁻¹_T.(T_NN), z_coarse, linewidth=2, label="Neural PDE")
+        end
+    end
+
+    filename = "free_convection_neural_pde.mp4"
+    @info "Saving $filename"
+    mp4(anim, filename, fps=fps)
+
+    return nothing
+end
+
+#####
+##### Script starts here
+#####
 
 ds = NCDataset("free_convection_horizontal_averages.nc")
 
