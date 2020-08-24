@@ -108,7 +108,7 @@ function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
 
     function cb()
         Σloss = [loss(T, wT) for (T, wT) in training_data] |> sum
-        @info "Training on heat flux... Σloss = $Σloss"
+        @info @sprintf("Training on heat flux... Σloss = %e", Σloss)
         return loss
     end
 
@@ -175,7 +175,7 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
     loss(θ) = Flux.mse(Array(npde(T₀, θ)), sol_correct)
 
     function cb(θ, args...)
-        println("Training free convection neural PDE... loss = $(loss(θ))")
+        @info @sprintf("Training free convection neural PDE... loss = %e", loss(θ))
         return false
     end
 
@@ -184,7 +184,7 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
         if opt isa Optim.AbstractOptimizer
             for e in 1:epochs
                 @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb)
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2))
                 display(res)
                 npde.p .= res.minimizer
             end
@@ -298,6 +298,7 @@ FastChain(NN::Chain) = FastChain([make_layer_fast(layer) for layer in NN]...)
 
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
-train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM()], epochs=5)
+train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=10)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=100)
-train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM()], epochs=5)
+train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=10)
+train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-4)], epochs=10)
