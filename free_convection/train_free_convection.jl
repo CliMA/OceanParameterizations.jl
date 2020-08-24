@@ -52,6 +52,7 @@ end
 function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0)
     T, wT = ds["T"], ds["wT"]
     Nz, Nt = size(T)
+    Nt = min(Nt, 500+skip_first)
 
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
@@ -298,9 +299,17 @@ FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
-train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=10)
-npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=100)
-train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=10)
-train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-4)], epochs=10)
+
+for Nt in (50, 100, 200, 325, 500)
+    global npde
+    new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=Nt)
+    new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
+    train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=5)
+end
+
+npde_filename = "free_convection_neural_pde_parameters.bson"
+@info "Saving $npde_filename..."
+npde_params = npde.p
+BSON.@save npde_filename npde_params
 
 animate_learned_free_convection(ds, npde, standardization, grid_points=Nz, skip_first=skip_first)
