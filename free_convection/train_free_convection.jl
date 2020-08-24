@@ -289,12 +289,12 @@ else
     @info "Time step training data contains $(length(training_data_heat_flux)) pairs."
 end
 
-function make_layer_fast(layer::Dense)
+function FastLayer(layer::Dense)
     N_out, N_in = size(layer.W)
     return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
 end
 
-FastChain(NN::Chain) = FastChain([make_layer_fast(layer) for layer in NN]...)
+FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
