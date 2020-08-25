@@ -137,9 +137,15 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
         S_T, S⁻¹_wT = standardization.T.standardize, standardization.wT.standardize⁻¹
-        wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T |> NN .|> S⁻¹_wT
 
-        plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+        if NN isa Flux.Chain
+            wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T |> NN .|> S⁻¹_wT
+            plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+        elseif NN isa DiffEqFlux.NeuralODE
+            wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T
+            wT_NN = npde.model(wT_NN, npde.p) .|> S⁻¹_wT
+            plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+        end
     end
 
     filename = "free_convection_learned_heat_flux.mp4"
