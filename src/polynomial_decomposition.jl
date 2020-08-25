@@ -3,12 +3,12 @@ using QuadGK
 using Jacobi
 using PyPlot
 
-function polynomial_decomposition(f, xs, ops; w=identity, rtol=1e-8)
+function polynomial_decomposition(f, xs, ops; w=one, rtol=1e-8)
     x1, x2 = minimum(xs), maximum(xs)
     ys = f.(xs)
     ℑf = interpolate((xs,), ys, Gridded(Linear()))
 
-    numerators = [quadgk(x -> ℑf(x) * op(x), x1, x2, rtol=rtol)[1] for op in ops]
+    numerators = [quadgk(x -> ℑf(x) * op(x) * w(x), x1, x2, rtol=rtol)[1] for op in ops]
     denominators = [quadgk(x -> op(x)^2 * w(x), x1, x2, rtol=rtol)[1] for op in ops]
     cs = numerators ./ denominators
 
@@ -59,13 +59,13 @@ plt.title("Legendre series decomposition")
 plt.savefig("legendre_decomposition.png")
 plt.close("all")
 
-Ns = (4, 8, 32)
+Ns = (4, 8, 32, 64)
 
 cs, ℑf = Dict(), Dict()
 for N in  Ns
-    w(x) = 1 / √(1 - x^2)
+    w(x) = √(1 - x^2)
     ops = [x -> chebyshev(x, n) for n in 1:N]
-    cs[N], ℑf[N] = polynomial_decomposition(f, xs, ops, w=w)
+    cs[N], ℑf[N] = polynomial_decomposition(f, xs, ops)
 end
 
 plot(xs, f.(xs), label="data")
