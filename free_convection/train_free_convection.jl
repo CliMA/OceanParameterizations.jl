@@ -155,21 +155,27 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
     return nothing
 end
 
-function construct_neural_pde(NN, ds, standardization; grid_points, Δt, time_steps)
+function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
+    H = abs(ds["zF"][1])
+    τ = ds["time"][end]
+
     Nz = grid_points
     zC = coarse_grain(ds["zC"], Nz)
-    ΔzC = diff(zC)[1]
+    Δẑ = diff(zC)[1] / H
 
     # Computes the derivative from cell center to cell (f)aces
-    Dzᶠ = 1/ΔzC * Tridiagonal(-ones(Nz-1), ones(Nz), zeros(Nz-1))
+    Dzᶠ = 1/Δẑ * Tridiagonal(-ones(Nz-1), ones(Nz), zeros(Nz-1))
 
-    # Set up neural network for PDE
+    # Set up neural network for non-dimensional PDE
     # ∂T/dt = - ∂z(wT) + ...
-    σ_wT = standardization.wT.σ
-    NN_∂T∂t = FastChain(NN.layers..., (wT,_) -> -Dzᶠ * wT)
+    σ_T, σ_wT = standardization.T.σ, standardization.wT.σ
+    NN_∂T∂t = FastChain(NN.layers...,
+                        (wT, _) -> - Dzᶠ * wT,
+                        (∂z_wT, _) -> σ_wT/σ_T * τ/H * ∂z_wT)
 
     # Set up neural differential equation
-    tspan = (0.0, time_steps * Δt)
+    Nt = length(ds["time"])
+    tspan = (0.0, time_steps/Nt)
     tsteps = range(tspan[1], tspan[2], length = time_steps+1)
     return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
 end
@@ -304,11 +310,12 @@ end
 FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 
 NN_fast = FastChain(NN)
-npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
+npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=50)
 
-for (Nt, epochs) in zip((50, 100, 200, 325, 500, 750), (5, 4, 3, 3, 3, 3))
+# for (Nt, epochs) in zip((50, 100, 200, 325, 500, 750), (5, 4, 3, 3, 3, 3))
+for (Nt, epochs) in zip((50, 100, 200), (5, 4, 3))
     global npde
-    new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=Nt)
+    new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=Nt)
     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
     train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=epochs)
 end
