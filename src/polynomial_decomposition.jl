@@ -26,8 +26,8 @@ Ns = (2, 4, 16)
 
 cs_even, ℑf_even = Dict(), Dict()
 cs_odd,  ℑf_odd  = Dict(), Dict()
-for N in  Ns
-    ops_cos = [x -> cos(n*x) for n in 1:N]
+for N in Ns
+    ops_cos = [x -> cos(n*x) for n in 0:N]
     ops_sin = [x -> sin(n*x) for n in 1:N]
     cs_even[N], ℑf_even[N] = polynomial_decomposition(f, xs, ops_cos)
     cs_odd[N],  ℑf_odd[N]  = polynomial_decomposition(f, xs, ops_sin)
@@ -42,6 +42,7 @@ plt.title("Fourier series decomposition")
 plt.savefig("fourier_decomposition.png")
 plt.close("all")
 
+#=
 @info "Decomposing into Legendre series..."
 
 xs = range(-1, 1, length=101)
