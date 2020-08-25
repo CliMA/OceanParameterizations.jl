@@ -198,7 +198,7 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
         else
             for e in 1:epochs
                 @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=time_steps)
+                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=100)
                 display(res)
                 npde.p .= res.minimizer
             end
@@ -306,11 +306,11 @@ FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=50)
 
-for Nt in (50, 100, 200, 325, 500)
+for (Nt, epochs) in zip((50, 100, 200, 325, 500, 750), (5, 4, 3, 3, 3, 3))
     global npde
     new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, Δt=1.0, time_steps=Nt)
     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
-    train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=5)
+    train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=epochs)
 end
 
 npde_filename = "free_convection_neural_pde_parameters.bson"
