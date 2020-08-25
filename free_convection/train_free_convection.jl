@@ -312,8 +312,7 @@ FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=50)
 
-# for (Nt, epochs) in zip((50, 100, 200, 325, 500, 750), (5, 4, 3, 3, 3, 3))
-for (Nt, epochs) in zip((50, 100, 200), (5, 4, 3))
+for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (5, 4, 3, 3, 3, 3, 3))
     global npde
     new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=Nt)
     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
