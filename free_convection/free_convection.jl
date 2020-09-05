@@ -96,13 +96,13 @@ global_attributes = Dict(
 u, v, w = model.velocities
 T = model.tracers.T
 
-L⁻²∫u_dxdy = Average(u, dims=(1, 2), return_type=Array)
-L⁻²∫v_dxdy = Average(v, dims=(1, 2), return_type=Array)
-L⁻²∫T_dxdy = Average(T, dims=(1, 2), return_type=Array)
+L⁻²∫u_dxdy = Average(u, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫v_dxdy = Average(v, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫T_dxdy = Average(T, dims=(1, 2), return_type=Array, with_halos=false)
 
-L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), return_type=Array)
-L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), return_type=Array)
-L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), return_type=Array)
+L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), return_type=Array, with_halos=false)
 
 
 profile_output_attributes = Dict(
@@ -117,15 +117,16 @@ profile_output_attributes = Dict(
 
 Hz = model.grid.Hz
 profiles = Dict(
-    "u"  => model -> L⁻²∫u_dxdy(model)[1+Hz:end-Hz],
-    "v"  => model -> L⁻²∫v_dxdy(model)[1+Hz:end-Hz],
-    "T"  => model -> L⁻²∫T_dxdy(model)[1+Hz:end-Hz],
-    "uT" => model -> L⁻²∫uT_dxdy(model)[1+Hz:end-Hz],
-    "vT" => model -> L⁻²∫vT_dxdy(model)[1+Hz:end-Hz],
-    "wT" => model -> L⁻²∫wT_dxdy(model)[1+Hz:end-Hz]
+    "u"  => L⁻²∫u_dxdy,
+    "v"  => L⁻²∫v_dxdy,
+    "T"  => L⁻²∫T_dxdy,
+    "uT" => L⁻²∫uT_dxdy,
+    "vT" => L⁻²∫vT_dxdy,
+    "wT" => L⁻²∫wT_dxdy
 )
 
 profile_dims = Dict(k => ("zC",) for k in keys(profiles))
+profile_dims["wT"] = ("zF",)
 
 simulation.output_writers[:profiles] =
     NetCDFOutputWriter(model, profiles, filename="free_convection_horizontal_averages.nc",
