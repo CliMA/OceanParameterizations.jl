@@ -22,7 +22,7 @@ function free_convection_neural_pde_architecture(N; top_flux, bottom_flux, activ
     if conservative
         return Chain(Dense(N, 4N, activation),
                      Dense(4N, 4N, activation),
-                     Dense(4N, N-2),
+                     Dense(4N, N-1),
                      ConservativeFluxLayer(N, top_flux=top_flux, bottom_flux=bottom_flux))
     else
         return Chain(Dense(N, 4N, activation),
