@@ -12,6 +12,7 @@ using DiffEqFlux
 using Optim
 
 using ClimateSurrogates
+using Oceananigans.Grids
 using Oceananigans.Utils
 
 import DiffEqFlux: FastChain
@@ -22,24 +23,34 @@ ENV["GKSwstype"] = "100"
 
 include("free_convection_npde.jl")
 
-function animate_variable(ds, var; grid_points, xlabel, xlim, frameskip, fps)
+function animate_variable(ds, var, loc; grid_points, xlabel, xlim, frameskip=1, fps=15)
     Nz, Nt = size(ds[var])
 
-    z_fine = ds["zC"]
-    z_coarse = coarse_grain(ds["zC"], grid_points)
+    if loc == Cell
+        z_fine = ds["zC"]
+        z_coarse = coarse_grain(ds["zC"], grid_points, Cell)
+    elseif loc == Face
+        z_fine = ds["zF"]
+        z_coarse = coarse_grain(ds["zF"], grid_points+1, Face)
+    end
 
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting $var [$n/$Nt]..."
         var_fine = ds[var][:, n]
-        var_coarse = coarse_grain(ds[var][:, n], grid_points)
+
+        if loc == Cell
+            var_coarse = coarse_grain(ds[var][:, n], grid_points, Cell)
+        elseif loc == Face
+            var_coarse = coarse_grain(ds[var][:, n], grid_points+1, Face)
+        end
 
         time_str = @sprintf("%.2f days", ds["time"][n] / day)
 
         plot(var_fine, z_fine, linewidth=2, xlim=xlim, ylim=(-100, 0),
-             label="fine (Nz=$Nz)", xlabel=xlabel, ylabel="Depth z (meters)",
+             label="fine (Nz=$(length(z_fine)))", xlabel=xlabel, ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
-        plot!(var_coarse, z_coarse, linewidth=2, label="coarse (Nz=$grid_points)")
+        plot!(var_coarse, z_coarse, linewidth=2, label="coarse (Nz=$(length(z_coarse)))")
     end
 
     filename = "free_convection_$var.mp4"
@@ -260,8 +271,8 @@ Nz = 16  # Number of grid points for the neural PDE.
 skip_first = 5
 future_time_steps = 1
 
-# animate_variable(ds, "T", grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-# animate_variable(ds, "wT", grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+animate_variable(ds, "T", Cell, grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
+animate_variable(ds, "wT", Face, grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
 
 training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first)
