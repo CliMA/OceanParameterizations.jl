@@ -60,16 +60,20 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, frameskip=1, 
     return nothing
 end
 
-function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0)
+function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0, top_flux, bottom_flux)
     T, wT = ds["T"], ds["wT"]
     Nz, Nt = size(T)
-    Nt = min(Nt, 500+skip_first)
 
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
 
-    inputs = cat([coarse_grain(T[:, n], grid_points) for n in 1+skip_first:Nt]..., dims=2)
-    outputs = cat([coarse_grain(wT[:, n], grid_points) for n in 1+skip_first:Nt]..., dims=2)
+    inputs = cat([coarse_grain(T[:, n], grid_points, Cell) for n in 1+skip_first:Nt]..., dims=2)
+    outputs = cat([coarse_grain(wT[:, n], grid_points+1, Face) for n in 1+skip_first:Nt]..., dims=2)
+
+    for n in 1:Nt-skip_first
+        outputs[1, n] = bottom_flux
+        outputs[grid_points+1, n] = top_flux
+    end
 
     μ_T, σ_T = mean(inputs), std(inputs)
     μ_wT, σ_wT = mean(outputs), std(outputs)
@@ -134,28 +138,28 @@ function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
 end
 
 function animate_learned_heat_flux(ds, NN, standardization; grid_points, frameskip=1, fps=15)
-    T, wT, z = ds["T"], ds["wT"], ds["zC"]
+    T, wT, zF = ds["T"], ds["wT"], ds["zF"]
     Nz, Nt = size(T)
-    z_coarse = coarse_grain(z, grid_points)
-
+    zF_coarse = coarse_grain(zF, grid_points+1, Face)
+    
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting learned heat flux [$n/$Nt]..."
 
         time_str = @sprintf("%.2f days", ds["time"][n] / day)
 
-        plot(wT[:, n], z, linewidth=2, xlim=(-1e-5, 3e-5), ylim=(-100, 0),
+        plot(wT[:, n], zF, linewidth=2, xlim=(-1e-5, 3e-5), ylim=(-100, 0),
              label="Oceananigans wT", xlabel="Heat flux", ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
         S_T, S⁻¹_wT = standardization.T.standardize, standardization.wT.standardize⁻¹
 
         if NN isa Flux.Chain
-            wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T |> NN .|> S⁻¹_wT
-            plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+            wT_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T |> NN .|> S⁻¹_wT
+            plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
         elseif NN isa DiffEqFlux.NeuralODE
-            wT_NN = coarse_grain(T[:, n], grid_points) .|> S_T
-            wT_NN = npde.model(wT_NN, npde.p) .|> S⁻¹_wT
-            plot!(wT_NN, z_coarse, linewidth=2, label="Neural network")
+            T_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T
+            wT_NN = npde.model(T_NN, npde.p) .|> S⁻¹_wT
+            plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
         end
     end
 
@@ -262,35 +266,37 @@ ds = NCDataset("free_convection_horizontal_averages.nc")
 # Should not have saved constant units as strings...
 nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
 
-const Q  = nc_constant(ds, "Heat flux")
-const ρ₀ = nc_constant(ds, "Reference density")
-const cₚ = nc_constant(ds, "Specific_heat_capacity")
+Q  = nc_constant(ds, "Heat flux")
+ρ₀ = nc_constant(ds, "Reference density")
+cₚ = nc_constant(ds, "Specific_heat_capacity")
+
+top_flux = Q / (ρ₀ * cₚ)
+bot_flux = 0.0
 
 Nz = 16  # Number of grid points for the neural PDE.
 
 skip_first = 5
 future_time_steps = 1
 
-animate_variable(ds, "T", Cell, grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-animate_variable(ds, "wT", Face, grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+# animate_variable(ds, "T", Cell, grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
+# animate_variable(ds, "wT", Face, grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
 
 training_data_heat_flux, standardization =
-    free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first)
+    free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first,
+                                            top_flux=top_flux, bottom_flux=bot_flux)
 
-if training_data_heat_flux isa DataLoader
-    @info "Heat flux training data contains $(training_data_heat_flux.nobs) pairs (batchsize=$(training_data_heat_flux.batchsize))."
-else
-    @info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
-end
+@info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
 
 NN_heat_flux_filename = "NN_heat_flux.bson"
 if isfile(NN_heat_flux_filename)
     @info "Loading $NN_heat_flux_filename..."
     BSON.@load NN_heat_flux_filename NN
 else
-    top_flux = standardization.wT.standardize(Q / (ρ₀ * cₚ))
-    bot_flux = standardization.wT.standardize(0.0)
-    NN = free_convection_neural_pde_architecture(Nz, top_flux=top_flux, bottom_flux=bot_flux)
+    top_flux_NN = standardization.wT.standardize(top_flux)
+    bot_flux_NN = standardization.wT.standardize(bot_flux)
+
+    NN = free_convection_neural_pde_architecture(Nz,
+            top_flux=top_flux_NN, bottom_flux=bot_flux_NN, conservative=true)
 
     for opt in [ADAM(1e-2), Descent(1e-2), Descent(1e-3)]
         train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
