@@ -1,22 +1,29 @@
+using Statistics
+using Oceananigans.Grids
+
 # weights(f::FastDense, θ) = reshape(θ[1:(f.out*f.in)], f.out, f.in)
 # bias(f::FastDense, θ) = θ[(f.out*f.in+1):end]
 
 """
     coarse_grain(Φ, n)
 
-Average or coarse grain a field `Φ` down to a size `n`. `Φ` is required to have evenly spaced points and n <= length(Φ).
-
-Code credit: https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/utils.jl
+Average or coarse grain a cell-centered field `Φ` down to a size `n`. `Φ` is required to have evenly spaced points and n <= length(Φ).
 """
-function coarse_grain(Φ, n)
-    m = length(Φ)
-    scale = Int(floor(m/n))
-    Φ̅ = zeros(n)
+function coarse_grain(Φ, n, ::Type{Cell})
+    N = length(Φ)
+    Δ = Int(N / n)
+    Φ̅ = similar(Φ, n)
     for i in 1:n
-        Φ̅[i] = 0
-        for j in 1:scale
-            Φ̅[i] += Φ[scale*(i-1) + j] / scale
-        end
+        Φ̅[i] = mean(Φ[Δ*(i-1)+1:Δ*i])
     end
+    return Φ̅
+end
+
+function coarse_grain(Φ, n, ::Type{Face})
+    N = length(Φ)
+    Δ = Int((N-2) / (n-2))
+    Φ̅ = similar(Φ, n)
+    Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+    Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
     return Φ̅
 end
