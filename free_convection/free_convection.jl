@@ -96,14 +96,22 @@ global_attributes = Dict(
 u, v, w = model.velocities
 T = model.tracers.T
 
-L⁻²∫u_dxdy = Average(u, dims=(1, 2), return_type=Array, with_halos=false)
-L⁻²∫v_dxdy = Average(v, dims=(1, 2), return_type=Array, with_halos=false)
-L⁻²∫T_dxdy = Average(T, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫u_dxdy = Average(u, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫v_dxdy = Average(v, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫T_dxdy = Average(T, dims=(1, 2), with_halos=false, return_type=Array)
 
-L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), return_type=Array, with_halos=false)
-L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), return_type=Array, with_halos=false)
-L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), return_type=Array, with_halos=false)
+L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), with_halos=false, return_type=Array)
 
+profiles = Dict(
+    "u"  => L⁻²∫u_dxdy,
+    "v"  => L⁻²∫v_dxdy,
+    "T"  => L⁻²∫T_dxdy,
+    "uT" => L⁻²∫uT_dxdy,
+    "vT" => L⁻²∫vT_dxdy,
+    "wT" => L⁻²∫wT_dxdy
+)
 
 profile_output_attributes = Dict(
     "u"  => Dict("longname" => "Horizontally averaged velocity in the x-direction", "units" => "m/s"),
@@ -114,24 +122,13 @@ profile_output_attributes = Dict(
     "wT" => Dict("longname" => "Horizontally averaged heat flux in the z-direction", "units" => "°C m/s")
 )
 
-
-Hz = model.grid.Hz
-profiles = Dict(
-    "u"  => L⁻²∫u_dxdy,
-    "v"  => L⁻²∫v_dxdy,
-    "T"  => L⁻²∫T_dxdy,
-    "uT" => L⁻²∫uT_dxdy,
-    "vT" => L⁻²∫vT_dxdy,
-    "wT" => L⁻²∫wT_dxdy
-)
-
 profile_dims = Dict(k => ("zC",) for k in keys(profiles))
 profile_dims["wT"] = ("zF",)
 
+nc_filepath = "free_convection_horizontal_averages_$(Q)W.nc"
 simulation.output_writers[:profiles] =
-    NetCDFOutputWriter(model, profiles, filename="free_convection_horizontal_averages.nc",
+    NetCDFOutputWriter(model, profiles, filename=nc_filepath,
                        global_attributes=global_attributes, output_attributes=profile_output_attributes,
                        dimensions=profile_dims, time_interval=10minute, verbose=true)
 
 run!(simulation)
-
