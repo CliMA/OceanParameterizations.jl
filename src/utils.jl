@@ -1,9 +1,6 @@
 using Statistics
 using Oceananigans.Grids
 
-# weights(f::FastDense, θ) = reshape(θ[1:(f.out*f.in)], f.out, f.in)
-# bias(f::FastDense, θ) = θ[(f.out*f.in+1):end]
-
 """
     coarse_grain(Φ, n)
 

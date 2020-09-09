@@ -3,9 +3,8 @@ module ClimateSurrogates
 # using DiffEqFlux
 
 export
-    weights, bias, coarse_grain,
-    GaussianProcess, predict, uncertainty,
-    SquaredExponential
+    coarse_grain,
+    GaussianProcess, predict, uncertainty, SquaredExponential
 
 
 include("utils.jl")
