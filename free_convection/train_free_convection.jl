@@ -106,13 +106,13 @@ function free_convection_time_step_training_data(ds, standardization; grid_point
 
     if future_time_steps == 1
         training_data =
-            [(coarse_grain(T[:, n],   grid_points) .|> S_T,
-              coarse_grain(T[:, n+1], grid_points) .|> S_T)
+            [(coarse_grain(T[:, n],   grid_points, Cell) .|> S_T,
+              coarse_grain(T[:, n+1], grid_points, Cell) .|> S_T)
              for n in 1:Nt-1]
     else
         training_data =
-            [(coarse_grain(T[:, n], grid_points) .|> S_T,
-              cat((coarse_grain(T[:, k], grid_points) for k in n+1:n+future_time_steps)..., dims=2) .|> S_T)
+            [(coarse_grain(T[:, n], grid_points, Cell) .|> S_T,
+              cat((coarse_grain(T[:, k], grid_points, Cell) for k in n+1:n+future_time_steps)..., dims=2) .|> S_T)
              for n in 1:Nt-future_time_steps]
     end
 
@@ -141,7 +141,7 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
     T, wT, zF = ds["T"], ds["wT"], ds["zF"]
     Nz, Nt = size(T)
     zF_coarse = coarse_grain(zF, grid_points+1, Face)
-    
+
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting learned heat flux [$n/$Nt]..."
 
@@ -175,11 +175,16 @@ function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
     τ = ds["time"][end]
 
     Nz = grid_points
-    zC = coarse_grain(ds["zC"], Nz)
+    zC = coarse_grain(ds["zC"], Nz, Cell)
     Δẑ = diff(zC)[1] / H
 
     # Computes the derivative from cell center to cell (f)aces
-    Dzᶠ = 1/Δẑ * Tridiagonal(-ones(Nz-1), ones(Nz), zeros(Nz-1))
+    Dzᶠ = zeros(Nz, Nz+1)
+    for k in 1:Nz
+        Dzᶠ[k, k]   = -1.0
+        Dzᶠ[k, k+1] =  1.0
+    end
+    Dzᶠ = 1/Δẑ * Dzᶠ
 
     # Set up neural network for non-dimensional PDE
     # ∂T/dt = - ∂z(wT) + ...
@@ -230,11 +235,11 @@ end
 function animate_learned_free_convection(ds, npde, standardization; grid_points, skip_first, frameskip=1, fps=15)
     T, wT, z = ds["T"], ds["wT"], ds["zC"]
     Nz, Nt = size(T)
-    z_coarse = coarse_grain(z, grid_points)
+    z_coarse = coarse_grain(z, grid_points, Cell)
 
     S_T, S⁻¹_T = standardization.T.standardize, standardization.T.standardize⁻¹
 
-    T₀_NN = coarse_grain(T[:, 1], grid_points) .|> S_T
+    T₀_NN = coarse_grain(T[:, 1], grid_points, Cell) .|> S_T
     sol_npde = npde(T₀_NN) |> Array
 
     time_steps = size(sol_npde, 2)
@@ -311,11 +316,7 @@ end
 training_data_time_step =
     free_convection_time_step_training_data(ds, standardization, grid_points=Nz, future_time_steps=future_time_steps)
 
-if training_data_time_step isa DataLoader
-    @info "Time step training data contains $(training_data_heat_flux.nobs) pairs (batchsize=$(training_data_heat_flux.batchsize))."
-else
-    @info "Time step training data contains $(length(training_data_heat_flux)) pairs."
-end
+@info "Time step training data contains $(length(training_data_heat_flux)) time steps."
 
 FastLayer(layer) = layer
 
@@ -329,7 +330,7 @@ FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 NN_fast = FastChain(NN)
 npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=50)
 
-for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (5, 4, 3, 3, 3, 3, 3))
+for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 1))
     global npde
     new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=Nt)
     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
