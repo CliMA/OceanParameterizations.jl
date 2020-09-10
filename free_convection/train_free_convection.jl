@@ -278,13 +278,13 @@ cₚ = nc_constant(ds, "Specific_heat_capacity")
 top_flux = Q / (ρ₀ * cₚ)
 bot_flux = 0.0
 
-Nz = 16  # Number of grid points for the neural PDE.
+Nz = 32  # Number of grid points for the neural PDE.
 
 skip_first = 5
 future_time_steps = 1
 
-# animate_variable(ds, "T", Cell, grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-# animate_variable(ds, "wT", Face, grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+animate_variable(ds, "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
+animate_variable(ds, "wT", Face, grid_points=Nz, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
 
 training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first,
@@ -303,8 +303,8 @@ else
     NN = free_convection_neural_pde_architecture(Nz,
             top_flux=top_flux_NN, bottom_flux=bot_flux_NN, conservative=true)
 
-    for opt in [ADAM(1e-2), Descent(1e-2), Descent(1e-3)]
-        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
+    for opt in [ADAM(1e-2), Descent(1e-2)]
+        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=5)
     end
 
     @info "Saving $NN_heat_flux_filename..."
