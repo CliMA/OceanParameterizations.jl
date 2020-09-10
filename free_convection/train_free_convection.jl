@@ -2,6 +2,7 @@ using Printf
 using Random
 using Statistics
 using LinearAlgebra
+using Logging
 
 using NCDatasets
 using Plots
@@ -12,12 +13,17 @@ using DiffEqFlux
 using Optim
 
 using ClimateSurrogates
+using Oceananigans
 using Oceananigans.Grids
 using Oceananigans.Utils
+
+using Flux.Data: DataLoader
 
 import DiffEqFlux: FastChain
 
 using Flux.Data: DataLoader
+
+Logging.global_logger(OceananigansLogger())
 
 ENV["GKSwstype"] = "100"
 
@@ -156,9 +162,9 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
         if NN isa Flux.Chain
             wT_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T |> NN .|> S⁻¹_wT
             plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
-        elseif NN isa DiffEqFlux.NeuralODE
+        elseif NN isa DiffEqFlux.FastChain
             T_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T
-            wT_NN = npde.model(T_NN, npde.p) .|> S⁻¹_wT
+            wT_NN = NN(T_NN, npde.p) .|> S⁻¹_wT
             plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
         end
     end
@@ -205,7 +211,33 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
     sol_correct = cat([training_data[n][1] for n in 1:time_steps]..., dims=2)
 
     T₀ = training_data[1][1]
-    loss(θ) = Flux.mse(Array(npde(T₀, θ)), sol_correct)
+
+    H  = abs(ds["zF"][1])
+    Nz = length(T₀)
+    zF = coarse_grain(ds["zF"], Nz, Face)
+    Δẑ = diff(zF)[2] / H
+
+    # Computes the derivative from cell faces to cell (c)enters
+    Dzᶜ = zeros(Nz+1, Nz)
+    for k in 2:Nz
+        Dzᶜ[k, k-1] = -1.0
+        Dzᶜ[k, k]   =  1.0
+    end
+    Dzᶜ = 1/Δẑ * Dzᶜ
+
+    function loss(θ)
+        sol_npde = Array(npde(T₀, θ))
+        Nt = size(sol_npde)[2]
+        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:Nt]..., dims=2)
+
+        C = 0.2  # loss2 will always be weighted with 0 <= weight <= C
+        loss1 = Flux.mse(sol_npde, sol_correct)
+        loss2 = mean(min.(dTdz, 0) .^ 2)
+        weighted_loss = loss1 * (1 + min(loss2, C*loss1))
+
+        # println("loss1=$loss1, loss2=$loss2, weighted_loss=$weighted_loss")
+        return weighted_loss
+    end
 
     function cb(θ, args...)
         @info @sprintf("Training free convection neural PDE... loss = %e", loss(θ))
@@ -278,13 +310,13 @@ cₚ = nc_constant(ds, "Specific_heat_capacity")
 top_flux = Q / (ρ₀ * cₚ)
 bot_flux = 0.0
 
-Nz = 16  # Number of grid points for the neural PDE.
+Nz = 32  # Number of grid points for the neural PDE.
 
 skip_first = 5
 future_time_steps = 1
 
-# animate_variable(ds, "T", Cell, grid_points=16, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-# animate_variable(ds, "wT", Face, grid_points=16, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+# animate_variable(ds, "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
+# animate_variable(ds, "wT", Face, grid_points=Nz, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
 
 training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first,
@@ -303,8 +335,8 @@ else
     NN = free_convection_neural_pde_architecture(Nz,
             top_flux=top_flux_NN, bottom_flux=bot_flux_NN, conservative=true)
 
-    for opt in [ADAM(1e-2), Descent(1e-2), Descent(1e-3)]
-        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=10)
+    for opt in [ADAM(1e-2), Descent(1e-2)]
+        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=5)
     end
 
     @info "Saving $NN_heat_flux_filename..."
@@ -335,11 +367,12 @@ for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 
     new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=Nt)
     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
     train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=epochs)
+
+    animate_learned_free_convection(ds, npde, standardization, grid_points=Nz, skip_first=skip_first)
+    animate_learned_heat_flux(ds, FastChain(npde.model.layers[1:end-2]...), standardization, grid_points=Nz, frameskip=5, fps=15)
 end
 
 npde_filename = "free_convection_neural_pde_parameters.bson"
 @info "Saving $npde_filename..."
 npde_params = npde.p
 BSON.@save npde_filename npde_params
-
-animate_learned_free_convection(ds, npde, standardization, grid_points=Nz, skip_first=skip_first)

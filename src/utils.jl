@@ -21,9 +21,18 @@ end
 
 function coarse_grain(Φ, n, ::Type{Face})
     N = length(Φ)
-    Δ = Int((N-2) / (n-2))
     Φ̅ = similar(Φ, n)
-    Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
-    Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
+    Δ = (N-2) / (n-2)
+    if isinteger(Δ)
+        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
+    else
+        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+        for i in 2:n-1
+            i1 = round(Int, 2 + (i-2)*Δ)
+            i2 = round(Int, 2 + (i-1)*Δ)
+            Φ̅[i] = mean(Φ[i1:i2])
+        end
+    end
     return Φ̅
 end
