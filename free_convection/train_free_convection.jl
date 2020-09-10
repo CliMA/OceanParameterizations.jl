@@ -315,8 +315,8 @@ Nz = 32  # Number of grid points for the neural PDE.
 skip_first = 5
 future_time_steps = 1
 
-animate_variable(ds, "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-animate_variable(ds, "wT", Face, grid_points=Nz, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+# animate_variable(ds, "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
+# animate_variable(ds, "wT", Face, grid_points=Nz, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
 
 training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first,
@@ -369,7 +369,7 @@ for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 
     train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=epochs)
 
     animate_learned_free_convection(ds, npde, standardization, grid_points=Nz, skip_first=skip_first)
-    animate_learned_heat_flux(ds, npde, standardization, grid_points=Nz, frameskip=5, fps=15)
+    animate_learned_heat_flux(ds, FastChain(npde.model.layers[1:end-2]...), standardization, grid_points=Nz, frameskip=5, fps=15)
 end
 
 npde_filename = "free_convection_neural_pde_parameters.bson"
