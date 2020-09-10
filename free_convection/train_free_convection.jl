@@ -205,7 +205,26 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
     sol_correct = cat([training_data[n][1] for n in 1:time_steps]..., dims=2)
 
     T₀ = training_data[1][1]
-    loss(θ) = Flux.mse(Array(npde(T₀, θ)), sol_correct)
+
+    H  = abs(ds["zF"][1])
+    Nz = length(T₀)
+    zF = coarse_grain(ds["zF"], Nz, Face)
+    Δẑ = diff(zF)[2] / H
+
+    # Computes the derivative from cell faces to cell (c)enters
+    Dzᶜ = zeros(Nz+1, Nz)
+    for k in 2:Nz
+        Dzᶜ[k, k-1] = -1.0
+        Dzᶜ[k, k]   =  1.0
+    end
+    Dzᶜ = 1/Δẑ * Dzᶜ
+
+    function loss(θ)
+        sol_npde = Array(npde(T₀, θ))
+        Nt = size(sol_npde)[2]
+        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:Nt]..., dims=2)
+        return Flux.mse(sol_npde, sol_correct) + mean(min.(dTdz, 0) .^2)
+    end
 
     function cb(θ, args...)
         @info @sprintf("Training free convection neural PDE... loss = %e", loss(θ))
