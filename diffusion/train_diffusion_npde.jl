@@ -54,16 +54,8 @@ tspan = (0.0, T)
 tsteps = range(tspan[1], tspan[2], length=Nt+1)
 npde = NeuralODE(NN_dudt, tspan, Tsit5(), reltol=1e-3, saveat=tsteps)
 
-for _ in 1:10
-    for (name, sol) in training_solutions
-        train_diffusion_neural_pde!(npde, sol, [ADAM(1e-2)])
-    end
-end
-
-for _ in 1:10
-    for (name, sol) in training_solutions
-        train_diffusion_neural_pde!(npde, sol, [ADAM(1e-3)])
-    end
+for _ in 1:5
+    train_diffusion_neural_pde!(npde, training_solutions, [ADAM(1e-2)])
 end
 
 for (name, sol) in solutions

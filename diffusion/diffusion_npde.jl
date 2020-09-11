@@ -26,12 +26,12 @@ function generate_neural_pde_architecture(N, κ; type)
     return dudt_NN
 end
 
-function train_diffusion_neural_pde!(npde, training_data, optimizers, epochs=1)
+function train_diffusion_neural_pde!(npde, solutions, optimizers, epochs=1)
     time_steps = length(npde.kwargs[:saveat])
-    u₀ = training_data[1]
-    u_correct = Array(training_data)
+    ics = [sol[1] for sol in values(solutions)]
+    correct_sols = [Array(sol) for sol in values(solutions)]
 
-    loss(θ) = Flux.mse(Array(npde(u₀, θ)), u_correct)
+    loss(θ) = sum(Flux.mse(Array(npde(u₀, θ)), u_correct) for (u₀, u_correct) in zip(ics, correct_sols)) + 1e-3 * sum(abs, θ)
 
     function cb(θ, args...)
         @info @sprintf("Training free convection neural PDE... loss = %e", loss(θ))
