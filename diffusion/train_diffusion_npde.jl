@@ -5,9 +5,8 @@ using Optim
 using ClimateSurrogates
 
 include("diffusion.jl")
-include("diffusion_npde.jl")
-include("diffusion_gp.jl")
 include("diffusion_test.jl")
+include("diffusion_npde.jl")
 
 N = 16  # Number of grid points
 L = 2   # Domain size -L/2 <= x <= L/2
@@ -55,10 +54,3 @@ dudt_NN = generate_neural_pde_architecture(N, κ, type=:conservative_feed_forwar
 optimizers = [Descent(1e-5)]
 diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers, Δt)
 test_diffusion_neural_pde(diffusion_npde, solutions)
-
-#####
-##### Train and test a Gaussian process
-#####
-
-# gp = train_diffusion_gp(training_data)
-# test_diffusion_gp(gp, solutions)
