@@ -1,7 +1,6 @@
 using DifferentialEquations
 using DiffEqFlux
 using Flux
-using Gen
 using Plots
 using ClimateSurrogates
 
@@ -37,7 +36,7 @@ function solve_diffusion_equation(; u₀, N, L, κ, T, Nt)
 
     tspan = (0.0, T)
     Δt = (tspan[2] - tspan[1]) / Nt
-    t = range(tspan[1], tspan[2], length=Nt)
+    t = range(tspan[1], tspan[2], length=Nt+1)
 
     params = (N=N, Δx=Δx, κ=κ, x=x)
     prob = ODEProblem(diffusion!, ic, tspan, params)
@@ -46,29 +45,11 @@ function solve_diffusion_equation(; u₀, N, L, κ, T, Nt)
     return solution
 end
 
-function generate_training_data(sol)
-    N, Nt = size(sol)
-
-    uₙ    = zeros(N, Nt-1)
-    uₙ₊₁  = zeros(N, Nt-1)
-
-    for i in 1:Nt-1
-           uₙ[:, i] .=  sol.u[i]
-         uₙ₊₁[:, i] .=  sol.u[i+1]
-    end
-
-    training_data = [(uₙ[:, i], uₙ₊₁[:, i]) for i in 1:Nt-1]
-
-    return training_data
-end
-
 function generate_solutions(training_functions, testing_functions; N, L, κ, T, Nt, animate=false)
     # Generate truth solutions for training and testing
     solutions = Dict()
     training_solutions = Dict()
     testing_solutions = Dict()
-    training_data = []
-    testing_data = []
 
     for u₀ in (training_functions..., testing_functions...)
         sol = solve_diffusion_equation(u₀=u₀, N=N, L=L, κ=κ, T=T, Nt=Nt)
@@ -76,10 +57,8 @@ function generate_solutions(training_functions, testing_functions; N, L, κ, T, 
 
         if u₀ in training_functions
             training_solutions[function_name(u₀)] = sol
-            append!(training_data, generate_training_data(sol))
         elseif u₀ in testing_functions
             testing_solutions[function_name(u₀)] = sol
-            append!(testing_data, generate_training_data(sol))
         end
 
         if animate
@@ -88,7 +67,7 @@ function generate_solutions(training_functions, testing_functions; N, L, κ, T, 
         end
     end
 
-    return solutions, training_solutions, testing_solutions, training_data, testing_data
+    return solutions, training_solutions, testing_solutions
 end
 
 function animate_solution(sol; filename, fps=15)

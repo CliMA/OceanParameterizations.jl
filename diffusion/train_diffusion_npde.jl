@@ -40,17 +40,33 @@ function_name(::typeof(u₀_one)) = "one"
 training_functions = (u₀_Gaussian, u₀_cos, u₀_shifted_sin, u₀_zero)
 testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 
-solutions, training_solutions, testing_solutions, training_data, testing_data =
-    generate_solutions(training_functions, testing_functions; N=N, L=L, κ=κ, T=T, Nt=Nt, animate=false)
-
-x_train = [data[1] for data in training_data]
-y_train = [data[2] for data in training_data]
+solutions, training_solutions, testing_solutions =
+    generate_solutions(training_functions, testing_functions, N=N, L=L, κ=κ, T=T, Nt=Nt, animate=false)
 
 #####
 ##### Train and test a neural differential equation
 #####
 
-dudt_NN = generate_neural_pde_architecture(N, κ, type=:conservative_feed_forward)
-optimizers = [Descent(1e-5)]
-diffusion_npde = train_diffusion_neural_pde(training_data, dudt_NN, optimizers, Δt)
-test_diffusion_neural_pde(diffusion_npde, solutions)
+NN_dudt = generate_neural_pde_architecture(N, κ, type=:conservative_feed_forward)
+
+# Set up neural differential equation
+tspan = (0.0, T)
+tsteps = range(tspan[1], tspan[2], length=Nt+1)
+npde = NeuralODE(NN_dudt, tspan, Tsit5(), reltol=1e-3, saveat=tsteps)
+
+for _ in 1:10
+    for (name, sol) in training_solutions
+        train_diffusion_neural_pde!(npde, sol, [ADAM(1e-2)])
+    end
+end
+
+for _ in 1:10
+    for (name, sol) in training_solutions
+        train_diffusion_neural_pde!(npde, sol, [ADAM(1e-3)])
+    end
+end
+
+for (name, sol) in solutions
+    @info "Animating $name"
+    animate_neural_pde_test(sol, npde, filename="NPDE_test_$name.mp4")
+end
