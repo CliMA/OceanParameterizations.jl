@@ -16,11 +16,11 @@ ENV["GKSwstype"] = "100"
 function diffusion!(∂u∂t, u, p, t)
     N, Δx, κ = p.N, p.Δx, p.κ
     @inbounds begin
-        ∂u∂t[1] = κ * (u[N] -2u[1] + u[2]) / Δx
+        ∂u∂t[1] = κ * (u[N] -2u[1] + u[2]) / Δx^2
         for i in 2:N-1
-            ∂u∂t[i] = κ * (u[i-1] -2u[i] + u[i+1]) / Δx
+            ∂u∂t[i] = κ * (u[i-1] -2u[i] + u[i+1]) / Δx^2
         end
-        ∂u∂t[N] = κ * (u[N-1] -2u[N] + u[1]) / Δx
+        ∂u∂t[N] = κ * (u[N-1] -2u[N] + u[1]) / Δx^2
     end
     return nothing
 end
