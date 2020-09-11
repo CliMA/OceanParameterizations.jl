@@ -121,15 +121,15 @@ version = "0.3.3"
 
 [[ChainRules]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Random", "Reexport", "Requires", "Statistics"]
-git-tree-sha1 = "dded7909a68d11a813a05bd70a7e728093742b56"
+git-tree-sha1 = "6e7424bc42e222570cc8d588c501349070802b3f"
 uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "0.7.17"
+version = "0.7.18"
 
 [[ChainRulesCore]]
 deps = ["MuladdMacro"]
-git-tree-sha1 = "8013d73583b79df2b5d8fc71e3c43f9246477fea"
+git-tree-sha1 = "cd464e38276e956cd1112c5df96851659f888b11"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "0.9.7"
+version = "0.9.8"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -203,9 +203,9 @@ version = "1.0.0"
 
 [[Contour]]
 deps = ["StaticArrays"]
-git-tree-sha1 = "81685fee51fc5168898e3cbd8b0f01506cd9148e"
+git-tree-sha1 = "d05a3a25b762720d40246d5bedf518c9c2614ef5"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
-version = "0.5.4"
+version = "0.5.5"
 
 [[CpuId]]
 deps = ["Markdown", "Test"]
@@ -268,9 +268,9 @@ version = "2.4.0"
 
 [[DiffEqFlux]]
 deps = ["Adapt", "BlackBoxOptim", "ConsoleProgressMonitor", "DiffEqBase", "DiffEqSensitivity", "DiffResults", "Distributions", "DistributionsAD", "Flux", "ForwardDiff", "LinearAlgebra", "Logging", "LoggingExtras", "Optim", "Printf", "ProgressLogging", "RecursiveArrayTools", "Requires", "ReverseDiff", "StaticArrays", "TerminalLoggers", "Tracker", "Zygote", "ZygoteRules"]
-git-tree-sha1 = "23698ac2ac47d097b931cee8b0b4fbd94dd7ffae"
+git-tree-sha1 = "8ed28f1d5edeaa2e04132591fd6f756c8729914c"
 uuid = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
-version = "1.21.0"
+version = "1.22.0"
 
 [[DiffEqJump]]
 deps = ["ArrayInterface", "Compat", "DataStructures", "DiffEqBase", "FunctionWrappers", "LinearAlgebra", "PoissonRandom", "Random", "RandomNumbers", "RecursiveArrayTools", "StaticArrays", "TreeViews", "UnPack"]
@@ -337,10 +337,10 @@ uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
 version = "0.23.8"
 
 [[DistributionsAD]]
-deps = ["ChainRules", "ChainRulesCore", "Compat", "DiffRules", "Distributions", "FillArrays", "ForwardDiff", "LinearAlgebra", "NaNMath", "PDMats", "Random", "Requires", "SpecialFunctions", "StaticArrays", "StatsBase", "StatsFuns", "ZygoteRules"]
-git-tree-sha1 = "257bf3d5f1e43afe124d0c42563198654afee5ee"
+deps = ["Adapt", "ChainRules", "ChainRulesCore", "Compat", "DiffRules", "Distributions", "FillArrays", "ForwardDiff", "LinearAlgebra", "NaNMath", "PDMats", "Random", "Requires", "SpecialFunctions", "StaticArrays", "StatsBase", "StatsFuns", "ZygoteRules"]
+git-tree-sha1 = "e7be47ad78c4f2f319f9d64a63c4a314b0ca87cc"
 uuid = "ced4e74d-a319-5a8a-b0ac-84af2272839c"
-version = "0.6.7"
+version = "0.6.8"
 
 [[DocStringExtensions]]
 deps = ["LibGit2", "Markdown", "Pkg", "Test"]
@@ -483,7 +483,7 @@ version = "0.52.0"
 
 [[Gen]]
 deps = ["DataStructures", "Distributions", "ForwardDiff", "FunctionalCollections", "JSON", "LinearAlgebra", "MacroTools", "Random", "ReverseDiff", "SpecialFunctions"]
-git-tree-sha1 = "c1e0acf909e18729a3329f47b1d2b3b34ba079b2"
+git-tree-sha1 = "36e4c5afdc87f3a343aeb9f322709cebe304c951"
 repo-rev = "master"
 repo-url = "https://github.com/probcomp/Gen"
 uuid = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
@@ -836,9 +836,9 @@ version = "0.5.3+3"
 
 [[Optim]]
 deps = ["Compat", "FillArrays", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "c05aa6b694d426df87ff493306c1c5b4b215e148"
+git-tree-sha1 = "271a1d8e586c2d357dca9f2cc94e825268dbd2c5"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "0.22.0"
+version = "1.1.0"
 
 [[Opus_jll]]
 deps = ["Libdl", "Pkg"]
