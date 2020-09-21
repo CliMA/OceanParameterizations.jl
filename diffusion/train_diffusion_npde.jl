@@ -1,23 +1,37 @@
 using LinearAlgebra
+
+using DifferentialEquations
 using DiffEqFlux
 using Flux
-using Optim
+using Plots
+
 using ClimateSurrogates
+using ClimateSurrogates.Layers
+using ClimateSurrogates.Diffusion
 
-include("diffusion.jl")
-include("diffusion_test.jl")
-include("diffusion_npde.jl")
+# For quick headless plotting without warnings.
+# See: https://github.com/jheinen/GR.jl/issues/278
+ENV["GKSwstype"] = "100"
 
-N = 16  # Number of grid points
-L = 2   # Domain size -L/2 <= x <= L/2
-κ = 1.5 # Diffusivity
-T = 0.1 # Time span 0 <= T <= 0.1
-Nt = 32 # Number of time snapshots to save
-Δt = T/Nt
+function generate_neural_pde_architecture(N, κ; type)
+    if type == :feed_forward
+        dudt_NN = FastChain(FastDense(N, N))
+    elseif type == :conservative_feed_forward
+        dudt_NN = FastChain(FastDense(N, N), ConservativeDiffusionLayer(N, κ))
+    end
+    return dudt_NN
+end
 
 #####
 ##### Training and testing initial condition functions
 #####
+
+N = 16     # Number of grid points
+L = 2      # Domain size -L/2 <= x <= L/2
+κ = 1.5    # Diffusivity
+T = 0.1    # Time span 0 <= t <= T
+Nt = 32    # Number of time snapshots to save
+Δt = T/Nt  # Time between outputs/snapshots
 
 u₀_Gaussian(x) = exp(-50x^2)
 u₀_quadratic(x) = 1 - x^2
@@ -41,7 +55,7 @@ training_functions = (u₀_Gaussian, u₀_cos, u₀_shifted_sin, u₀_zero)
 testing_functions = (u₀_quadratic, u₀_shifted_cos, u₀_sin, u₀_one)
 
 solutions, training_solutions, testing_solutions =
-    generate_solutions(training_functions, testing_functions, N=N, L=L, κ=κ, T=T, Nt=Nt, animate=false)
+    generate_solutions(training_functions, testing_functions, N=N, L=L, κ=κ, T=T, Nt=Nt)
 
 #####
 ##### Train and test a neural differential equation
