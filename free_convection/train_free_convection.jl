@@ -230,7 +230,7 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
         Nt = size(sol_npde)[2]
         dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:Nt]..., dims=2)
 
-        C = 0.2  # loss2 will always be weighted with 0 <= weight <= C
+        C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
         loss1 = Flux.mse(sol_npde, sol_correct)
         loss2 = mean(min.(dTdz, 0) .^ 2)
         weighted_loss = loss1 * (1 + min(loss2, C*loss1))
