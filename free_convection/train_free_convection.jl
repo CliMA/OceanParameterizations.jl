@@ -29,7 +29,12 @@ ENV["GKSwstype"] = "100"
 
 include("free_convection_npde.jl")
 
-function animate_variable(ds, var, loc; grid_points, xlabel, xlim, frameskip=1, fps=15)
+function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
+    if isfile(filepath)
+        @info "$filepath exists. Will not animate."
+        return nothing
+    end
+    
     Nz, Nt = size(ds[var])
 
     if loc == Cell
@@ -59,9 +64,8 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, frameskip=1, 
         plot!(var_coarse, z_coarse, linewidth=2, label="coarse (Nz=$(length(z_coarse)))")
     end
 
-    filename = "free_convection_$var.mp4"
-    @info "Saving $filename"
-    mp4(anim, filename, fps=fps)
+    @info "Saving $filepath"
+    mp4(anim, filepath, fps=fps)
 
     return nothing
 end
@@ -295,10 +299,37 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
 end
 
 #####
-##### Script starts here
+##### Problem parameters
 #####
 
-ds = NCDataset("free_convection_horizontal_averages.nc")
+Nz = 32  # Number of grid points for the neural PDE.
+
+skip_first = 5  # Number of transient time snapshots to skip at the start 
+future_time_steps = 1
+
+#####
+##### Pick training and testing data
+#####
+
+Qs = (25, 50, 75, 100)
+Qs_train = (25, 75)
+Qs_test  = (50,)
+
+#####
+##### Load and animate data
+#####
+
+ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs)
+
+for Q in Qs
+    T_filepath = "free_convection_T_$(Q)W.mp4"
+    animate_variable(ds[Q], "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20),
+                     filepath=T_filepath, frameskip=5)
+
+    wT_filepath = "free_convection_wT_$(Q)W.mp4"
+    animate_variable(ds[Q], "wT", Face, grid_points=Nz, xlabel="Heat flux wT (m/s °C)", xlim=(-1e-5, 3e-5),
+                     filepath=wT_filepath, frameskip=5)
+end
 
 # Should not have saved constant units as strings...
 nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
