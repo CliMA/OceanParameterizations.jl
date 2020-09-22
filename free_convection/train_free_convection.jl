@@ -70,20 +70,37 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, fra
     return nothing
 end
 
-function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0, top_flux, bottom_flux)
-    T, wT = ds["T"], ds["wT"]
-    Nz, Nt = size(T)
+# Should not have saved constant units as strings...
+nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
+
+function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first=0)
+     T = Dict(Q => ds[Q]["T"]  for Q in Qs)
+    wT = Dict(Q => ds[Q]["wT"] for Q in Qs)
+    Nz, Nt = size(T[Qs[1]])
 
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
 
-    inputs = cat([coarse_grain(T[:, n], grid_points, Cell) for n in 1+skip_first:Nt]..., dims=2)
-    outputs = cat([coarse_grain(wT[:, n], grid_points+1, Face) for n in 1+skip_first:Nt]..., dims=2)
+    inputs, outputs = Dict(), Dict()
 
-    for n in 1:Nt-skip_first
-        outputs[1, n] = bottom_flux
-        outputs[grid_points+1, n] = top_flux
+    for Q in Qs
+        ρ₀ = nc_constant(ds[Q], "Reference density")
+        cₚ = nc_constant(ds[Q], "Specific_heat_capacity")
+        
+        top_flux = Q / (ρ₀ * cₚ)
+        bot_flux = 0.0
+
+        inputs[Q] = cat((coarse_grain(T[Q][:, n], grid_points, Cell) for n in 1+skip_first:Nt)..., dims=2)
+        outputs[Q] = cat((coarse_grain(wT[Q][:, n], grid_points+1, Face) for n in 1+skip_first:Nt)..., dims=2)
+
+        for n in 1:Nt-skip_first
+            outputs[Q][1, n] = bot_flux
+            outputs[Q][grid_points+1, n] = top_flux
+        end
     end
+
+    inputs  = cat((inputs[Q]  for Q in Qs)..., dims=2)
+    outputs = cat((outputs[Q] for Q in Qs)..., dims=2)
 
     μ_T, σ_T = mean(inputs), std(inputs)
     μ_wT, σ_wT = mean(outputs), std(outputs)
@@ -96,7 +113,7 @@ function free_convection_heat_flux_training_data(ds; grid_points, skip_first=0, 
     inputs = standardize_T.(inputs)
     outputs = standardize_wT.(outputs)
 
-    training_data = [(inputs[:, n], outputs[:, n]) for n in 1:Nt-skip_first] |> shuffle
+    training_data = [(inputs[:, n], outputs[:, n]) for n in 1:size(inputs, 2)] |> shuffle
 
     standardization = (
         T = (μ=μ_T, σ=σ_T, standardize=standardize_T, standardize⁻¹=standardize⁻¹_T),
@@ -331,29 +348,16 @@ for Q in Qs
                      filepath=wT_filepath, frameskip=5)
 end
 
-# Should not have saved constant units as strings...
-nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
-
-Q  = nc_constant(ds, "Heat flux")
-ρ₀ = nc_constant(ds, "Reference density")
-cₚ = nc_constant(ds, "Specific_heat_capacity")
-
-top_flux = Q / (ρ₀ * cₚ)
-bot_flux = 0.0
-
-Nz = 32  # Number of grid points for the neural PDE.
-
-skip_first = 5
-future_time_steps = 1
-
-# animate_variable(ds, "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20), frameskip=5)
-# animate_variable(ds, "wT", Face, grid_points=Nz, xlabel="Heat flux", xlim=(-1e-5, 3e-5), frameskip=5)
+#####
+##### Prepare heat flux training data
+#####
 
 training_data_heat_flux, standardization =
-    free_convection_heat_flux_training_data(ds, grid_points=Nz, skip_first=skip_first,
-                                            top_flux=top_flux, bottom_flux=bot_flux)
+    free_convection_heat_flux_training_data(ds, Qs_train, grid_points=Nz, skip_first=skip_first)
 
 @info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
+
+error("Yo stop")
 
 NN_heat_flux_filename = "NN_heat_flux.bson"
 if isfile(NN_heat_flux_filename)
