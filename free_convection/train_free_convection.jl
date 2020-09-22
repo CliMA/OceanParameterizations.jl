@@ -81,7 +81,7 @@ function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first
     isinteger(Nz / grid_points) ||
         error("grid_points=$grid_points does not evenly divide Nz=$Nz")
 
-    inputs, outputs = Dict(), Dict()
+    T_inputs, top_flux_inputs, wT_outputs = Dict(), Dict(), Dict()
 
     for Q in Qs
         ρ₀ = nc_constant(ds[Q], "Reference density")
@@ -90,30 +90,35 @@ function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first
         top_flux = Q / (ρ₀ * cₚ)
         bot_flux = 0.0
 
-        inputs[Q] = cat((coarse_grain(T[Q][:, n], grid_points, Cell) for n in 1+skip_first:Nt)..., dims=2)
-        outputs[Q] = cat((coarse_grain(wT[Q][:, n], grid_points+1, Face) for n in 1+skip_first:Nt)..., dims=2)
+        inds = 1+skip_first:Nt
+        top_flux_inputs[Q] = [top_flux for _ in inds]
+        T_inputs[Q] = cat((coarse_grain(T[Q][:, n], grid_points, Cell) for n in inds)..., dims=2)
+        wT_outputs[Q] = cat((coarse_grain(wT[Q][:, n], grid_points+1, Face) for n in inds)..., dims=2)
 
         for n in 1:Nt-skip_first
-            outputs[Q][1, n] = bot_flux
-            outputs[Q][grid_points+1, n] = top_flux
+            wT_outputs[Q][1, n] = bot_flux
+            wT_outputs[Q][grid_points+1, n] = top_flux
         end
     end
 
-    inputs  = cat((inputs[Q]  for Q in Qs)..., dims=2)
-    outputs = cat((outputs[Q] for Q in Qs)..., dims=2)
+    top_flux_inputs = cat((top_flux_inputs[Q]  for Q in Qs)..., dims=2)
+    T_inputs = cat((T_inputs[Q] for Q in Qs)..., dims=2)
+    wT_outputs = cat((wT_outputs[Q] for Q in Qs)..., dims=2)
 
-    μ_T, σ_T = mean(inputs), std(inputs)
-    μ_wT, σ_wT = mean(outputs), std(outputs)
+    μ_T, σ_T = mean(T_inputs), std(T_inputs)
+    μ_wT, σ_wT = mean(wT_outputs), std(wT_outputs)
 
     standardize_T(x) = (x - μ_T) / σ_T
     standardize⁻¹_T(y) = σ_T * y + μ_T
     standardize_wT(x) = (x - μ_wT) / σ_wT
     standardize⁻¹_wT(y) = σ_wT * y + μ_wT
 
-    inputs = standardize_T.(inputs)
-    outputs = standardize_wT.(outputs)
+    top_flux_inputs = standardize_wT.(top_flux_inputs)
+    T_inputs = standardize_T.(T_inputs)
+    wT_outputs = standardize_wT.(wT_outputs)
 
-    training_data = [(inputs[:, n], outputs[:, n]) for n in 1:size(inputs, 2)] |> shuffle
+    n_data = length(top_flux_inputs)
+    training_data = [((T_inputs[:, n], top_flux_inputs[n]), wT_outputs[:, n]) for n in 1:n_data] |> shuffle
 
     standardization = (
         T = (μ=μ_T, σ=σ_T, standardize=standardize_T, standardize⁻¹=standardize⁻¹_T),
@@ -357,9 +362,29 @@ training_data_heat_flux, standardization =
 
 @info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
 
-error("Yo stop")
+#####
+##### Define temperature T -> heat flux wT neural network
+#####
+
+layer1 = Dense(Nz, 4Nz, relu)
+layer2 = Dense(4Nz, 4Nz, relu)
+layer3 = Dense(4Nz, Nz-1)
+
+function neural_network_heat_flux(input)
+    T, top_flux = input
+    ϕ = T |> layer1 |> layer2 |> layer3
+    wT = cat(0.0, ϕ, top_flux, dims=1)
+    return wT
+end
+
+error("Stop yo")
+
+#####
+##### Train neural network on temperature T -> heat flux wT mapping
+#####
 
 NN_heat_flux_filename = "NN_heat_flux.bson"
+
 if isfile(NN_heat_flux_filename)
     @info "Loading $NN_heat_flux_filename..."
     BSON.@load NN_heat_flux_filename NN
