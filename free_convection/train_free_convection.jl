@@ -19,13 +19,33 @@ using Oceananigans.Utils
 
 using Flux.Data: DataLoader
 
-import DiffEqFlux: FastChain
+import DiffEqFlux: FastChain, paramlength, initial_params
 
 using Flux.Data: DataLoader
 
 Logging.global_logger(OceananigansLogger())
 
 ENV["GKSwstype"] = "100"
+
+#####
+##### Utils
+#####
+
+# Should not have saved constant units as strings...
+nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
+
+FastLayer(layer) = layer
+
+function FastLayer(layer::Dense)
+    N_out, N_in = size(layer.W)
+    return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
+end
+
+FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
+
+#####
+##### Helper functions
+#####
 
 function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
     if isfile(filepath)
@@ -67,9 +87,6 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, fra
 
     return nothing
 end
-
-# Should not have saved constant units as strings...
-nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
 
 function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first=0)
      T = Dict(Q => ds[Q]["T"]  for Q in Qs)
@@ -126,31 +143,6 @@ function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first
     return training_data, standardization
 end
 
-function free_convection_time_step_training_data(ds, standardization; grid_points, future_time_steps=1)
-    T = ds["T"]
-    Nz, Nt = size(T)
-    S_T = standardization.T.standardize
-
-    isinteger(Nz / grid_points) ||
-        error("grid_points=$grid_points does not evenly divide Nz=$Nz")
-
-    if future_time_steps == 1
-        training_data =
-            [(coarse_grain(T[:, n],   grid_points, Cell) .|> S_T,
-              coarse_grain(T[:, n+1], grid_points, Cell) .|> S_T)
-             for n in 1:Nt-1]
-    else
-        training_data =
-            [(coarse_grain(T[:, n], grid_points, Cell) .|> S_T,
-              cat((coarse_grain(T[:, k], grid_points, Cell) for k in n+1:n+future_time_steps)..., dims=2) .|> S_T)
-             for n in 1:Nt-future_time_steps]
-    end
-
-    return training_data
-end
-
-loss(input, wT) = Flux.mse(NN(input), wT)
-
 function train_on_heat_flux!(loss, params, training_data, optimizer)
     function cb()
         μ_loss = mean(loss(input, wT) for (input, wT) in training_data)
@@ -202,6 +194,28 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, filepat
     return nothing
 end
 
+""" Returns a discrete 1D derivative operator for cell center to cell (f)aces. """
+function Dᶠ(N, Δ)
+    Dᶠ = zeros(N, N+1)
+    for k in 1:N
+        Dᶠ[k, k]   = -1.0
+        Dᶠ[k, k+1] =  1.0
+    end
+    Dᶠ = 1/Δ * Dᶠ
+    return Dᶠ
+end
+
+""" Returns a discrete 1D derivative operator for cell faces to cell (c)enters. """
+function Dᶜ(N, Δ)
+    Dzᶜ = zeros(N+1, N)
+    for k in 2:N
+        Dᶜ[k, k-1] = -1.0
+        Dᶜ[k, k]   =  1.0
+    end
+    Dᶜ = 1/Δ * Dᶜ
+    return Dᶜ
+end
+
 function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
     H = abs(ds["zF"][1])
     τ = ds["time"][end]
@@ -210,25 +224,21 @@ function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
     zC = coarse_grain(ds["zC"], Nz, Cell)
     Δẑ = diff(zC)[1] / H
 
-    # Computes the derivative from cell center to cell (f)aces
-    Dzᶠ = zeros(Nz, Nz+1)
-    for k in 1:Nz
-        Dzᶠ[k, k]   = -1.0
-        Dzᶠ[k, k+1] =  1.0
-    end
-    Dzᶠ = 1/Δẑ * Dzᶠ
+    Dzᶠ = Dᶠ(Nz, Δẑ)
 
     # Set up neural network for non-dimensional PDE
     # ∂T/dt = - ∂z(wT) + ...
     σ_T, σ_wT = standardization.T.σ, standardization.wT.σ
-    NN_∂T∂t = FastChain(NN.layers...,
+
+    NN_∂T∂t = FastChain(NN,
                         (wT, _) -> - Dzᶠ * wT,
                         (∂z_wT, _) -> σ_wT/σ_T * τ/H * ∂z_wT)
 
-    # Set up neural differential equation
+    # Set up and return neural differential equation
     Nt = length(ds["time"])
-    tspan = (0.0, time_steps/Nt)
-    tsteps = range(tspan[1], tspan[2], length = time_steps+1)
+    tspan = (0.0, maximum(time_steps) / Nt)
+    tsteps = range(tspan[1], tspan[2], length = length(time_steps))
+
     return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
 end
 
@@ -243,13 +253,7 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
     zF = coarse_grain(ds["zF"], Nz, Face)
     Δẑ = diff(zF)[2] / H
 
-    # Computes the derivative from cell faces to cell (c)enters
-    Dzᶜ = zeros(Nz+1, Nz)
-    for k in 2:Nz
-        Dzᶜ[k, k-1] = -1.0
-        Dzᶜ[k, k]   =  1.0
-    end
-    Dzᶜ = 1/Δẑ * Dzᶜ
+    Dzᶜ = Dᶜ(Nz, Δẑ)
 
     function loss(θ)
         sol_npde = Array(npde(T₀, θ))
@@ -383,15 +387,15 @@ else
     NN = Chain(Dense( Nz, 4Nz, relu),
                Dense(4Nz, 4Nz, relu),
                Dense(4Nz, Nz-1))
+end
 
-    bot_flux = standardization.wT.standardize(0)
+bot_flux = standardization.wT.standardize(0)
 
-    function NN_heat_flux(input)
-        T, top_flux = input
-        ϕ = NN(T)
-        wT = cat(bot_flux, ϕ, top_flux, dims=1)
-        return wT
-    end
+function NN_heat_flux(input)
+    T, top_flux = input
+    ϕ = NN(T)
+    wT = cat(bot_flux, ϕ, top_flux, dims=1)
+    return wT
 end
 
 #####
@@ -418,24 +422,30 @@ if !isfile(NN_heat_flux_filepath)
     end
 end
 
-error("Stop yo")
+#####
+##### Prepare free convection T(z, t) training data
+#####
 
-training_data_time_step =
-    free_convection_time_step_training_data(ds, standardization, grid_points=Nz, future_time_steps=future_time_steps)
-
-@info "Time step training data contains $(length(training_data_heat_flux)) time steps."
-
-FastLayer(layer) = layer
-
-function FastLayer(layer::Dense)
-    N_out, N_in = size(layer.W)
-    return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
-end
-
-FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
+# training_data_time_step =
+#     free_convection_time_step_training_data(ds, standardization, grid_points=Nz, future_time_steps=future_time_steps)
+# 
+# @info "Time step training data contains $(length(training_data_heat_flux)) time steps."
 
 NN_fast = FastChain(NN)
-npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=50)
+
+function NN_fast_heat_flux(input, p)
+    T, top_flux = input
+    ϕ = NN_fast(T, p)
+    wT = cat(bot_flux, ϕ, top_flux, dims=1)
+    return wT
+end
+
+DiffEqFlux.paramlength(::typeof(NN_fast_heat_flux)) = paramlength(NN_fast)
+DiffEqFlux.initial_params(::typeof(NN_fast_heat_flux)) = initial_params(NN_fast)
+
+npde = construct_neural_pde(NN_fast_heat_flux, ds[25], standardization, grid_points=Nz, time_steps=0:50)
+
+error("Stop yo")
 
 for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 1))
     global npde
