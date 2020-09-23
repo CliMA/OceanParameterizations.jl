@@ -27,8 +27,6 @@ Logging.global_logger(OceananigansLogger())
 
 ENV["GKSwstype"] = "100"
 
-include("free_convection_npde.jl")
-
 function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
     if isfile(filepath)
         @info "$filepath exists. Will not animate."
@@ -151,28 +149,29 @@ function free_convection_time_step_training_data(ds, standardization; grid_point
     return training_data
 end
 
-function train_on_heat_flux!(NN, training_data, optimizer; epochs=1)
-    loss(T, wT) = Flux.mse(NN(T), wT)
+loss(input, wT) = Flux.mse(NN(input), wT)
 
+function train_on_heat_flux!(loss, params, training_data, optimizer)
     function cb()
-        Σloss = [loss(T, wT) for (T, wT) in training_data] |> sum
-        @info @sprintf("Training on heat flux... Σloss = %e", Σloss)
+        μ_loss = mean(loss(input, wT) for (input, wT) in training_data)
+        @info @sprintf("Training on heat flux... mean(loss) = %e", μ_loss)
         return loss
     end
-
-    NN_params = Flux.params(NN)
-    for e in 1:epochs
-        @info "Training on heat flux with $(typeof(optimizer))(η=$(optimizer.eta)) [epoch $e/$epochs]..."
-        Flux.train!(loss, NN_params, training_data, optimizer, cb=Flux.throttle(cb, 2))
-    end
+    
+    Flux.train!(loss, params, training_data, optimizer, cb=Flux.throttle(cb, 2))
 
     return nothing
 end
 
-function animate_learned_heat_flux(ds, NN, standardization; grid_points, frameskip=1, fps=15)
+function animate_learned_heat_flux(ds, NN, standardization; grid_points, filepath, frameskip=1, fps=15)
     T, wT, zF = ds["T"], ds["wT"], ds["zF"]
     Nz, Nt = size(T)
     zF_coarse = coarse_grain(zF, grid_points+1, Face)
+
+    Q  = nc_constant(ds, "Heat flux")
+    ρ₀ = nc_constant(ds, "Reference density")
+    cₚ = nc_constant(ds, "Specific_heat_capacity")
+    top_flux = Q / (ρ₀ * cₚ)
 
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting learned heat flux [$n/$Nt]..."
@@ -183,21 +182,22 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, framesk
              label="Oceananigans wT", xlabel="Heat flux", ylabel="Depth z (meters)",
              title="Free convection: $time_str", legend=:bottomright, show=false)
 
-        S_T, S⁻¹_wT = standardization.T.standardize, standardization.wT.standardize⁻¹
+        S_T = standardization.T.standardize
+        S_wT, S⁻¹_wT = standardization.wT.standardize, standardization.wT.standardize⁻¹
 
-        if NN isa Flux.Chain
-            wT_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T |> NN .|> S⁻¹_wT
-            plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
-        elseif NN isa DiffEqFlux.FastChain
+        if NN isa DiffEqFlux.FastChain
             T_NN = coarse_grain(T[:, n], grid_points, Cell) .|> S_T
             wT_NN = NN(T_NN, npde.p) .|> S⁻¹_wT
+            plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
+        else
+            input = (coarse_grain(T[:, n], grid_points, Cell) .|> S_T, top_flux .|> S_wT)
+            wT_NN = input |> NN .|> S⁻¹_wT
             plot!(wT_NN, zF_coarse, linewidth=2, label="Neural network")
         end
     end
 
-    filename = "free_convection_learned_heat_flux.mp4"
-    @info "Saving $filename"
-    mp4(anim, filename, fps=fps)
+    @info "Saving $filepath"
+    mp4(anim, filepath, fps=fps)
 
     return nothing
 end
@@ -360,50 +360,65 @@ end
 training_data_heat_flux, standardization =
     free_convection_heat_flux_training_data(ds, Qs_train, grid_points=Nz, skip_first=skip_first)
 
-@info "Heat flux training data contains $(length(training_data_heat_flux)) pairs."
+n_obs = length(training_data_heat_flux)
+@info "Heat flux training data contains $n_obs pairs."
+
+data_loader_heat_flux = Flux.Data.DataLoader(training_data_heat_flux, batchsize=n_obs, shuffle=true)
+
+n_obs = data_loader_heat_flux.nobs
+batch_size = data_loader_heat_flux.batchsize
+n_batches = ceil(Int, n_obs / batch_size)
+@info "Heat flux data loader contains $n_obs observations (batch size = $batch_size)."
 
 #####
 ##### Define temperature T -> heat flux wT neural network
 #####
 
-layer1 = Dense(Nz, 4Nz, relu)
-layer2 = Dense(4Nz, 4Nz, relu)
-layer3 = Dense(4Nz, Nz-1)
+NN_heat_flux_filepath = "NN_heat_flux.bson"
 
-function neural_network_heat_flux(input)
-    T, top_flux = input
-    ϕ = T |> layer1 |> layer2 |> layer3
-    wT = cat(0.0, ϕ, top_flux, dims=1)
-    return wT
+if isfile(NN_heat_flux_filepath)
+    @info "Loading $NN_heat_flux_filepath..."
+    BSON.@load NN_heat_flux_filepath NN
+else
+    NN = Chain(Dense( Nz, 4Nz, relu),
+               Dense(4Nz, 4Nz, relu),
+               Dense(4Nz, Nz-1))
+
+    bot_flux = standardization.wT.standardize(0)
+
+    function NN_heat_flux(input)
+        T, top_flux = input
+        ϕ = NN(T)
+        wT = cat(bot_flux, ϕ, top_flux, dims=1)
+        return wT
+    end
 end
-
-error("Stop yo")
 
 #####
 ##### Train neural network on temperature T -> heat flux wT mapping
 #####
 
-NN_heat_flux_filename = "NN_heat_flux.bson"
+if !isfile(NN_heat_flux_filepath)
+    loss_heat_flux(input, wT) = Flux.mse(NN_heat_flux(input), wT)
 
-if isfile(NN_heat_flux_filename)
-    @info "Loading $NN_heat_flux_filename..."
-    BSON.@load NN_heat_flux_filename NN
-else
-    top_flux_NN = standardization.wT.standardize(top_flux)
-    bot_flux_NN = standardization.wT.standardize(bot_flux)
+    epochs = 1
+    optimizers = [ADAM(1e-2)]
 
-    NN = free_convection_neural_pde_architecture(Nz,
-            top_flux=top_flux_NN, bottom_flux=bot_flux_NN, conservative=true)
-
-    for opt in [ADAM(1e-2), Descent(1e-2)]
-        train_on_heat_flux!(NN, training_data_heat_flux, opt, epochs=5)
+    for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader_heat_flux)
+        @info "Training heat flux with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"
+        train_on_heat_flux!(loss_heat_flux, Flux.params(NN), mini_batch, opt)
     end
 
-    @info "Saving $NN_heat_flux_filename..."
-    BSON.@save NN_heat_flux_filename NN
+    @info "Saving $NN_heat_flux_filepath..."
+    BSON.@save NN_heat_flux_filepath NN
 
-    animate_learned_heat_flux(ds, NN, standardization, grid_points=Nz, frameskip=5, fps=15)
+    for Q in Qs_train
+        filepath = "learned_heat_flux_Q$(Q)W.mp4"
+        animate_learned_heat_flux(ds[Q], NN_heat_flux, standardization, grid_points=Nz, filepath=filepath, frameskip=5, fps=15)
+    end
 end
+
+error("Stop yo")
 
 training_data_time_step =
     free_convection_time_step_training_data(ds, standardization, grid_points=Nz, future_time_steps=future_time_steps)
