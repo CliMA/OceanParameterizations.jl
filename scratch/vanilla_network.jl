@@ -21,7 +21,7 @@ Flux.train!(loss, Flux.params(NN), data, ADAM())
 p, reconstruct = Flux.destructure(NN)
 
 function loss(θ, curdata...)
-    NN = re(θ)
+    NN = reconstruct(θ)
     μ_loss = mean(Flux.mse(NN(x), y) for (x, y) in data)
     return μ_loss
 end
