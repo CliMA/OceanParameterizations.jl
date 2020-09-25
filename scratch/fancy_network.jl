@@ -3,7 +3,8 @@ using Flux
 using DifferentialEquations
 using DiffEqSensitivity
 using DiffEqFlux
-using DiffEqFlux: basic_tgrad
+
+import DiffEqFlux: FastChain
 
 N = 4
 n_data = 5
@@ -62,36 +63,41 @@ NN = reconstruct(p)
 
 # NeuralODE
 
-function RHS(x, p)
-    a, b = p[end-1], p[end]
-    x′ = 2x
-    ϕ = NN(x′)
-    ϕ′ = ϕ / 7
-    y = cat(a, ϕ′, b, dims=1)
-    return diff(y)
+FastLayer(layer) = layer
+
+function FastLayer(layer::Dense)
+    N_out, N_in = size(layer.W)
+    return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
 end
 
-npde = NeuralODE(FastChain(RHS), (0.0, 1.0), ROCK4(), p=p, reltol=1e-3, saveat=0:0.1:1)
+FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
 
-function (npde::typeof(npde))(u₀, p)
-    dudt_(u, p, t) = npde.re(p[1:end-2])(u, p)
-    ff = ODEFunction{false}(dudt_, tgrad=basic_tgrad)
-    prob = ODEProblem{false}(ff, u₀, getfield(npde, :tspan), p)
-    sense = InterpolatingAdjoint(autojacvec=ZygoteVJP())
-    solve(prob, npde.args...; sense=sense, npde.kwargs...)
+NN_fast = FastChain(NN)
+
+function generate_RHS_fast(NN, a, b)
+    return FastChain(
+        (x, p) -> 2 .* x,
+        NN,
+        (x, p) -> x ./ 7,
+        (x, p) -> cat(a, x, b, dims=1),
+        (x, p) -> diff(x)
+    )
 end
+
+RHS_fast = generate_RHS_fast(NN_fast, 1.7, -3.1)
+
+npde = NeuralODE(RHS_fast, (0.0, 1.0), ROCK4(), p=p, reltol=1e-3, saveat=0:0.1:1)
 
 pde_data = randn(4, 11)
 u₀ = pde_data[:, 1]
 
-params = cat(p, 1, -2, dims=1)
-
 loss(θ) = Flux.mse(Array(npde(u₀, θ)), pde_data)
 
 function cb(θ, μ_loss)
-    @info "a=$(θ[end-1]), b=$(θ[end])"
     @info "μ_loss = $μ_loss"
     return false
 end
-    
-res = DiffEqFlux.sciml_train(loss, params, ADAM(), cb=cb, maxiters=10, save_best=true)
+
+@show loss(p)
+
+res = DiffEqFlux.sciml_train(loss, p, Descent(), cb=cb, maxiters=100, save_best=true)
