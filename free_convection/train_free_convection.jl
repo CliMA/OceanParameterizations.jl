@@ -196,27 +196,27 @@ end
 
 """ Returns a discrete 1D derivative operator for cell center to cell (f)aces. """
 function Dᶠ(N, Δ)
-    Dᶠ = zeros(N, N+1)
+    D = zeros(N, N+1)
     for k in 1:N
-        Dᶠ[k, k]   = -1.0
-        Dᶠ[k, k+1] =  1.0
+        D[k, k]   = -1.0
+        D[k, k+1] =  1.0
     end
-    Dᶠ = 1/Δ * Dᶠ
-    return Dᶠ
+    D = 1/Δ * D
+    return D
 end
 
 """ Returns a discrete 1D derivative operator for cell faces to cell (c)enters. """
 function Dᶜ(N, Δ)
-    Dzᶜ = zeros(N+1, N)
+    D = zeros(N+1, N)
     for k in 2:N
-        Dᶜ[k, k-1] = -1.0
-        Dᶜ[k, k]   =  1.0
+        D[k, k-1] = -1.0
+        D[k, k]   =  1.0
     end
-    Dᶜ = 1/Δ * Dᶜ
-    return Dᶜ
+    D = 1/Δ * D
+    return D
 end
 
-function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
+function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
     H = abs(ds["zF"][1])
     τ = ds["time"][end]
 
@@ -236,36 +236,35 @@ function construct_neural_pde(NN, ds, standardization; grid_points, time_steps)
 
     # Set up and return neural differential equation
     Nt = length(ds["time"])
-    tspan = (0.0, maximum(time_steps) / Nt)
-    tsteps = range(tspan[1], tspan[2], length = length(time_steps))
+    tspan = (0.0, maximum(iterations) / Nt)
+    tsteps = range(tspan[1], tspan[2], length = length(iterations))
 
     return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
 end
 
-function train_free_convection_neural_pde!(npde, training_data, optimizers; epochs=1)
-    time_steps = length(npde.kwargs[:saveat])
-    sol_correct = cat([training_data[n][1] for n in 1:time_steps]..., dims=2)
+function train_free_convection_neural_pde!(npde, training_data, ds, opt)
+    Qs = keys(training_data) |> collect
+    n_time_steps = length(training_data[Qs[1]])
+    Nz = length(training_data[Qs[1]][1][1])
 
-    T₀ = training_data[1][1]
+    T₀s = Dict(Q => training_data[Q][1][1] for Q in Qs)
+    sol_correct = cat((training_data[Q][n][1] for Q in Qs for n in 1:n_time_steps)..., dims=2)
 
-    H  = abs(ds["zF"][1])
-    Nz = length(T₀)
-    zF = coarse_grain(ds["zF"], Nz, Face)
+    H  = abs(ds[Qs[1]]["zF"][1])
+    zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
     Δẑ = diff(zF)[2] / H
 
     Dzᶜ = Dᶜ(Nz, Δẑ)
 
     function loss(θ)
-        sol_npde = Array(npde(T₀, θ))
-        Nt = size(sol_npde)[2]
-        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:Nt]..., dims=2)
+        sol_npde = cat((Array(npde(T₀s[Q], θ)) for Q in Qs)..., dims=2)
+        dTdz = cat((Dzᶜ * sol_npde[:, n] for n in 1:size(sol_npde)[2])..., dims=2)
 
         C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
         loss1 = Flux.mse(sol_npde, sol_correct)
         loss2 = mean(min.(dTdz, 0) .^ 2)
         weighted_loss = loss1 * (1 + min(loss2, C*loss1))
 
-        # println("loss1=$loss1, loss2=$loss2, weighted_loss=$weighted_loss")
         return weighted_loss
     end
 
@@ -274,24 +273,19 @@ function train_free_convection_neural_pde!(npde, training_data, optimizers; epoc
         return false
     end
 
-    # Train!
-    for opt in optimizers
-        if opt isa Optim.AbstractOptimizer
-            for e in 1:epochs
-                @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2))
-                display(res)
-                npde.p .= res.minimizer
-            end
-        else
-            for e in 1:epochs
-                @info "Training free convection neural PDE for $(time_steps-1) time steps with $(typeof(opt))(η=$(opt.eta)) [epoch $e/$epochs]..."
-                res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=100)
-                display(res)
-                npde.p .= res.minimizer
-            end
-        end
+    if opt isa Optim.AbstractOptimizer
+        @info "Training free convection neural PDE for $n_time_steps time steps with $(typeof(opt)).."
+        res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2))
+        display(res)
+        npde.p .= res.minimizer
+    else
+        @info "Training free convection neural PDE for $n_time_steps time steps with $(typeof(opt))(η=$(opt.eta))..."
+        res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=Flux.throttle(cb, 2), maxiters=100)
+        display(res)
+        npde.p .= res.minimizer
     end
+
+    return nothing
 end
 
 function animate_learned_free_convection(ds, npde, standardization; grid_points, skip_first, frameskip=1, fps=15)
@@ -443,9 +437,23 @@ end
 DiffEqFlux.paramlength(::typeof(NN_fast_heat_flux)) = paramlength(NN_fast)
 DiffEqFlux.initial_params(::typeof(NN_fast_heat_flux)) = initial_params(NN_fast)
 
-npde = construct_neural_pde(NN_fast_heat_flux, ds[25], standardization, grid_points=Nz, time_steps=0:50)
+iters_train = 1:50
+npde = construct_neural_pde(NN_fast_heat_flux, ds[25], standardization, grid_points=Nz, iterations=iters_train)
 
-error("Stop yo")
+S_T  = standardization.T.standardize
+S_wT = standardization.wT.standardize
+
+ρ₀ = nc_constant(ds[25], "Reference density")
+cₚ = nc_constant(ds[25], "Specific_heat_capacity")
+
+top_flux_standarized(Q) = Q / (ρ₀ * cₚ) |> S_wT
+
+training_data_time_step = Dict(
+    Q => [(coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T, top_flux_standarized(Q)) for n in iters_train]
+    for Q in Qs_train
+)
+
+# train_free_convection_neural_pde!(npde, training_data_time_step, ds, ADAM(1e-2))
 
 for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 1))
     global npde
