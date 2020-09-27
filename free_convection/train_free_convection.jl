@@ -466,7 +466,7 @@ epochs = 10
 for e in 1:epochs
     global best_weights
 
-    iters_train = training_intervals[end]
+    iters_train = training_intervals[1]
 
     training_data_time_step = cat([cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2) for Q in Qs_train]..., dims=2)
 
@@ -507,6 +507,24 @@ end
 npde_filename = "free_convection_neural_pde_parameters.bson"
 @info "Saving $npde_filename..."
 BSON.@save npde_filename best_weights
+
+#####
+##### Quantify testing and training errors
+#####
+
+for Q in (Qs_train..., Qs_test...)
+    iters_train = training_intervals[end]
+    sol_correct = cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
+    T₀ = coarse_grain(ds[Q]["T"][:, iters_train[1]], Nz, Cell) .|> S_T
+
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
+    npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
+    npde.p .= best_weights
+    sol_npde = Array(npde(T₀, npde.p))
+
+    μ_loss = Flux.mse(sol_npde, sol_correct)
+    @info @sprintf("Q = %dW loss: %e", Q, μ_loss)
+end
 
 #####
 ##### Animate learned heat flux and free convection solutions on training and testing simulations
