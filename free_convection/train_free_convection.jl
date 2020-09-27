@@ -64,7 +64,7 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, fra
     end
 
     anim = @animate for n=1:frameskip:Nt
-        @info "Plotting $var [$n/$Nt]..."
+        @info "Plotting $var for $filepath [$n/$Nt]..."
         var_fine = ds[var][:, n]
 
         if loc == Cell
@@ -166,7 +166,7 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, filepat
     top_flux = Q / (ρ₀ * cₚ)
 
     anim = @animate for n=1:frameskip:Nt
-        @info "Plotting learned heat flux [$n/$Nt]..."
+        @info "Plotting $filepath [$n/$Nt]..."
 
         time_str = @sprintf("%.2f days", ds["time"][n] / day)
 
@@ -284,7 +284,7 @@ function train_free_convection_neural_pde!(npde, training_data, ds, opt)
     return nothing
 end
 
-function animate_learned_free_convection(ds, npde, standardization; grid_points, skip_first, frameskip=1, fps=15)
+function animate_learned_free_convection(ds, npde, standardization; grid_points, skip_first, filepath, frameskip=1, fps=15)
     T, wT, z = ds["T"], ds["wT"], ds["zC"]
     Nz, Nt = size(T)
     z_coarse = coarse_grain(z, grid_points, Cell)
@@ -296,7 +296,7 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
 
     time_steps = size(sol_npde, 2)
     anim = @animate for n=1:frameskip:time_steps
-        @info "Plotting learned free convection [$n/$Nt]..."
+        @info "Plotting $filepath [$n/$Nt]..."
 
         time_str = @sprintf("%.2f days", ds["time"][n+skip_first] / day)
 
@@ -307,9 +307,8 @@ function animate_learned_free_convection(ds, npde, standardization; grid_points,
         plot!(S⁻¹_T.(sol_npde[:, n]), z_coarse, linewidth=2, label="Neural PDE")
     end
 
-    filename = "free_convection_neural_pde.mp4"
-    @info "Saving $filename"
-    mp4(anim, filename, fps=fps)
+    @info "Saving $filepath"
+    mp4(anim, filepath, fps=fps)
 
     return nothing
 end
@@ -440,10 +439,11 @@ flux_standarized(Q) = Q / (ρ₀ * cₚ) |> S_wT
 
 best_weights, _ = Flux.destructure(NN)
 
-for Q in Qs_train
+training_intervals = (1:50, 1:100, 1:2:200)
+
+for iters_train in training_intervals, Q in Qs_train
     global best_weights
 
-    iters_train = 1:50
     training_data_time_step = Dict(
         Q => cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
         for Q in Qs_train
@@ -462,17 +462,25 @@ for Q in Qs_train
     best_weights .= npde.p
 end
 
-# for (Nt, epochs) in zip((50, 100, 200, 350, 500, 750, 1000), (2, 1, 1, 1, 1, 1, 1))
-#     global npde
-#     new_npde = construct_neural_pde(NN_fast, ds, standardization, grid_points=Nz, time_steps=Nt)
-#     new_npde.p .= npde.p; npde = new_npde; # Keep using the same weights/parameters!
-#     train_free_convection_neural_pde!(npde, training_data_time_step, [ADAM(1e-3)], epochs=epochs)
+npde_filename = "free_convection_neural_pde_parameters.bson"
+@info "Saving $npde_filename..."
+BSON.@save npde_filename best_weights
 
-#     animate_learned_free_convection(ds, npde, standardization, grid_points=Nz, skip_first=skip_first)
-#     animate_learned_heat_flux(ds, FastChain(npde.model.layers[1:end-2]...), standardization, grid_points=Nz, frameskip=5, fps=15)
-# end
+for Q in Qs
+    regime = Q in Qs_train ? "training" : "testing"
 
-# npde_filename = "free_convection_neural_pde_parameters.bson"
-# @info "Saving $npde_filename..."
-# npde_params = npde.p
-# BSON.@save npde_filename npde_params
+    iters_train = 1:50
+
+    bot_flux_S = flux_standarized(0)
+    top_flux_S = flux_standarized(Q)
+
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, bot_flux_S, top_flux_S)
+    npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
+    npde.p .= best_weights
+
+    filepath = "free_convection_neural_pde_$(regime)_$(Q)W.mp4"
+    animate_learned_free_convection(ds[Q], npde, standardization, grid_points=Nz, skip_first=skip_first, filepath=filepath)
+
+    filepath = "learned_heat_flux_$(regime)_$(Q)W.mp4"
+    animate_learned_heat_flux(ds[Q], FastChain(npde.model.layers[1:end-2]...), standardization, grid_points=Nz, filepath=filepath, frameskip=5, fps=15)
+end
