@@ -243,8 +243,9 @@ function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
 end
 
 function train_free_convection_neural_pde!(npde, loss, opt; maxiters)
-    function cb(θ, μ_loss)
-        @info @sprintf("Training free convection neural PDE... loss = %e", μ_loss)
+    function cb(θ, μ_loss, loss_T, loss_∂T∂z)
+        @info @sprintf("Training free convection neural PDE... loss = %e (loss_T = %e, loss_∂T∂z = %e)",
+                       μ_loss, loss_T, loss_∂T∂z)
         return false
     end
 
@@ -420,53 +421,23 @@ zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
 Dzᶜ = Dᶜ(Nz, Δẑ)
 
 #####
-##### Train free convection neural PDE by incrementally increasing time span
+##### Train on multiple simulations at once while incrementally increasing the time span
 #####
 
 training_intervals = (1:50, 1:100, 1:2:201, 1:4:401, 1:8:801, 1:9:length(ds[25]["time"]))
-training_maxiters  = (25,   40,    50,      50,      50,      50)
+training_maxiters  = (50,   50,    100,     100,     100,     100)
+training_epochs    = (1,    2,     2,       2,       2,       3)
 
-for (iters_train, maxiters) in zip(training_intervals, training_maxiters), Q in Qs_train
+training_intervals = [1:9:length(ds[25]["time"])]
+training_maxiters  = [100]
+training_epochs    = [10]
+
+training_intervals = [1:9:length(ds[25]["time"])]
+training_maxiters  = [500]
+training_epochs    = [1]
+
+for (iters_train, maxiters, epochs) in zip(training_intervals, training_maxiters, training_epochs), e in 1:epochs
     global best_weights
-
-    training_data_time_step = cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
-    T₀ = training_data_time_step[:, 1]
-
-    bot_flux_S = flux_standarized(0)
-    top_flux_S = flux_standarized(Q)
-
-    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, bot_flux_S, top_flux_S)
-
-    npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
-    npde.p .= best_weights
-
-    function loss(θ)
-        sol_npde = Array(npde(T₀, θ))
-        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:size(sol_npde, 2)]..., dims=2)
-
-        C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
-        loss1 = Flux.mse(sol_npde, training_data_time_step)
-        loss2 = mean(min.(dTdz, 0) .^ 2)
-        weighted_loss = loss1 + min(loss2, C*loss1)
-
-        return weighted_loss
-    end
-
-    @info "Training free convection neural PDE on $(Q)W for iterations $iters_train..."
-    train_free_convection_neural_pde!(npde, loss, ADAM(1e-2), maxiters=maxiters)
-
-    best_weights .= npde.p
-end
-
-#####
-##### Train on multiple simulations at once with maximum time span
-#####
-
-epochs = 10
-for e in 1:epochs
-    global best_weights
-
-    iters_train = training_intervals[1]
 
     training_data_time_step = cat([cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2) for Q in Qs_train]..., dims=2)
 
@@ -490,16 +461,17 @@ for e in 1:epochs
         sols_npde = cat([Array(npdes[Q](T₀s[Q], θ)) for Q in Qs_train]..., dims=2)
         dTdz = cat([Dzᶜ * sols_npde[:, n] for n in 1:size(sols_npde, 2)]..., dims=2)
 
-        C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
-        loss1 = Flux.mse(sols_npde, training_data_time_step)
-        loss2 = mean(min.(dTdz, 0) .^ 2)
-        weighted_loss = loss1 + min(loss2, C*loss1)
+        C = 5  # loss_dTdz will always be weighted with 0 <= weight <= C
+        loss_T = Flux.mse(sols_npde, training_data_time_step)
+        loss_dTdz = mean(min.(dTdz, 0) .^ 2)
+        weighted_loss = loss_T + min(C * loss_T, loss_dTdz)
 
-        return weighted_loss
+        return weighted_loss, loss_T, loss_dTdz
     end
 
     @info "Training free convection neural PDE for iterations $iters_train (epoch $e/$epochs)..."
-    train_free_convection_neural_pde!(npdes[Qs_train[1]], combined_loss, ADAM(1e-2), maxiters=10)
+    η = (epochs - e + 1) * 1e-3
+    train_free_convection_neural_pde!(npdes[Qs_train[1]], combined_loss, ADAM(η), maxiters=maxiters)
 
     best_weights .= npdes[Qs_train[1]].p
 end
