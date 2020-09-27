@@ -242,40 +242,19 @@ function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
     return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
 end
 
-function train_free_convection_neural_pde!(npde, training_data, ds, opt; maxiters)
-    Nz, n_time_steps = size(training_data)
-    T₀ = training_data[:, 1]
-
-    H  = abs(ds[Qs[1]]["zF"][1])
-    zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
-    Δẑ = diff(zF)[2] / H
-
-    Dzᶜ = Dᶜ(Nz, Δẑ)
-
-    function loss(θ)
-        sol_npde = Array(npde(T₀, θ))
-        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:n_time_steps]..., dims=2)
-
-        C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
-        loss1 = Flux.mse(sol_npde, training_data)
-        loss2 = mean(min.(dTdz, 0) .^ 2)
-        weighted_loss = loss1 * (1 + min(loss2, C*loss1))
-
-        return weighted_loss
-    end
-
-    function cb(θ, args...)
-        @info @sprintf("Training free convection neural PDE... loss = %e", loss(θ))
+function train_free_convection_neural_pde!(npde, loss, opt; maxiters)
+    function cb(θ, μ_loss)
+        @info @sprintf("Training free convection neural PDE... loss = %e", μ_loss)
         return false
     end
 
     if opt isa Optim.AbstractOptimizer
-        @info "Training free convection neural PDE for $n_time_steps time steps with $(typeof(opt)).."
+        @info "Training free convection neural PDE with $(typeof(opt)).."
         res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb)
         display(res)
         npde.p .= res.minimizer
     else
-        @info "Training free convection neural PDE for $n_time_steps time steps with $(typeof(opt))(η=$(opt.eta))..."
+        @info "Training free convection neural PDE with $(typeof(opt))(η=$(opt.eta))..."
         res = DiffEqFlux.sciml_train(loss, npde.p, opt, cb=cb, maxiters=maxiters)
         display(res)
         npde.p .= res.minimizer
@@ -412,7 +391,7 @@ if !isfile(NN_heat_flux_filepath)
 end
 
 #####
-##### Traing free convection T(z,t) neural PDE
+##### Preparing to train free convection T(z,t) neural PDE
 #####
 
 NN_fast = FastChain(NN)
@@ -434,19 +413,25 @@ flux_standarized(Q) = Q / (ρ₀ * cₚ) |> S_wT
 
 best_weights, _ = Flux.destructure(NN)
 
-# Train by extending the time span
+H  = abs(ds[Qs[1]]["zF"][1])
+zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
+Δẑ = diff(zF)[2] / H
+
+Dzᶜ = Dᶜ(Nz, Δẑ)
+
+#####
+##### Train free convection neural PDE by incrementally increasing time span
+#####
 
 training_intervals = (1:50, 1:100, 1:2:201, 1:4:401, 1:8:801, 1:9:length(ds[25]["time"]))
-training_maxiters  = (20,   40,    50,      50,      50,     50)
+training_maxiters  = (25,   40,    50,      50,      50,      50)
 
 for (iters_train, maxiters) in zip(training_intervals, training_maxiters), Q in Qs_train
     global best_weights
 
-    training_data_time_step = Dict(
-        Q => cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
-        for Q in Qs_train
-    )
-    
+    training_data_time_step = cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
+    T₀ = training_data_time_step[:, 1]
+
     bot_flux_S = flux_standarized(0)
     top_flux_S = flux_standarized(Q)
 
@@ -455,8 +440,20 @@ for (iters_train, maxiters) in zip(training_intervals, training_maxiters), Q in 
     npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
     npde.p .= best_weights
 
-    @info "Training free convection neural pde on $(Q)W for iterations $iters_train..."
-    train_free_convection_neural_pde!(npde, training_data_time_step[Q], ds, ADAM(1e-2), maxiters=maxiters)
+    function loss(θ)
+        sol_npde = Array(npde(T₀, θ))
+        dTdz = cat([Dzᶜ * sol_npde[:, n] for n in 1:size(sol_npde, 2)]..., dims=2)
+
+        C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
+        loss1 = Flux.mse(sol_npde, training_data_time_step)
+        loss2 = mean(min.(dTdz, 0) .^ 2)
+        weighted_loss = loss1 * (1 + min(loss2, C*loss1))
+
+        return weighted_loss
+    end
+
+    @info "Training free convection neural PDE on $(Q)W for iterations $iters_train..."
+    train_free_convection_neural_pde!(npde, loss, ADAM(1e-2), maxiters=maxiters)
 
     best_weights .= npde.p
 end
