@@ -447,7 +447,7 @@ for (iters_train, maxiters) in zip(training_intervals, training_maxiters), Q in 
         C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
         loss1 = Flux.mse(sol_npde, training_data_time_step)
         loss2 = mean(min.(dTdz, 0) .^ 2)
-        weighted_loss = loss1 * (1 + min(loss2, C*loss1))
+        weighted_loss = loss1 + min(loss2, C*loss1)
 
         return weighted_loss
     end
@@ -493,7 +493,7 @@ for e in 1:epochs
         C = 0.5  # loss2 will always be weighted with 0 <= weight <= C
         loss1 = Flux.mse(sols_npde, training_data_time_step)
         loss2 = mean(min.(dTdz, 0) .^ 2)
-        weighted_loss = loss1 * (1 + min(loss2, C*loss1))
+        weighted_loss = loss1 + min(loss2, C*loss1)
 
         return weighted_loss
     end
