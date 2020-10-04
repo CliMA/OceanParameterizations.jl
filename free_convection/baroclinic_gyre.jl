@@ -32,7 +32,7 @@ model = IncompressibleModel(
                    grid = grid,
            architecture = CPU(),
             timestepper = :RungeKutta3,
-              advection = WENO5(),
+              advection = CenteredSecondOrder(),
                coriolis = BetaPlane(latitude=45),
                 tracers = :T,
                buoyancy = SeawaterBuoyancy(constant_salinity=true),
@@ -48,7 +48,7 @@ fields = Dict("u" => model.velocities.u, "v" => model.velocities.v, "w" => model
 field_writer = NetCDFOutputWriter(model, fields, filename="baroclinic_gyre.nc", time_interval=1day)
                                               
 max_Δt = min(0.1grid.Δz^2 / closure.κz, 0.1grid.Δx^2 / closure.νx)
-wizard = TimeStepWizard(cfl=0.25, Δt=1minute, max_change = 1.1, max_Δt=max_Δt)
+wizard = TimeStepWizard(cfl=0.5, Δt=1minute, max_change = 1.1, max_Δt=max_Δt)
 
 umax = FieldMaximum(abs, model.velocities.u)
 vmax = FieldMaximum(abs, model.velocities.v)
