@@ -89,19 +89,19 @@ tsave = range(tspan...; length=101)
 
 params = (N=N, κ=1000, Qₛ=Q, Dzᶠ=Dzᶠ, Dzᶜ=Dᶜ(N, Δ))
 
-# prob = ODEProblem(convective_adjustment, T₀, tspan, params)
-# @time sol = solve(prob, Rodas5(), reltol=1e-5, saveat=tsave, progress=true)
-#
-# anim = @animate for n in 1:length(sol)
-#     @info "Frame $n/$(length(sol))"
-#     time_str = @sprintf("%.2f days", sol.t[n] / day)
-#
-#     plot(sol[n], z, linewidth=2, xlim=(19, 20), ylim=(0, 100),
-#          xlabel="Temperature (°C)", ylabel="Depth z (meters)",
-#          title="Convective adjustment: $time_str", legend=:bottomright, show=false)
-# end
-#
-# mp4(anim, "convective_adjustment.mp4", fps=15)
+prob = ODEProblem(convective_adjustment, T₀, tspan, params)
+@time sol = solve(prob, Rodas5(), reltol=1e-5, saveat=tsave, progress=true)
+
+anim = @animate for n in 1:length(sol)
+    @info "Frame $n/$(length(sol))"
+    time_str = @sprintf("%.2f days", sol.t[n] / day)
+
+    plot(sol[n], z, linewidth=2, xlim=(19, 20), ylim=(0, 100),
+         xlabel="Temperature (°C)", ylabel="Depth z (meters)",
+         title="Convective adjustment: $time_str", legend=:bottomright, show=false)
+end
+
+mp4(anim, "convective_adjustment_stiff.mp4", fps=15)
 
 function convective_adjustment!(integrator)
     T = integrator.u
@@ -131,20 +131,24 @@ end
 Δz = Δ
 Δt = 3600.0
 K  = 1000
-time_steps = 100
+time_steps = Int(8day / Δt)
 
 prob = ODEProblem(surface_flux, T₀, tspan, params)
-integrator = init(prob, Tsit5(), adaptive=false, dt=Δt)
+integrator = init(prob, Tsit5(), adaptive=false, dt=Δt, saveat=0:Δt:Δt*time_steps)
+
+@time begin
+    for _ in 1:time_steps
+        step!(integrator)
+        convective_adjustment!(integrator)
+    end
+end
 
 anim = @animate for n in 1:time_steps
-    step!(integrator)
-    convective_adjustment!(integrator)
-
     @info "frame $n/$time_steps"
-    time_str = @sprintf("%.2f days", integrator.t / day)
+    time_str = @sprintf("%.2f days", integrator.sol.t[n] / day)
     plot(integrator.sol[n], z, linewidth=2, xlim=(19, 20), ylim=(0, 100),
          xlabel="Temperature (°C)", ylabel="Depth z (meters)",
          title="Convective adjustment: $time_str", legend=:bottomright, show=false)
 end
  
-mp4(anim, "convective_adjustment.mp4", fps=30)
+mp4(anim, "convective_adjustment_implicit.mp4", fps=30)
