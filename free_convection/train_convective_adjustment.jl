@@ -220,6 +220,7 @@ end
 
 function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
     H = abs(ds["zF"][1])
+    Nt = length(ds["time"])
     τ = ds["time"][end]
 
     Nz = grid_points
@@ -233,15 +234,16 @@ function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
     σ_T, σ_wT = standardization.T.σ, standardization.wT.σ
 
     NN_∂T∂t = FastChain(NN.layers...,
-                        (wT, _) -> - Dzᶠ * wT,
-                        (∂z_wT, _) -> σ_wT/σ_T * τ/H * ∂z_wT)
+                        (wT, _) -> - σ_wT/σ_T * τ/H * Dzᶠ * wT)
 
     # Set up and return neural differential equation
-    Nt = length(ds["time"])
     tspan = (0.0, maximum(iterations) / Nt)
-    tsteps = range(tspan[1], tspan[2], length = length(iterations))
 
-    return NeuralODE(NN_∂T∂t, tspan, Rodas5(), reltol=1e-3, saveat=tsteps)
+    tsteps = range(tspan[1], tspan[2], length = length(iterations))
+    return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
+
+    # Δτ = tspan[end] / length(iterations)
+    # return NeuralODE(NN_∂T∂t, tspan, Tsit5(), adaptive=false, dt=Δτ, saveat=0:Δτ:Δτ*(length(iterations)-1))
 end
 
 function train_free_convection_neural_pde!(npde, loss, opt; maxiters)
@@ -397,12 +399,14 @@ end
 ##### Preparing to train free convection T(z,t) neural PDE
 #####
 
+@info "Preparing to train free convection T(z,t) neural PDE..."
+
 NN_fast = FastChain(NN)
 
 function generate_NN_fast_heat_flux(NN, bottom_flux, top_flux)
     return FastChain(
         NN,
-        (wT, _) -> cat(bottom_flux, bottom_flux * ones(Nz-1), top_flux, dims=1)
+        (wT, _) -> cat(bottom_flux, wT, top_flux, dims=1)
     )
 end
 
@@ -412,7 +416,7 @@ S_wT = standardization.wT.standardize
 ρ₀ = nc_constant(ds[75], "Reference density")
 cₚ = nc_constant(ds[75], "Specific_heat_capacity")
 
-flux_standarized(Q) = Q / (ρ₀ * cₚ) |> S_wT
+flux_standardized(Q) = S_wT(Q / (ρ₀ * cₚ))
 
 best_weights, _ = Flux.destructure(NN)
 
@@ -422,24 +426,31 @@ zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
 
 Dzᶜ = Dᶜ(Nz, Δẑ)
 Dzᶠ = Dᶠ(Nz, Δẑ)
-# dTdz(T) = Dzᶜ * T
-# convective_adjustment_heat_flux(T) = min.(0, 0.01 .* dTdz(T))
 
 H = abs(ds[25]["zF"][1])
 τ = ds[25]["time"][end]
 
 σ_T, σ_wT = standardization.T.σ, standardization.wT.σ
 
+# global last_t = 0.0
+
 function (n::NeuralODE{M})(x,p=n.p) where {M<:FastChain}
     function dudt_(T, p, t)
+        # global last_t
+        # Δt = t - last_t
+        # last_t = t
+        # @show Δt
+
         ∂T∂t_NN = n.model(T, p)
 
+        # wT = flux_standardized(0) .* ones(Nz+1)
+        # wT[Nz+1] = flux_standardized(-100)
+        # ∂T∂t_NN = σ_wT/σ_T * τ/H * Dzᶠ * wT
+
         ∂T∂z = Dzᶜ * T
-        ∂T∂t_CA = - σ_wT/σ_T * τ/H * Dzᶠ * min.(0, 1 * ∂T∂z)
-        # @show ∂T∂z
-        # @show ∂T∂t_NN
-        # @show ∂T∂t_CA
-        return cat(∂T∂t_NN[1], ∂T∂t_CA[2:end-1], ∂T∂t_NN[end], dims=1)
+        ∂T∂t_CA = σ_wT/σ_T * τ/H * Dzᶠ * min.(0, 100 * ∂T∂z)
+
+        return ∂T∂t_CA .+ ∂T∂t_NN
     end
 
     ff = ODEFunction{false}(dudt_, tgrad=basic_tgrad)
@@ -463,6 +474,10 @@ end
 # training_intervals = [1:9:length(ds[25]["time"])]
 # training_maxiters  = [500]
 # training_epochs    = [1]
+
+training_intervals = [1:2:201]
+training_maxiters  = [100]
+training_epochs    = [1]
 
 # for (iters_train, maxiters, epochs) in zip(training_intervals, training_maxiters, training_epochs), e in 1:epochs
 #     global best_weights
@@ -512,15 +527,19 @@ end
 ##### Quantify testing and training errors
 #####
 
-for Q in [25] # (Qs_train..., Qs_test...)
+@info "Quantifying testing and training errors..."
+
+for Q in (Qs_train..., Qs_test...)
     iters_train = training_intervals[end]
     sol_correct = cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
     T₀ = coarse_grain(ds[Q]["T"][:, iters_train[1]], Nz, Cell) .|> S_T
 
-    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(-Q))
     npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
     npde.p .= best_weights
-    sol_npde = Array(npde(T₀, npde.p))
+
+    @time sol = npde(T₀, npde.p)
+    sol_npde = Array(sol)
 
     μ_loss = Flux.mse(sol_npde, sol_correct)
     @info @sprintf("Q = %dW loss: %e", Q, μ_loss)
@@ -530,15 +549,12 @@ end
 ##### Animate learned heat flux and free convection solutions on training and testing simulations
 #####
 
-for Q in [25] # Qs
+for Q in Qs
     regime = Q in Qs_train ? "training" : "testing"
 
     iters_train = training_intervals[end]
 
-    bot_flux_S = flux_standarized(0)
-    top_flux_S = flux_standarized(Q)
-
-    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, bot_flux_S, top_flux_S)
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(-Q))
     npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
     npde.p .= best_weights
 
@@ -546,5 +562,5 @@ for Q in [25] # Qs
     animate_learned_free_convection(ds[Q], npde, standardization, grid_points=Nz, iters=iters_train, filepath=filepath)
 
     filepath = "learned_heat_flux_$(regime)_$(Q)W.mp4"
-    # animate_learned_heat_flux(ds[Q], FastChain(npde.model.layers[1:end-2]...), standardization, grid_points=Nz, filepath=filepath, frameskip=5, fps=15, npde=npde)
+    # animate_learned_heat_flux(ds[Q], FastChain(npde.model.layers[1:end-1]...), standardization, grid_points=Nz, filepath=filepath, frameskip=5, fps=15, npde=npde)
 end
