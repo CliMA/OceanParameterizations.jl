@@ -129,7 +129,7 @@ function convective_adjustment!(integrator)
 end
 
 Δz = Δ
-Δt = 600.0
+Δt = 3600.0
 K  = 1000
 time_steps = 100
 
@@ -140,8 +140,8 @@ anim = @animate for n in 1:time_steps
     step!(integrator)
     convective_adjustment!(integrator)
 
+    @info "frame $n/$time_steps"
     time_str = @sprintf("%.2f days", integrator.t / day)
-
     plot(integrator.sol[n], z, linewidth=2, xlim=(19, 20), ylim=(0, 100),
          xlabel="Temperature (°C)", ylabel="Depth z (meters)",
          title="Convective adjustment: $time_str", legend=:bottomright, show=false)
