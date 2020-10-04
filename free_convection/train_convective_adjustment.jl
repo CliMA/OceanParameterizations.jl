@@ -467,61 +467,59 @@ end
 # training_maxiters  = (50,   50,    100,     100,     100,     100)
 # training_epochs    = (1,    2,     2,       2,       2,       3)
 
-# training_intervals = [1:9:length(ds[25]["time"])]
-# training_maxiters  = [100]
-# training_epochs    = [10]
+# training_intervals = (1:50, 1:100, 1:2:201)
+# training_maxiters  = (50,   50,    100    )
+# training_epochs    = (1,    2,     2      )
 
-# training_intervals = [1:9:length(ds[25]["time"])]
-# training_maxiters  = [500]
-# training_epochs    = [1]
+training_intervals = (1:8:801,)
+training_maxiters  = (50,)
+training_epochs    = (1,)
 
-training_intervals = [1:2:201]
-training_maxiters  = [100]
-training_epochs    = [1]
+for (iters_train, maxiters, epochs) in zip(training_intervals, training_maxiters, training_epochs), e in 1:epochs
+    global best_weights
 
-# for (iters_train, maxiters, epochs) in zip(training_intervals, training_maxiters, training_epochs), e in 1:epochs
-#     global best_weights
+    training_data_time_step = cat([cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2) for Q in Qs_train]..., dims=2)
 
-#     training_data_time_step = cat([cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2) for Q in Qs_train]..., dims=2)
+    T₀s = Dict(Q => coarse_grain(ds[Q]["T"][:, iters_train[1]], Nz, Cell) .|> S_T for Q in Qs_train)
 
-#     T₀s = Dict(Q => coarse_grain(ds[Q]["T"][:, iters_train[1]], Nz, Cell) .|> S_T for Q in Qs_train)
+    NNs_fast_heat_flux = Dict(
+        Q => generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
+        for Q in Qs_train
+    )
 
-#     NNs_fast_heat_flux = Dict(
-#         Q => generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
-#         for Q in Qs_train
-#     )
+    npdes = Dict(
+        Q => construct_neural_pde(NNs_fast_heat_flux[Q], ds[Q], standardization, grid_points=Nz, iterations=iters_train)
+        for Q in Qs_train
+    )
 
-#     npdes = Dict(
-#         Q => construct_neural_pde(NNs_fast_heat_flux[Q], ds[Q], standardization, grid_points=Nz, iterations=iters_train)
-#         for Q in Qs_train
-#     )
+    for Q in Qs_train
+        npdes[Q].p .= best_weights
+    end
 
-#     for Q in Qs_train
-#         npdes[Q].p .= best_weights
-#     end
+    function combined_loss(θ)
+        sols_npde = cat([Array(npdes[Q](T₀s[Q], θ)) for Q in Qs_train]..., dims=2)
+        # dTdz = cat([Dzᶜ * sols_npde[:, n] for n in 1:size(sols_npde, 2)]..., dims=2)
 
-#     function combined_loss(θ)
-#         sols_npde = cat([Array(npdes[Q](T₀s[Q], θ)) for Q in Qs_train]..., dims=2)
-#         dTdz = cat([Dzᶜ * sols_npde[:, n] for n in 1:size(sols_npde, 2)]..., dims=2)
+        # C = 5  # loss_dTdz will always be weighted with 0 <= weight <= C
+        loss_T = Flux.mse(sols_npde, training_data_time_step)
+        # loss_dTdz = mean(min.(dTdz, 0) .^ 2)
+        # weighted_loss = loss_T + min(C * loss_T, loss_dTdz)
 
-#         C = 5  # loss_dTdz will always be weighted with 0 <= weight <= C
-#         loss_T = Flux.mse(sols_npde, training_data_time_step)
-#         loss_dTdz = mean(min.(dTdz, 0) .^ 2)
-#         weighted_loss = loss_T + min(C * loss_T, loss_dTdz)
+        # return weighted_loss, loss_T, loss_dTdz
+        return loss_T, loss_T, 0
+    end
 
-#         return weighted_loss, loss_T, loss_dTdz
-#     end
+    @info "Training free convection neural PDE for iterations $iters_train (epoch $e/$epochs)..."
+    η = 0.01 # (epochs - e + 1) * 1e-3
+    train_free_convection_neural_pde!(npdes[Qs_train[1]], combined_loss, ADAM(η), maxiters=maxiters)
 
-#     @info "Training free convection neural PDE for iterations $iters_train (epoch $e/$epochs)..."
-#     η = (epochs - e + 1) * 1e-3
-#     train_free_convection_neural_pde!(npdes[Qs_train[1]], combined_loss, ADAM(η), maxiters=maxiters)
+    best_weights .= npdes[Qs_train[1]].p
+end
 
-#     best_weights .= npdes[Qs_train[1]].p
-# end
-
-# npde_filename = "free_convection_neural_pde_parameters.bson"
+npde_filename = "free_convection_neural_pde_parameters.bson"
 # @info "Saving $npde_filename..."
 # BSON.@save npde_filename best_weights
+# BSON.@load npde_filename best_weights
 
 #####
 ##### Quantify testing and training errors
@@ -534,7 +532,7 @@ for Q in (Qs_train..., Qs_test...)
     sol_correct = cat((coarse_grain(ds[Q]["T"][:, n], Nz, Cell) .|> S_T for n in iters_train)..., dims=2)
     T₀ = coarse_grain(ds[Q]["T"][:, iters_train[1]], Nz, Cell) .|> S_T
 
-    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(-Q))
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
     npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
     npde.p .= best_weights
 
@@ -554,7 +552,7 @@ for Q in Qs
 
     iters_train = training_intervals[end]
 
-    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(-Q))
+    NN_fast_heat_flux = generate_NN_fast_heat_flux(NN_fast, flux_standarized(0), flux_standarized(Q))
     npde = construct_neural_pde(NN_fast_heat_flux, ds[Q], standardization, grid_points=Nz, iterations=iters_train)
     npde.p .= best_weights
 
