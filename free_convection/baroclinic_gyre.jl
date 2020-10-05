@@ -66,11 +66,10 @@ w_bcs = WVelocityBoundaryConditions(grid, east=no_slip, west=no_slip, north=no_s
 
 T_bc_params = (τ_T = 30day, T_min=0, T_max=30, Ly=grid.Ly)
 @inline surface_temperature(y, p) = (p.T_max - p.T_min) / p.Ly * y
-@inline surface_temperature_relaxation(i, j, grid, clock, model_fields, p) =
-    @inbounds - 1/p.τ_T * (model_fields.T[i, j, grid.Nz] - surface_temperature(grid.yC[j], p))
+@inline surface_temperature_relaxation(i, j, k, grid, clock, model_fields, p) =
+    @inbounds k == grid.Nz ? - 1/p.τ_T * (model_fields.T[i, j, k] - surface_temperature(grid.yC[j], p)) : 0
 
-T_bc_top = BoundaryCondition(Flux, surface_temperature_relaxation, discrete_form=true, parameters=T_bc_params)
-T_bcs = TracerBoundaryConditions(grid, top=T_bc_top)
+T_forcing = Forcing(surface_temperature_relaxation, discrete_form=true, parameters=T_bc_params)
 
 closure = AnisotropicDiffusivity(νh=5000, νz=1e-2, κh=1000, κz=1e-5)
 
@@ -83,7 +82,8 @@ model = IncompressibleModel(
                 tracers = :T,
                buoyancy = SeawaterBuoyancy(constant_salinity=true),
                 closure = closure,
-    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs)
+    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs),
+                forcing = (T=T_forcing,)
 )
 
 T_bottom, T_top = 2, 30
