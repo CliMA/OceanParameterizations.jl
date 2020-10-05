@@ -78,7 +78,7 @@ model = IncompressibleModel(
                    grid = grid,
            architecture = CPU(),
             timestepper = :RungeKutta3,
-              advection = CenteredSecondOrder(),
+              advection = UpwindBiasedThirdOrder(),
                coriolis = BetaPlane(latitude=45),
                 tracers = :T,
                buoyancy = SeawaterBuoyancy(constant_salinity=true),
@@ -118,7 +118,7 @@ function print_progress(simulation)
     return nothing
 end
 
-simulation = Simulation(model, Δt=wizard, stop_time=365day, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=3*365day, iteration_interval=1, progress=print_progress)
 simulation.output_writers[:fields] = field_writer
 
 run!(simulation)
