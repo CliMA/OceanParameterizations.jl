@@ -108,7 +108,7 @@ wall_clock = time_ns()
 function print_progress(simulation)
     model = simulation.model
 
-    convective_adjustment!(model, simulation.Δt.Δt, 100)
+    convective_adjustment!(model, simulation.Δt.Δt, 1)
 
     @info @sprintf("i: %04d, t: %s, Δt: %s, U_max = (%.4e, %.4e, %.4e) m/s, CFL: (advective=%.4e, diffusive=%.4e), wall time: %s\n",
                    model.clock.iteration, prettytime(model.clock.time), prettytime(wizard.Δt),
