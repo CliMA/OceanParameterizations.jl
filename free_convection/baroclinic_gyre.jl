@@ -51,12 +51,12 @@ end
 
 topo = (Bounded, Bounded, Bounded)
 domain = (x=(-3000km, 3000km), y=(-3000km, 3000km), z=(-1.8km, 0))
-grid = RegularCartesianGrid(topology=topo, size = (60, 60, 36), halo = (3, 3, 3); domain...)
+grid = RegularCartesianGrid(topology=topo, size = (60, 60, 32), halo = (3, 3, 3); domain...)
 
 no_slip = BoundaryCondition(Value, 0)
 
-u_bc_params = (τ=0.01, Ly=grid.Ly)
-@inline wind_stress(x, y, t, p) = - p.τ * cos(2π * y / p.Ly)
+u_bc_params = (τ=0.1, ρ₀=1027, Ly=grid.Ly, Δz=grid.Δz)
+@inline wind_stress(x, y, t, p) = - p.τ / (p.ρ₀ * p.Δz) * cos(2π * y / p.Ly)
 
 u_bc_top = BoundaryCondition(Flux, wind_stress, parameters=u_bc_params)
 u_bcs = UVelocityBoundaryConditions(grid, top=u_bc_top, south=no_slip, north=no_slip)
