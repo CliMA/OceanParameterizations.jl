@@ -51,7 +51,7 @@ end
 
 topo = (Bounded, Bounded, Bounded)
 domain = (x=(0, 6000km), y=(0, 6000km), z=(-1.8km, 0))
-grid = RegularCartesianGrid(topology=topo, size = (60, 60, 32), halo = (3, 3, 3); domain...)
+grid = RegularCartesianGrid(topology=topo, size=(60, 60, 32), halo=(3, 3, 3); domain...)
 
 no_slip = BoundaryCondition(Value, 0)
 
@@ -64,12 +64,12 @@ u_bcs = UVelocityBoundaryConditions(grid, top=u_bc_top, south=no_slip, north=no_
 v_bcs = VVelocityBoundaryConditions(grid, east=no_slip, west=no_slip)
 w_bcs = WVelocityBoundaryConditions(grid, east=no_slip, west=no_slip, north=no_slip, south=no_slip)
 
-T_bc_params = (τ_T = 30day, T_min=0, T_max=30, Ly=grid.Ly)
+T_forcing_params = (τ_T = 30day, T_min=0, T_max=30, Ly=grid.Ly)
 @inline surface_temperature(y, p) = (p.T_max - p.T_min) / p.Ly * y
 @inline surface_temperature_relaxation(i, j, k, grid, clock, model_fields, p) =
     @inbounds k == grid.Nz ? - 1/p.τ_T * (model_fields.T[i, j, k] - surface_temperature(grid.yC[j], p)) : 0
 
-T_forcing = Forcing(surface_temperature_relaxation, discrete_form=true, parameters=T_bc_params)
+T_forcing = Forcing(surface_temperature_relaxation, discrete_form=true, parameters=T_forcing_params)
 
 closure = AnisotropicDiffusivity(νh=5000, νz=1e-2, κh=1000, κz=1e-5)
 
@@ -86,7 +86,7 @@ model = IncompressibleModel(
                 forcing = (T=T_forcing,)
 )
 
-T_bottom, T_top = 2, 30
+T_bottom, T_top = 0, 30
 T₀(x, y, z) =  T_top + (T_top - T_bottom) * z / grid.Lz
 set!(model, T=T₀)
 
@@ -94,7 +94,7 @@ fields = Dict("u" => model.velocities.u, "v" => model.velocities.v, "w" => model
 field_writer = NetCDFOutputWriter(model, fields, filename="baroclinic_gyre.nc", time_interval=1day)
                                               
 max_Δt = min(0.1grid.Δz^2 / closure.κz, 0.1grid.Δx^2 / closure.νx)
-wizard = TimeStepWizard(cfl=0.5, Δt=1minute, max_change = 1.1, max_Δt=max_Δt)
+wizard = TimeStepWizard(cfl=0.1, Δt=1minute, max_change = 1.1, max_Δt=max_Δt)
 
 umax = FieldMaximum(abs, model.velocities.u)
 vmax = FieldMaximum(abs, model.velocities.v)
