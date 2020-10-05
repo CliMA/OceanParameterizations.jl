@@ -50,7 +50,7 @@ function convective_adjustment!(model, Δt, K)
 end
 
 topo = (Bounded, Bounded, Bounded)
-domain = (x=(-3000km, 3000km), y=(-3000km, 3000km), z=(-1.8km, 0))
+domain = (x=(0, 6000km), y=(0, 6000km), z=(-1.8km, 0))
 grid = RegularCartesianGrid(topology=topo, size = (60, 60, 32), halo = (3, 3, 3); domain...)
 
 no_slip = BoundaryCondition(Value, 0)
@@ -67,7 +67,7 @@ w_bcs = WVelocityBoundaryConditions(grid, east=no_slip, west=no_slip, north=no_s
 T_bc_params = (τ_T = 30day, T_min=0, T_max=30, Ly=grid.Ly)
 @inline surface_temperature(y, p) = (p.T_max - p.T_min) / p.Ly * y
 @inline surface_temperature_relaxation(i, j, grid, clock, model_fields, p) =
-    @inbounds -1/p.τ_T * (model_fields.T[i, j, grid.Nz] - surface_temperature(grid.yC[j], p))
+    @inbounds - 1/p.τ_T * (model_fields.T[i, j, grid.Nz] - surface_temperature(grid.yC[j], p))
 
 T_bc_top = BoundaryCondition(Flux, surface_temperature_relaxation, discrete_form=true, parameters=T_bc_params)
 T_bcs = TracerBoundaryConditions(grid, top=T_bc_top)
@@ -79,7 +79,7 @@ model = IncompressibleModel(
            architecture = CPU(),
             timestepper = :RungeKutta3,
               advection = UpwindBiasedThirdOrder(),
-               coriolis = BetaPlane(latitude=45),
+               coriolis = BetaPlane(latitude=15),
                 tracers = :T,
                buoyancy = SeawaterBuoyancy(constant_salinity=true),
                 closure = closure,
@@ -118,104 +118,7 @@ function print_progress(simulation)
     return nothing
 end
 
-simulation = Simulation(model, Δt=wizard, stop_time=3*365day, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=365day, iteration_interval=1, progress=print_progress)
 simulation.output_writers[:fields] = field_writer
 
 run!(simulation)
-
-
-# # # Making a neat movie
-# #
-# # We look at the results by plotting vertical slices of $u$ and $w$, and a horizontal
-# # slice of $w$ to look for Langmuir cells.
-
-# # Making the coordinate arrays takes a few lines of code,
-
-# x, y, z = nodes(model.tracers.b)
-# x, y, z = x[:], y[:], z[:]
-# nothing # hide
-
-# # Next, we open the JLD2 file, and extract the iterations we ended up saving at,
-
-# using JLD2, Plots
-
-# file = jldopen(simulation.output_writers[:fields].filepath)
-
-# iterations = parse.(Int, keys(file["timeseries/t"]))
-# nothing # hide
-
-# # This utility is handy for calculating nice contour intervals:
-
-# function nice_divergent_levels(c, clim)
-#     levels = range(-clim, stop=clim, length=20)
-
-#     cmax = maximum(abs, c)
-
-#     if clim < cmax # add levels on either end
-#         levels = vcat([-cmax], range(-clim, stop=clim, length=10), [cmax])
-#     end
-
-#     return levels
-# end
-# nothing # hide
-
-# # Finally, we're ready to animate.
-
-# @info "Making an animation from the saved data..."
-
-# anim = @animate for (i, iter) in enumerate(iterations)
-    
-#     @info "Drawing frame $i from iteration $iter \n"
-
-#     ## Load 3D fields from file, omitting halo regions
-#     u = file["timeseries/u/$iter"]
-#     v = file["timeseries/v/$iter"]
-#     w = file["timeseries/w/$iter"]
-#     t = file["timeseries/t/$iter"]
-
-#     ## Extract slices
-#     uxy = 1/2 * (u[1:end-1, :, end] .+ u[2:end, :, end])
-#     vxy = 1/2 * (v[:, 1:end-1, end] .+ v[:, 2:end, end])
-#     wxy = w[:, :, 1]
-    
-#     speed = @. sqrt(uxy^2 + vxy^2)
-    
-#     ulim = 1.0
-#     ulevels = nice_divergent_levels(u, ulim)
-
-#     uxy_plot = heatmap(x / 1e3, y / 1e3, uxy';
-#                               color = :balance,
-#                         aspectratio = :equal,
-#                               # clims = (-2, 2),
-#                              # levels = ulevels,
-#                               xlims = (-grid.Lx/2e3, grid.Lx/2e3),
-#                               ylims = (-grid.Ly/2e3, grid.Ly/2e3),
-#                              xlabel = "x (km)",
-#                              ylabel = "y (km)")
-                        
-#      wxy_plot = heatmap(x / 1e3, y / 1e3, wxy';
-#                                color = :balance,
-#                          aspectratio = :equal,
-#                                # clims = (-1e-2, 1e-2),
-#                               # levels = ulevels,
-#                                xlims = (-grid.Lx/2e3, grid.Lx/2e3),
-#                                ylims = (-grid.Ly/2e3, grid.Ly/2e3),
-#                               xlabel = "x (km)",
-#                               ylabel = "y (km)")
-                         
-#     speed_plot = heatmap(x / 1e3, y / 1e3 , speed';
-#                               color = :deep,
-#                         aspectratio = :equal,
-#                               clims = (0, 2.0),
-#                              # levels = ulevels,
-#                               xlims = (-grid.Lx/2e3, grid.Lx/2e3),
-#                               ylims = (-grid.Ly/2e3, grid.Ly/2e3),
-#                              xlabel = "x (km)",
-#                              ylabel = "y (km)")
-                             
-#     plot(uxy_plot, speed_plot, size=(1100, 500), title = ["u(t="*string(round(t/day, digits=1))*" day)" "speed"])
-
-#     iter == iterations[end] && close(file)
-# end
-
-# gif(anim, "double_gyre.gif", fps = 12) # hide
