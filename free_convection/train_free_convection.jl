@@ -52,7 +52,7 @@ function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, fra
         @info "$filepath exists. Will not animate."
         return nothing
     end
-    
+
     Nz, Nt = size(ds[var])
 
     if loc == Cell
@@ -101,7 +101,7 @@ function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first
     for Q in Qs
         ρ₀ = nc_constant(ds[Q], "Reference density")
         cₚ = nc_constant(ds[Q], "Specific_heat_capacity")
-        
+
         top_flux = Q / (ρ₀ * cₚ)
         bot_flux = 0.0
 
@@ -149,7 +149,7 @@ function train_on_heat_flux!(loss, params, training_data, optimizer)
         @info @sprintf("Training on heat flux... mean(loss) = %e", μ_loss)
         return loss
     end
-    
+
     Flux.train!(loss, params, training_data, optimizer, cb=Flux.throttle(cb, 2))
 
     return nothing
@@ -299,7 +299,7 @@ end
 
 Nz = 32  # Number of grid points for the neural PDE.
 
-skip_first = 5  # Number of transient time snapshots to skip at the start 
+skip_first = 5  # Number of transient time snapshots to skip at the start
 future_time_steps = 1
 
 #####
