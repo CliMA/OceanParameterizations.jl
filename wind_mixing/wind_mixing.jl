@@ -1,6 +1,8 @@
 using Printf
 
 using Oceananigans
+using Oceananigans.Advection
+using Oceananigans.Fields
 using Oceananigans.Utils
 using Oceananigans.Diagnostics
 using Oceananigans.OutputWriters
@@ -105,16 +107,16 @@ L⁻²∫u_dxdy = AveragedField(u, dims=(1, 2))
 L⁻²∫v_dxdy = AveragedField(v, dims=(1, 2))
 L⁻²∫T_dxdy = AveragedField(T, dims=(1, 2))
 
-L⁻²∫uu_dxdy = AveragedField(u * u, model, dims=(1, 2))
-L⁻²∫vv_dxdy = AveragedField(v * v, model, dims=(1, 2))
-L⁻²∫ww_dxdy = AveragedField(w * w, model, dims=(1, 2))
-L⁻²∫uv_dxdy = AveragedField(u * v, model, dims=(1, 2))
-L⁻²∫uw_dxdy = AveragedField(u * w, model, dims=(1, 2))
-L⁻²∫vw_dxdy = AveragedField(v * w, model, dims=(1, 2))
+L⁻²∫uu_dxdy = AveragedField(u * u, dims=(1, 2))
+L⁻²∫vv_dxdy = AveragedField(v * v, dims=(1, 2))
+L⁻²∫ww_dxdy = AveragedField(w * w, dims=(1, 2))
+L⁻²∫uv_dxdy = AveragedField(u * v, dims=(1, 2))
+L⁻²∫uw_dxdy = AveragedField(u * w, dims=(1, 2))
+L⁻²∫vw_dxdy = AveragedField(v * w, dims=(1, 2))
 
-L⁻²∫uT_dxdy = AveragedField(u * T, model, dims=(1, 2))
-L⁻²∫vT_dxdy = AveragedField(v * T, model, dims=(1, 2))
-L⁻²∫wT_dxdy = AveragedField(w * T, model, dims=(1, 2))
+L⁻²∫uT_dxdy = AveragedField(u * T, dims=(1, 2))
+L⁻²∫vT_dxdy = AveragedField(v * T, dims=(1, 2))
+L⁻²∫wT_dxdy = AveragedField(w * T, dims=(1, 2))
 
 profiles = Dict(
     "u"  => L⁻²∫u_dxdy,
