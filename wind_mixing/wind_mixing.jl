@@ -7,6 +7,7 @@ using Oceananigans.Utils
 using Oceananigans.Diagnostics
 using Oceananigans.OutputWriters
 using Oceananigans.AbstractOperations
+using Oceananigans.Utils
 
 # Some physical constants
 const f₀ = 1e-4  # Coriolis parameter [s⁻¹]
