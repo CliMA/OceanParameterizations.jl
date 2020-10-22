@@ -72,7 +72,7 @@ function print_simulation_stats(simulation)
 end
 
 # Set up simulation
-simulation = Simulation(model, Δt=wizard, stop_time=4days, progress=print_simulation_stats,
+simulation = Simulation(model, Δt=wizard, stop_time=8days, progress=print_simulation_stats,
                         iteration_interval=50, parameters=(cfl=cfl,))
 
 #####
