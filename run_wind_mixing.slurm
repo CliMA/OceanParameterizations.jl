@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --mem=0
-#SBATCH --time=2:00:00
+#SBATCH --time=12:00:00
 #SBATCH --exclusive
 module load julia
 
