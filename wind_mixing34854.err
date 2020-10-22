@@ -1,0 +1,5 @@
+ERROR: could not open file /home/xinkai/ClimateSurrogates.jl/activate
+Stacktrace:
+ [1] include(::Module, ::String) at ./Base.jl:377
+ [2] exec_options(::Base.JLOptions) at ./client.jl:288
+ [3] _start() at ./client.jl:484

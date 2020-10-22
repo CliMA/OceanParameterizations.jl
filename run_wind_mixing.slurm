@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH -J CLIMA_TEST_35
-#SBATCH -o CLIMA_TEST_35_%j.out
-#SBATCH -e CLIMA_TEST_35_%j.err
+#SBATCH -J wind_mixing
+#SBATCH -o wind_mixing%j.out
+#SBATCH -e wind_mixing%j.err
 #SBATCH --mail-user=xinkai@mit.edu
 #SBATCH --mail-type=ALL
 #SBATCH --gres=gpu:1
