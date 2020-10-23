@@ -15,7 +15,7 @@ const ρ₀ = 1027  # Density of seawater [kg/m³]
 const cₚ = 4000  # Specific heat capacity of seawater at constant pressure [J/(kg·K)]
 
 # Set up grid
-N, L = 128, 100
+N, L = 256, 100
 topology = (Periodic, Periodic, Bounded)
 grid = RegularCartesianGrid(topology=topology, size=(N, N, N), x=(0, L), y=(0, L), z=(-L, 0))
 
@@ -72,7 +72,7 @@ function print_simulation_stats(simulation)
 end
 
 # Set up simulation
-simulation = Simulation(model, Δt=wizard, stop_time=8days, progress=print_simulation_stats,
+simulation = Simulation(model, Δt=wizard, stop_time=4days, progress=print_simulation_stats,
                         iteration_interval=50, parameters=(cfl=cfl,))
 
 #####
