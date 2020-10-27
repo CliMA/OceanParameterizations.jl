@@ -28,3 +28,6 @@ docs/site/
 *.mp4
 *.gif
 *.png
+
+# Simulation log
+wind_mixing/simulation_output

@@ -1,6 +1,9 @@
+using Statistics
 using NCDatasets
 using Plots
 using Flux, DiffEqFlux
+# using ClimateSurrogates
+using Oceananigans.Grids
 
 ##
 PATH = joinpath(pwd(), "wind_mixing")
@@ -36,51 +39,73 @@ t = Array(ds["time"])
 ##
 plot(T[:,end], zC)
 
-uw_max = maximum(uw)
-uw_min = minimum(uw)
 
-anim_uw = @animate for n in 1:size(uw,2)
-    @info "uw frame of $n/$(size(uw,2))"
-    plot(uw[:,n], zC, label=nothing, title="t = $(round(Int64, t[n]))s",
-         xlim=(uw_min, uw_max), ylim=(minimum(zC), maximum(zC)))
-    xlabel!("uw")
-    ylabel!("z")
+function animate_gif(x, y, t, x_str)
+    PATH = joinpath(pwd(), "wind_mixing")
+    anim = @animate for n in 1:size(x,2)
+        @info "$x_str frame of $n/$(size(uw,2))"
+        plot(x[:,n], y, label=nothing, title="t = $(round(t[n]/86400, digits=2)) days",
+             xlim=(minimum(x), maximum(x)), ylim=(minimum(y), maximum(y)))
+        xlabel!("$x_str")
+        ylabel!("z")
+    end
+    gif(anim, joinpath(PATH, "Output", "$(x_str).gif"), fps=30)
 end
-gif(anim_uw, joinpath(PATH, "Output", "uw.gif"), fps=30)
 
-vw_max = maximum(vw)
-vw_min = minimum(vw)
+animate_gif(uw, zC, t, "uw")
+animate_gif(vw, zC, t, "vw")
+animate_gif(wT, zF, t, "wT")
+animate_gif(u, zC, t, "u")
+animate_gif(v, zC, t, "v")
+animate_gif(T, zC, t, "T")
 
-anim_vw = @animate for n in 1:size(vw,2)
-    @info "vw frame of $n/$(size(vw,2))"
-    plot(vw[:,n], zC, label=nothing, title="t = $(round(Int64, t[n]))s",
-         xlim=(vw_min, vw_max), ylim=(minimum(zC), maximum(zC)))
-    xlabel!("vw")
-    ylabel!("z")
+
+function coarse_grain(Φ, n, ::Type{Cell})
+    N = length(Φ)
+    Δ = Int(N / n)
+    Φ̅ = similar(Φ, n)
+    for i in 1:n
+        Φ̅[i] = mean(Φ[Δ*(i-1)+1:Δ*i])
+    end
+    return Φ̅
 end
-gif(anim_vw, joinpath(PATH, "Output", "vw.gif"), fps=30)
 
-wT_max = maximum(wT)
-wT_min = minimum(wT)
-
-anim_wT = @animate for n in 1:size(wT,2)
-    @info "wT frame of $n/$(size(wT,2))"
-    plot(wT[:,n], zF, label=nothing, title="t = $(round(Int64, t[n]))s",
-         xlim=(wT_min, wT_max), ylim=(minimum(zF), maximum(zF)))
-    xlabel!("wT")
-    ylabel!("z")
+function coarse_grain(Φ, n, ::Type{Face})
+    N = length(Φ)
+    Φ̅ = similar(Φ, n)
+    Δ = (N-2) / (n-2)
+    if isinteger(Δ)
+        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
+    else
+        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+        for i in 2:n-1
+            i1 = round(Int, 2 + (i-2)*Δ)
+            i2 = round(Int, 2 + (i-1)*Δ)
+            Φ̅[i] = mean(Φ[i1:i2])
+        end
+    end
+    return Φ̅
 end
-gif(anim_wT, joinpath(PATH, "Output", "wT.gif"), fps=30)
+
+model_uw = Chain(Dense(32,30, tanh), Dense(30,32))
 
 
-model_uw = Chain(Dense(3,30, tanh), Dense(30,1))
 loss_uw(x, y) = Flux.Losses.mse(model_uw(x), y)
 p_uw = params(model_uw)
 
 
-uw_data_x = [[u[i], v[i], T[i]] for i=1:length(u)]
-uw_data_train = zip(uw_data_x, uw[:])
+data_train_u = cat((coarse_grain(u[:,i], 32, Cell) for i in 1:size(u,2))..., dims=2)
+data_train_uw = cat((coarse_grain(uw[:,i], 32, Cell) for i in 1:size(uw,2))..., dims=2)
 
+# uw_data_x = [[u[i], v[i], T[i]] for i=1:length(u)]
+# uw_data_train = zip(data_train_u, data_train_uw)
 
-Flux.train!(loss, p_uw, uw_data_train, Descent(), cb=throttle())
+uw_train = [(data_train_u[:,i], data_train_uw[:,i]) for i in 1:size(data_train_u,2)]
+
+function cb()
+    @info mean([loss(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)])
+end
+
+Flux.train!(loss_uw, p_uw, uw_train, Descent(), cb = cb)
 params(model_uw)
