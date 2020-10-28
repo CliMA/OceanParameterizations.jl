@@ -96,13 +96,13 @@ global_attributes = Dict(
 u, v, w = model.velocities
 T = model.tracers.T
 
-L⁻²∫u_dxdy = Average(u, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫v_dxdy = Average(v, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫T_dxdy = Average(T, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫u_dxdy =AveragedField(u, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫v_dxdy =AveragedField(v, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫T_dxdy =AveragedField(T, dims=(1, 2), with_halos=false, return_type=Array)
 
-L⁻²∫uT_dxdy = Average(u * T, model, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫vT_dxdy = Average(v * T, model, dims=(1, 2), with_halos=false, return_type=Array)
-L⁻²∫wT_dxdy = Average(w * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫uT_dxdy =AveragedField(u * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫vT_dxdy =AveragedField(v * T, model, dims=(1, 2), with_halos=false, return_type=Array)
+L⁻²∫wT_dxdy =AveragedField(w * T, model, dims=(1, 2), with_halos=false, return_type=Array)
 
 profiles = Dict(
     "u"  => L⁻²∫u_dxdy,
