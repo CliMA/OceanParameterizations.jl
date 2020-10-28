@@ -194,28 +194,6 @@ function animate_learned_heat_flux(ds, NN, standardization; grid_points, filepat
     return nothing
 end
 
-""" Returns a discrete 1D derivative operator for cell center to cell (f)aces. """
-function Dᶠ(N, Δ)
-    D = zeros(N, N+1)
-    for k in 1:N
-        D[k, k]   = -1.0
-        D[k, k+1] =  1.0
-    end
-    D = 1/Δ * D
-    return D
-end
-
-""" Returns a discrete 1D derivative operator for cell faces to cell (c)enters. """
-function Dᶜ(N, Δ)
-    D = zeros(N+1, N)
-    for k in 2:N
-        D[k, k-1] = -1.0
-        D[k, k]   =  1.0
-    end
-    D = 1/Δ * D
-    return D
-end
-
 function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
     H = abs(ds["zF"][1])
     τ = ds["time"][end]
