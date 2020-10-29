@@ -19,74 +19,35 @@ using Oceananigans.Utils
 
 using Flux.Data: DataLoader
 
-import DiffEqFlux: FastChain, paramlength, initial_params
-
-using Flux.Data: DataLoader
-
-Logging.global_logger(OceananigansLogger())
-
-ENV["GKSwstype"] = "100"
-
-#####
-##### Utils
-#####
-
 # Should not have saved constant units as strings...
-nc_constant(ds, attr) = parse(Float64, ds.attrib[attr] |> split |> first)
+nc_constant(attr) = parse(Float64, attr |> split |> first)
 
-FastLayer(layer) = layer
+Nz = 32
 
-function FastLayer(layer::Dense)
-    N_out, N_in = size(layer.W)
-    return FastDense(N_in, N_out, layer.σ, initW=(_,_)->layer.W, initb=_->layer.b)
+Qs = [25, 50, 75, 100]
+Qs_train = [25, 75]
+Qs_test = [50, 100]
+
+ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs)
+
+T_training_data = cat([training_data(ds[Q]["T"], grid_points=Nz) for Q in Qs_train]..., dims=2)
+
+wT_training_data = []
+
+for Q in Qs_train
+    ρ₀ = nc_constant(ds[Q].attrib["Reference density"])
+    cₚ = nc_constant(ds[Q].attrib["Specific_heat_capacity"])
+
+    wT_training_data_Q = training_data(ds[Q]["wT"], grid_points=Nz+1)
+
+    # We need to add the imposed surface heat flux.
+    top_flux = Q / (ρ₀ * cₚ)
+    wT_training_data_Q[end, :] .= top_flux
+
+    push!(wT_training_data, wT_training_data_Q)
 end
 
-FastChain(NN::Chain) = FastChain([FastLayer(layer) for layer in NN]...)
-
-#####
-##### Helper functions
-#####
-
-function animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
-    if isfile(filepath)
-        @info "$filepath exists. Will not animate."
-        return nothing
-    end
-
-    Nz, Nt = size(ds[var])
-
-    if loc == Cell
-        z_fine = ds["zC"]
-        z_coarse = coarse_grain(ds["zC"], grid_points, Cell)
-    elseif loc == Face
-        z_fine = ds["zF"]
-        z_coarse = coarse_grain(ds["zF"], grid_points+1, Face)
-    end
-
-    anim = @animate for n=1:frameskip:Nt
-        @info "Plotting $var for $filepath [$n/$Nt]..."
-        var_fine = ds[var][:, n]
-
-        if loc == Cell
-            var_coarse = coarse_grain(ds[var][:, n], grid_points, Cell)
-        elseif loc == Face
-            var_coarse = coarse_grain(ds[var][:, n], grid_points+1, Face)
-        end
-
-        time_str = @sprintf("%.2f days", ds["time"][n] / day)
-
-        plot(var_fine, z_fine, linewidth=2, xlim=xlim, ylim=(-100, 0),
-             label="fine (Nz=$(length(z_fine)))", xlabel=xlabel, ylabel="Depth z (meters)",
-             title="Free convection: $time_str", legend=:bottomright, show=false)
-
-        plot!(var_coarse, z_coarse, linewidth=2, label="coarse (Nz=$(length(z_coarse)))")
-    end
-
-    @info "Saving $filepath"
-    mp4(anim, filepath, fps=fps)
-
-    return nothing
-end
+wT_training_data = cat(wT_training_data..., dims=2)
 
 function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first=0)
      T = Dict(Q => ds[Q]["T"]  for Q in Qs)
@@ -142,6 +103,8 @@ function free_convection_heat_flux_training_data(ds, Qs; grid_points, skip_first
 
     return training_data, standardization
 end
+
+#=
 
 function train_on_heat_flux!(loss, params, training_data, optimizer)
     function cb()
@@ -288,21 +251,7 @@ Qs = (25, 50, 75, 100)
 Qs_train = (25, 75)
 Qs_test  = (50, 100)
 
-#####
-##### Load and animate data
-#####
-
-ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs)
-
-for Q in Qs
-    T_filepath = "free_convection_T_$(Q)W.mp4"
-    animate_variable(ds[Q], "T", Cell, grid_points=Nz, xlabel="Temperature T (°C)", xlim=(19, 20),
-                     filepath=T_filepath, frameskip=5)
-
-    wT_filepath = "free_convection_wT_$(Q)W.mp4"
-    animate_variable(ds[Q], "wT", Face, grid_points=Nz, xlabel="Heat flux wT (m/s °C)", xlim=(-1e-5, 3e-5),
-                     filepath=wT_filepath, frameskip=5)
-end
+#=
 
 #####
 ##### Prepare heat flux training data

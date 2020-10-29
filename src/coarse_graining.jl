@@ -1,7 +1,3 @@
-using Statistics
-
-using Oceananigans.Grids: Cell, Face
-
 """
     coarse_grain(Φ, n, ::Type{Cell})
 
