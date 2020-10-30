@@ -1,4 +1,7 @@
 using Printf
+using Random
+using Statistics
+
 using BSON
 using Flux
 using NCDatasets
@@ -13,8 +16,6 @@ Nz = 32  # Number of grid points
 #####
 ##### Neural network architecture
 #####
-
-NN_filepath = "free_convection_neural_network_weights.bson"
 
 NN = Chain(Dense( Nz, 4Nz, relu),
            Dense(4Nz, 4Nz, relu),
@@ -118,7 +119,7 @@ function nn_callback()
     return μ_loss
 end
 
-epochs = 1
+epochs = 2
 optimizers = [ADAM(1e-2), Descent(1e-2)]
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
@@ -134,3 +135,9 @@ for Q in Qs_train
     filepath = "learned_heat_flux_initial_guess_Q$(Q)W.mp4"
     animate_learned_heat_flux(ds[Q], free_convection_neural_network, T_scaling, wT_scaling, grid_points=Nz, filepath=filepath, fps=15)
 end
+
+#####
+##### Save neural network + weights
+#####
+
+BSON.@save "free_convection_neural_network_weights.bson" NN
