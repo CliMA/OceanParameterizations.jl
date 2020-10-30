@@ -9,7 +9,7 @@ struct FreeConvectionTrainingDataInput{Θ, B, T}
        top_flux :: T
 end
 
-FreeConvectionTrainingDataInput(old::FreeConvectionTrainingDataInput, T_scaling, wT_scaling) =
+rescale(old, T_scaling, wT_scaling) =
     FreeConvectionTrainingDataInput(T_scaling.(old.temperature), wT_scaling(old.bottom_flux), wT_scaling(old.top_flux))
 
 """

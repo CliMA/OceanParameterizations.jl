@@ -6,7 +6,7 @@ export
     GaussianProcess, predict, uncertainty, SquaredExponential,
 
     nc_constant,
-    FreeConvectionTrainingDataInput,
+    FreeConvectionTrainingDataInput, rescale,
     animate_variable, convection_training_data, animate_learned_heat_flux
 
 using Printf
