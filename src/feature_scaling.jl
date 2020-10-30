@@ -1,22 +1,30 @@
 abstract type AbstractFeatureScaling end
 
-struct UnitMeanZeroVarianceScaling{T} <: AbstractFeatureScaling
+#####
+##### Zero-mean unit-variance feature scaling
+#####
+
+struct ZeroMeanUnitVarianceScaling{T} <: AbstractFeatureScaling
     μ :: T
     σ :: T
 end
 
 """
-    UnitMeanZeroVarianceScaling(data)
+    ZeroMeanUnitVarianceScaling(data)
 
 Returns a feature scaler for `data` with zero mean and unit variance.
 """
-function UnitMeanZeroVarianceScaling(data)
+function ZeroMeanUnitVarianceScaling(data)
     μ, σ = mean(data), std(data)
-    return UnitMeanZeroVarianceScaling(μ, σ)
+    return ZeroMeanUnitVarianceScaling(μ, σ)
 end
 
-scale(x, s::UnitMeanZeroVarianceScaling) = (x - s.μ) / s.σ
-unscale(y, s::UnitMeanZeroVarianceScaling) = s.σ * y + s.μ
+scale(x, s::ZeroMeanUnitVarianceScaling) = (x - s.μ) / s.σ
+unscale(y, s::ZeroMeanUnitVarianceScaling) = s.σ * y + s.μ
+
+#####
+##### Min-max feature scaling
+#####
 
 struct MinMaxScaling{T} <: AbstractFeatureScaling
            a :: T
@@ -37,3 +45,10 @@ end
 
 scale(x, s::MinMaxScaling) = s.a + (x - s.data_min) * (s.b - s.a) / (s.data_max - s.data_min)
 unscale(y, s::MinMaxScaling) = s.data_min + (y - s.a) * (s.data_max - s.data_min) / (s.b - s.a)
+
+#####
+##### Convinience functions
+#####
+
+(s::AbstractFeatureScaling)(x) = scale(x, s)
+Base.inv(s::AbstractFeatureScaling) = y -> unscale(y, s)

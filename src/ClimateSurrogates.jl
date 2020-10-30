@@ -2,21 +2,23 @@ module ClimateSurrogates
 
 export
     coarse_grain, Dᶠ, Dᶜ,
-    UnitMeanZeroVarianceScaling, MinMaxScaling, scale, unscale,
+    ZeroMeanUnitVarianceScaling, MinMaxScaling, scale, unscale,
     GaussianProcess, predict, uncertainty, SquaredExponential,
 
-    animate_variable, training_data
+    nc_constant,
+    FreeConvectionTrainingDataInput,
+    animate_variable, convection_training_data, animate_learned_heat_flux
 
 using Printf
 using Statistics
 using LinearAlgebra
-
 using NCDatasets
 using Plots
-
 using Oceananigans.Utils
 
 using Oceananigans.Grids: Cell, Face
+
+import Base.inv
 
 # Gotta set this environment variable when using the GR run-time on Travis CI.
 # This happens as examples will use Plots.jl to make plots and movies.
