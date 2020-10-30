@@ -2,7 +2,7 @@ using LinearAlgebra
 using DiffEqFlux
 using Flux
 using Optim
-using ClimateSurrogates
+using ClimateParameterizations
 
 include("diffusion.jl")
 include("diffusion_npde.jl")

@@ -1,4 +1,4 @@
-name = "ClimateSurrogates"
+name = "ClimateParameterizations"
 uuid = "1f034f64-1a41-4bc8-84dc-c8a33b032d87"
 authors = ["ali-ramadhan <ali.hh.ramadhan@gmail.com>"]
 version = "0.1.0"

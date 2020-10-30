@@ -2,7 +2,7 @@ using Statistics
 using OceanTurb
 using JLD2
 using BSON
-using ClimateSurrogates
+using ClimateParameterizations
 
 # Headless plotting with PyPlot
 ENV["MPLBACKEND"] = "Agg"

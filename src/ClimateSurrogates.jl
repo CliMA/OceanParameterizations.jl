@@ -1,4 +1,4 @@
-module ClimateSurrogates
+module ClimateParameterizations
 
 export
     coarse_grain, Dᶠ, Dᶜ,

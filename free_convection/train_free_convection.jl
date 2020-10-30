@@ -2,7 +2,7 @@ using Printf
 using BSON
 using Flux
 using NCDatasets
-using ClimateSurrogates
+using ClimateParameterizations
 
 #####
 ##### Neural differential equation parameters
