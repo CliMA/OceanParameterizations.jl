@@ -1,4 +1,4 @@
-module ClimateSurrogates
+module ClimateParameterizations
 
 # using DiffEqFlux
 

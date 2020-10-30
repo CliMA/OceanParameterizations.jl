@@ -7,7 +7,7 @@ addprocs(4, exeflags="--project")
     using Printf
     using Gen
     using OceanTurb
-    using ClimateSurrogates
+    using ClimateParameterizations
 end
 
 using JLD2

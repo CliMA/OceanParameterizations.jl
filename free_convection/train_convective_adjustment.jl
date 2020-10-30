@@ -13,7 +13,7 @@ using DiffEqFlux
 using DiffEqSensitivity
 using Optim
 
-using ClimateSurrogates
+using ClimateParameterizations
 using Oceananigans
 using Oceananigans.Grids
 using Oceananigans.Utils
