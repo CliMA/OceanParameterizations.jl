@@ -5,7 +5,7 @@ using OceanTurb
 using JLD2
 using Plots
 using BSON
-using ClimateSurrogates
+using ClimateParameterizations
 
 # For quick headless plotting with Plots.jl (without warnings).
 # See: https://github.com/jheinen/GR.jl/issues/278
