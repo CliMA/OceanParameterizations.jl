@@ -42,52 +42,43 @@ ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q i
 ##### Construct neural differential equation
 #####
 
+# function FreeConvectionNDE(NN)
+# end
+
+initial_nn_weights, reconstruct = Flux.destructure(NN)
+n_weights = length(initial_nn_weights)
+
+_weights(p) = p[1:n_weights]
+_bottom_flux(p) = p[n_weights+1]
+_top_flux(p) = p[n_weights+2]
+_σ_T(p) = p[n_weights+3]
+_σ_wT(p) = p[n_weights+4]
+_H(p) = p[n_weights+5]
+_τ(p) = p[n_weights+6]
+
+H = abs(ds[75]["zF"][1]) # Domain height
+τ = ds[75]["time"][end]  # Simulation length
+zC = coarse_grain(ds[75]["zC"], Nz, Cell)
+Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
+
+Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
+
+Q  = nc_constant(ds[75].attrib["Heat flux"])
+ρ₀ = nc_constant(ds[75].attrib["Reference density"])
+cₚ = nc_constant(ds[75].attrib["Specific_heat_capacity"])
+
+bottom_flux = wT_scaling(0)
+top_flux = wT_scaling(Q / (ρ₀ * cₚ))
+
+fixed_params = [bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ]
+nde_params = cat(initial_nn_weights, fixed_params, dims=1)
+
 function ∂T∂t(T, p, t)
-    NN = p.re(p.weights)
+    NN = reconstruct(p[1:end-6])
     wT_interior = NN(T)
-    wT = cat(p.bottom_flux, wT_interior, p.top_flux, dims=1)
-    ∂z_wT = p.Dzᶠ * p.σ_wT/p.σ_T * p.τ/p.H * wT
+    wT = [p[end-5]; wT_interior; p[end-4]]
+    ∂z_wT = Dzᶠ * p[end-2]/p[end-3] * p[end]/p[end-1] * wT
     return -∂z_wT
-end
-
-struct FreeConvectionNDEParameters{W,R,T,D}
-    weights :: W
-    re :: R
-    bottom_flux :: T
-    top_flux :: T
-    σ_T :: T
-    σ_wT :: T
-    Dzᶠ :: D
-    H :: T
-    τ :: T
-end
-
-function nde_params(ds, NN, weights=nothing)
-    H = abs(ds["zF"][1]) # Domain height
-    τ = ds["time"][end]  # Simulation length
-
-    zC = coarse_grain(ds["zC"], Nz, Cell)
-    Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
-
-    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
-
-    Q  = nc_constant(ds.attrib["Heat flux"])
-    ρ₀ = nc_constant(ds.attrib["Reference density"])
-    cₚ = nc_constant(ds.attrib["Specific_heat_capacity"])
-
-    bottom_flux = wT_scaling(0)
-    top_flux = wT_scaling(Q / (ρ₀ * cₚ))
-
-    # Need to restrcture for backprop to work!
-    initial_weights, re = Flux.destructure(NN)
-
-    # return FreeConvectionNDEParameters(
-    #     isnothing(weights) ? initial_weights : weights,
-    #     re, bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, Dzᶠ, H, τ)
-
-    return (weights = isnothing(weights) ? initial_weights : weights,
-            re = re, bottom_flux = bottom_flux, top_flux = top_flux,
-            σ_T = T_scaling.σ, σ_wT = wT_scaling.σ, Dzᶠ = Dzᶠ, H = H, τ = τ)
 end
 
 function initial_condition(ds, T_scaling)
@@ -103,10 +94,8 @@ Nt = length(ds[75]["time"])
 tspan = (0.0, maximum(iterations) / Nt)
 saveat = range(tspan[1], tspan[2], length = length(iterations))
 
-params = nde_params(ds[75], NN)
-
-∂T∂t_fun = ODEFunction{false}(∂T∂t, tgrad=DiffEqFlux.basic_tgrad)
-prob = ODEProblem(∂T∂t_fun, T₀, tspan, params)
+# ∂T∂t_fun = ODEFunction{false}(∂T∂t, tgrad=DiffEqFlux.basic_tgrad)
+prob = ODEProblem(∂T∂t, T₀, tspan)
 sense = InterpolatingAdjoint(autojacvec=ZygoteVJP())
 
 #####
@@ -118,30 +107,24 @@ nde_training_data(ds, iterations, T_scaling) =
 
 data = nde_training_data(ds[75], iterations, T_scaling)
 
-function nde_loss(θ)
-    params = nde_params(ds[75], NN, θ)
-    # params = FreeConvectionNDEParameters(θ, params.re, params.bottom_flux, params.top_flux, params.σ_T, params.σ_wT, params.Dzᶠ, params.H, params.τ)
-    nde_sol = solve(prob, Tsit5(), u0=T₀, p=params, saveat=saveat, sense=sense) |> Array
+function nde_loss()
+    # nde_params = cat(θ, bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ, dims=1)
+    nde_sol = solve(prob, Tsit5(), u0=T₀, p=[initial_nn_weights;fixed_params], saveat=saveat, sense=sense) |> Array
     return Flux.mse(nde_sol, data)
 end
 
-function cb(θ, μ_loss)
-    @info @sprintf("Training free convection NDE... mean loss = %.12e", μ_loss)
-    return false
+function cb()
+    @info @sprintf("nde_loss() = %.12e", nde_loss())
+    return nothing
 end
 
-cb(params.weights, nde_loss(params.weights))
+# cb(_weights(params), nde_loss(_weights(params)))
 
-import Base: length, similar, vec, eltype, size
+cb()
 
-Base.length(p::FreeConvectionNDEParameters) = length(p.weights)
-Base.similar(p::FreeConvectionNDEParameters, T) = similar(p.weights, T)
-Base.vec(p::FreeConvectionNDEParameters) = vec(p.weights)
-Base.eltype(p::FreeConvectionNDEParameters) = eltype(p.weights)
-Base.vec(nt::NamedTuple) = vec(nt.weights)
-Base.size(p::FreeConvectionNDEParameters, args...) = size(p.weights, args...)
+Flux.train!(nde_loss, Flux.params(initial_nn_weights), Iterators.repeated((), 10), Descent(), cb=cb)
 
-DiffEqFlux.sciml_train(nde_loss, params.weights, Descent(), cb=cb, maxiters=5)
+# DiffEqFlux.sciml_train(nde_loss, params, Descent(), cb=cb, maxiters=5)
 
 @info ""
 
