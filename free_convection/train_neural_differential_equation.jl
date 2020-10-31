@@ -1,28 +1,91 @@
-function construct_neural_pde(NN, ds, standardization; grid_points, iterations)
-    H = abs(ds["zF"][1])
-    τ = ds["time"][end]
+using Printf
+using Statistics
 
-    Nz = grid_points
-    zC = coarse_grain(ds["zC"], Nz, Cell)
-    Δẑ = diff(zC)[1] / H
+using BSON
+using DifferentialEquations
+using Flux
+using NCDatasets
+using ClimateParameterizations
 
-    Dzᶠ = Dᶠ(Nz, Δẑ)
+using Oceananigans.Grids: Cell, Face
 
-    # Set up neural network for non-dimensional PDE
-    # ∂T/dt = - ∂z(wT) + ...
-    σ_T, σ_wT = standardization.T.σ, standardization.wT.σ
+#####
+##### Neural differential equation parameters
+#####
 
-    NN_∂T∂t = FastChain(NN.layers...,
-                        (wT, _) -> - Dzᶠ * wT,
-                        (∂z_wT, _) -> σ_wT/σ_T * τ/H * ∂z_wT)
+Nz = 32  # Number of grid points
 
-    # Set up and return neural differential equation
-    Nt = length(ds["time"])
-    tspan = (0.0, maximum(iterations) / Nt)
-    tsteps = range(tspan[1], tspan[2], length = length(iterations))
+#####
+##### Load weights and feature scaling
+#####
 
-    return NeuralODE(NN_∂T∂t, tspan, ROCK4(), reltol=1e-3, saveat=tsteps)
+neural_network_parameters = BSON.load("free_convection_neural_network_parameters.bson")
+
+NN = neural_network_parameters[:weights]
+T_scaling = neural_network_parameters[:T_scaling]
+wT_scaling = neural_network_parameters[:wT_scaling]
+
+#####
+##### Load training data
+#####
+
+# Choose which free convection simulations to train on.
+Qs_train = [25, 75]
+
+# Load NetCDF data for each simulation.
+ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs_train)
+
+#####
+##### Construct neural differential equation
+#####
+
+function ∂T∂t(T, p, t)
+    NN = p.re(p.weights)
+    wT_interior = NN(T)
+    wT = cat(p.bottom_flux, wT_interior, p.top_flux, dims=1)
+    ∂z_wT = p.Dzᶠ * p.σ_wT/p.σ_T * p.τ/p.H * wT
+    return -∂z_wT
 end
+
+function nde_params(ds, NN)
+    H = abs(ds["zF"][1]) # Domain height
+    τ = ds["time"][end]  # Simulation length
+
+    zC = coarse_grain(ds["zC"], Nz, Cell)
+    Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
+
+    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
+
+    Q  = nc_constant(ds.attrib["Heat flux"])
+    ρ₀ = nc_constant(ds.attrib["Reference density"])
+    cₚ = nc_constant(ds.attrib["Specific_heat_capacity"])
+
+    bottom_flux = wT_scaling(0)
+    top_flux = wT_scaling(Q / (ρ₀ * cₚ))
+
+    # Need to restrcture for backprop to work!
+    weights, re = Flux.destructure(NN)
+
+    return (weights = weights, re = re, bottom_flux = bottom_flux,
+            top_flux = top_flux, σ_T = T_scaling.σ, σ_wT = wT_scaling.σ,
+            Dzᶠ = Dzᶠ, H = H, τ = τ)
+end
+
+function initial_condition(ds, T_scaling)
+    T₀ = ds["T"][:, 1]
+    T₀ = coarse_grain(T₀, Nz, Cell)
+    return T_scaling.(T₀)
+end
+
+T₀ = initial_condition(ds[75], T_scaling)
+
+iterations = 1:100
+Nt = length(ds[75]["time"])
+tspan = (0.0, maximum(iterations) / Nt)
+
+params = nde_params(ds[75], NN)
+
+prob = ODEProblem(∂T∂t, T₀, tspan, params)
 
 function train_free_convection_neural_pde!(npde, loss, opt; maxiters)
     function cb(θ, μ_loss, loss_T, loss_∂T∂z)

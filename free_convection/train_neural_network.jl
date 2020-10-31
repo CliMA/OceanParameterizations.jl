@@ -120,7 +120,7 @@ function nn_callback()
 end
 
 epochs = 2
-optimizers = [ADAM(1e-2), Descent(1e-2)]
+optimizers = [ADAM(1e-2), Descent(1e-3)]
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
     @info "Training heat flux with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"
@@ -140,4 +140,9 @@ end
 ##### Save neural network + weights
 #####
 
-BSON.@save "free_convection_neural_network_weights.bson" NN
+neural_network_parameters =
+    Dict(   :weights => NN,
+          :T_scaling => T_scaling,
+         :wT_scaling => wT_scaling)
+
+bson("free_convection_neural_network_parameters.bson", neural_network_parameters)

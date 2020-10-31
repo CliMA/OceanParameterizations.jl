@@ -23,7 +23,7 @@ import Base.inv
 # Gotta set this environment variable when using the GR run-time on Travis CI.
 # This happens as examples will use Plots.jl to make plots and movies.
 # See: https://github.com/jheinen/GR.jl/issues/278
-# ENV["GKSwstype"] = "100"
+ENV["GKSwstype"] = "100"
 
 include("coarse_graining.jl")
 include("feature_scaling.jl")
