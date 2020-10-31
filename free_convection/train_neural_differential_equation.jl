@@ -4,10 +4,13 @@ using Statistics
 using BSON
 using DifferentialEquations
 using Flux
+using DiffEqFlux
 using NCDatasets
 using ClimateParameterizations
 
 using Oceananigans.Grids: Cell, Face
+
+using DiffEqSensitivity: InterpolatingAdjoint, ZygoteVJP
 
 #####
 ##### Neural differential equation parameters
@@ -16,7 +19,7 @@ using Oceananigans.Grids: Cell, Face
 Nz = 32  # Number of grid points
 
 #####
-##### Load weights and feature scaling
+##### Load weights and feature scaling from train_neural_network.jl
 #####
 
 neural_network_parameters = BSON.load("free_convection_neural_network_parameters.bson")
@@ -47,7 +50,19 @@ function ∂T∂t(T, p, t)
     return -∂z_wT
 end
 
-function nde_params(ds, NN)
+struct FreeConvectionNDEParameters{W,R,T,D}
+    weights :: W
+    re :: R
+    bottom_flux :: T
+    top_flux :: T
+    σ_T :: T
+    σ_wT :: T
+    Dzᶠ :: D
+    H :: T
+    τ :: T
+end
+
+function nde_params(ds, NN, weights=nothing)
     H = abs(ds["zF"][1]) # Domain height
     τ = ds["time"][end]  # Simulation length
 
@@ -64,11 +79,15 @@ function nde_params(ds, NN)
     top_flux = wT_scaling(Q / (ρ₀ * cₚ))
 
     # Need to restrcture for backprop to work!
-    weights, re = Flux.destructure(NN)
+    initial_weights, re = Flux.destructure(NN)
 
-    return (weights = weights, re = re, bottom_flux = bottom_flux,
-            top_flux = top_flux, σ_T = T_scaling.σ, σ_wT = wT_scaling.σ,
-            Dzᶠ = Dzᶠ, H = H, τ = τ)
+    # return FreeConvectionNDEParameters(
+    #     isnothing(weights) ? initial_weights : weights,
+    #     re, bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, Dzᶠ, H, τ)
+
+    return (weights = isnothing(weights) ? initial_weights : weights,
+            re = re, bottom_flux = bottom_flux, top_flux = top_flux,
+            σ_T = T_scaling.σ, σ_wT = wT_scaling.σ, Dzᶠ = Dzᶠ, H = H, τ = τ)
 end
 
 function initial_condition(ds, T_scaling)
@@ -82,17 +101,54 @@ T₀ = initial_condition(ds[75], T_scaling)
 iterations = 1:100
 Nt = length(ds[75]["time"])
 tspan = (0.0, maximum(iterations) / Nt)
+saveat = range(tspan[1], tspan[2], length = length(iterations))
 
 params = nde_params(ds[75], NN)
 
-prob = ODEProblem(∂T∂t, T₀, tspan, params)
+∂T∂t_fun = ODEFunction{false}(∂T∂t, tgrad=DiffEqFlux.basic_tgrad)
+prob = ODEProblem(∂T∂t_fun, T₀, tspan, params)
+sense = InterpolatingAdjoint(autojacvec=ZygoteVJP())
+
+#####
+##### Train neural differential equation
+#####
+
+nde_training_data(ds, iterations, T_scaling) =
+    cat([T_scaling.(coarse_grain(ds["T"][:, i], Nz, Cell)) for i in iterations]..., dims=2)
+
+data = nde_training_data(ds[75], iterations, T_scaling)
+
+function nde_loss(θ)
+    params = nde_params(ds[75], NN, θ)
+    # params = FreeConvectionNDEParameters(θ, params.re, params.bottom_flux, params.top_flux, params.σ_T, params.σ_wT, params.Dzᶠ, params.H, params.τ)
+    nde_sol = solve(prob, Tsit5(), u0=T₀, p=params, saveat=saveat, sense=sense) |> Array
+    return Flux.mse(nde_sol, data)
+end
+
+function cb(θ, μ_loss)
+    @info @sprintf("Training free convection NDE... mean loss = %.12e", μ_loss)
+    return false
+end
+
+cb(params.weights, nde_loss(params.weights))
+
+import Base: length, similar, vec, eltype, size
+
+Base.length(p::FreeConvectionNDEParameters) = length(p.weights)
+Base.similar(p::FreeConvectionNDEParameters, T) = similar(p.weights, T)
+Base.vec(p::FreeConvectionNDEParameters) = vec(p.weights)
+Base.eltype(p::FreeConvectionNDEParameters) = eltype(p.weights)
+Base.vec(nt::NamedTuple) = vec(nt.weights)
+Base.size(p::FreeConvectionNDEParameters, args...) = size(p.weights, args...)
+
+DiffEqFlux.sciml_train(nde_loss, params.weights, Descent(), cb=cb, maxiters=5)
+
+@info ""
+
+#=
 
 function train_free_convection_neural_pde!(npde, loss, opt; maxiters)
-    function cb(θ, μ_loss, loss_T, loss_∂T∂z)
-        @info @sprintf("Training free convection neural PDE... loss = %e (loss_T = %e, loss_∂T∂z = %e)",
-                       μ_loss, loss_T, loss_∂T∂z)
-        return false
-    end
+
 
     if opt isa Optim.AbstractOptimizer
         @info "Training free convection neural PDE with $(typeof(opt)).."
