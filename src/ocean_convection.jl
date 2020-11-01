@@ -105,3 +105,67 @@ function animate_learned_heat_flux(ds, NN, T_scaling, wT_scaling; grid_points, f
 
     return nothing
 end
+
+function FreeConvectionNDE(NN, ds, Nz, iterations)
+    weights, reconstruct = Flux.destructure(NN)
+    
+    H = abs(ds["zF"][1]) # Domain height
+    τ = ds["time"][end]  # Simulation length
+    zC = coarse_grain(ds["zC"], Nz, Cell)
+    Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
+    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
+
+    """
+    Non-dimensional PDE is
+
+        ∂T/∂t = - σ_wT/σ_T * τ/H * ∂/∂z(wT)
+    """
+    function ∂T∂t(T, p, t)
+        weights = p[1:end-6]
+        bottom_flux, top_flux, σ_T, σ_wT, H, τ = p[end-5:end]
+
+        NN = reconstruct(weights)
+        wT_interior = NN(T)
+        wT = [bottom_flux; wT_interior; top_flux]
+        ∂z_wT = Dzᶠ * σ_wT/σ_T * τ/H * wT
+        return -∂z_wT
+    end
+
+    Nt = length(ds["time"])
+    tspan = (0.0, maximum(iterations) / Nt)
+    saveat = range(tspan[1], tspan[2], length = length(iterations))
+
+    # We set the initial condition to `nothing` as we set it when
+    # we call `solve`.
+    return ODEProblem(∂T∂t, nothing, tspan, saveat=saveat)
+end
+
+function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
+    H = abs(ds["zF"][1]) # Domain height
+    τ = ds["time"][end]  # Simulation length
+    
+    Q  = nc_constant(ds.attrib["Heat flux"])
+    ρ₀ = nc_constant(ds.attrib["Reference density"])
+    cₚ = nc_constant(ds.attrib["Specific_heat_capacity"])
+    
+    bottom_flux = wT_scaling(0)
+    top_flux = wT_scaling(Q / (ρ₀ * cₚ))
+    
+    fixed_params = [bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ]
+end
+
+function initial_condition(ds, scaling=identity)
+    T₀ = ds["T"][:, 1]
+    T₀ = coarse_grain(T₀, Nz, Cell)
+    return scaling.(T₀)
+end
+
+function free_convection_solution(ds, iterations, T_scaling)
+    return cat([T_scaling.(coarse_grain(ds["T"][:, i], 32, Cell)) for i in iterations]..., dims=2)
+end
+
+function solve_free_convection_nde(nde, NN, T₀, alg, nde_params)
+    nn_weights, _ = Flux.destructure(NN)
+    return solve(nde, alg, u0=T₀, p=[nn_weights; nde_params],
+                 sense=InterpolatingAdjoint(autojacvec=ZygoteVJP()))
+end

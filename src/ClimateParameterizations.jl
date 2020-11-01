@@ -1,21 +1,29 @@
 module ClimateParameterizations
 
 export
+    # Utils
     coarse_grain, Dᶠ, Dᶜ,
     ZeroMeanUnitVarianceScaling, MinMaxScaling, scale, unscale,
     GaussianProcess, predict, uncertainty, SquaredExponential,
 
+    # Ocean convection
     nc_constant,
     FreeConvectionTrainingDataInput, rescale,
+    FreeConvectionNDE, FreeConvectionNDEParameters, initial_condition,
+    solve_free_convection_nde, free_convection_solution,
     animate_variable, convection_training_data, animate_learned_heat_flux
 
+using LinearAlgebra
 using Printf
 using Statistics
-using LinearAlgebra
+
+using DifferentialEquations
+using Flux
 using NCDatasets
 using Plots
 using Oceananigans.Utils
 
+using DiffEqSensitivity: InterpolatingAdjoint, ZygoteVJP
 using Oceananigans.Grids: Cell, Face
 
 import Base.inv

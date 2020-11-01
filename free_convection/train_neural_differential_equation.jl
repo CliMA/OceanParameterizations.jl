@@ -10,8 +10,6 @@ using ClimateParameterizations
 
 using Oceananigans.Grids: Cell, Face
 
-using DiffEqSensitivity: InterpolatingAdjoint, ZygoteVJP
-
 #####
 ##### Neural differential equation parameters
 #####
@@ -39,87 +37,20 @@ Qs_train = [25, 75]
 ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs_train)
 
 #####
-##### Utils for constructing the neural differential equation
-#####
-
-function FreeConvectionNDE(NN, ds, Nz, iterations)
-    weights, reconstruct = Flux.destructure(NN)
-    
-    H = abs(ds["zF"][1]) # Domain height
-    τ = ds["time"][end]  # Simulation length
-    zC = coarse_grain(ds["zC"], Nz, Cell)
-    Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
-    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
-
-    """
-    Non-dimensional PDE is
-
-        ∂T/∂t = - σ_wT/σ_T * τ/H * ∂/∂z(wT)
-    """
-    function ∂T∂t(T, p, t)
-        weights = p[1:end-6]
-        bottom_flux, top_flux, σ_T, σ_wT, H, τ = p[end-5:end]
-
-        NN = reconstruct(weights)
-        wT_interior = NN(T)
-        wT = [bottom_flux; wT_interior; top_flux]
-        ∂z_wT = Dzᶠ * σ_wT/σ_T * τ/H * wT
-        return -∂z_wT
-    end
-
-    Nt = length(ds["time"])
-    tspan = (0.0, maximum(iterations) / Nt)
-    saveat = range(tspan[1], tspan[2], length = length(iterations))
-
-    # We set the initial condition to `nothing` as we set it when
-    # we call `solve`.
-    return ODEProblem(∂T∂t, nothing, tspan, saveat=saveat)
-end
-
-function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
-    H = abs(ds["zF"][1]) # Domain height
-    τ = ds["time"][end]  # Simulation length
-    
-    Q  = nc_constant(ds.attrib["Heat flux"])
-    ρ₀ = nc_constant(ds.attrib["Reference density"])
-    cₚ = nc_constant(ds.attrib["Specific_heat_capacity"])
-    
-    bottom_flux = wT_scaling(0)
-    top_flux = wT_scaling(Q / (ρ₀ * cₚ))
-    
-    fixed_params = [bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ]
-end
-
-function initial_condition(ds, scaling=identity)
-    T₀ = ds["T"][:, 1]
-    T₀ = coarse_grain(T₀, Nz, Cell)
-    return scaling.(T₀)
-end
-
-iterations = 1:100
-nde = FreeConvectionNDE(NN, ds[75], Nz, iterations)
-nde_params = FreeConvectionNDEParameters(ds[75], T_scaling, wT_scaling)
-T₀ = initial_condition(ds[75], T_scaling)
-
-#####
-##### Train neural differential equation
+##### Utils for training the neural differential equation
 #####
 
 nde_training_data(ds, iterations, T_scaling) =
     cat([T_scaling.(coarse_grain(ds["T"][:, i], Nz, Cell)) for i in iterations]..., dims=2)
 
-function train_free_convection_nde!(NN, nde, ds, iterations, T_scaling, epochs, opt)
-    true_sol = nde_training_data(ds, iterations, T_scaling)
-
+function train_free_convection_nde!(NN, nde, nde_params, T₀, true_sol, epochs, opt)
     function nde_loss()
-        nn_weights, _ = Flux.destructure(NN)
-        nde_sol = solve(nde, Tsit5(), u0=T₀, p=[nn_weights; nde_params],
-                        sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())) |> Array
+        nde_sol = solve_free_convection_nde(nde, NN, T₀, Tsit5(), nde_params) |> Array
         return Flux.mse(nde_sol, true_sol)
     end
 
     function nde_callback()
-        @info @sprintf("Training free convection neural differential equation... loss = %.12e", nde_loss())
+        @info @sprintf("Training free convection NDE... loss = %.12e", nde_loss())
         return nothing
     end
 
@@ -127,69 +58,37 @@ function train_free_convection_nde!(NN, nde, ds, iterations, T_scaling, epochs, 
     Flux.train!(nde_loss, nn_params, Iterators.repeated((), epochs), opt, cb=nde_callback)
 end
 
-for opt in [ADAM(), Descent()]
-    train_free_convection_nde!(NN, nde, ds[75], iterations, T_scaling, 10, opt)
+#####
+##### Train neural differential equation
+#####
+
+training_iterations = (1:50, 1:100, 1:2:201, 1:4:401, 1:8:801)
+training_epochs     = (50,   50,    100,     100,     100)
+
+for (iterations, epochs) in zip(training_iterations, training_epochs)
+    nde = FreeConvectionNDE(NN, ds[75], Nz, iterations)
+    nde_params = FreeConvectionNDEParameters(ds[75], T_scaling, wT_scaling)
+    T₀ = initial_condition(ds[75], T_scaling)
+    true_sol = nde_training_data(ds, iterations, T_scaling)
+
+    @info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
+    train_free_convection_nde!(NN, nde, nde_params, T₀, true_sol, epochs, ADAM())
 end
+
+# 1:9:length(ds[75]["time"])
+
+#####
+##### Save trained neural network to disk
+#####
+
+neural_network_parameters =
+    Dict(   :weights => NN,
+          :T_scaling => T_scaling,
+         :wT_scaling => wT_scaling)
+
+bson("free_convection_neural_differential_equation_trained.bson", neural_network_parameters)
 
 #=
-
-function animate_learned_free_convection(ds, npde, standardization; grid_points, iters, filepath, fps=15)
-    T, wT, z = ds["T"], ds["wT"], ds["zC"]
-    Nz, Nt = size(T)
-    z_coarse = coarse_grain(z, grid_points, Cell)
-
-    S_T, S⁻¹_T = standardization.T.standardize, standardization.T.standardize⁻¹
-
-    T₀_NN = coarse_grain(T[:, 1], grid_points, Cell) .|> S_T
-    sol_npde = npde(T₀_NN) |> Array
-
-    time_steps = size(sol_npde, 2)
-    anim = @animate for (i, n) in enumerate(iters)
-        @info "Plotting $filepath [$n/$Nt]..."
-
-        time_str = @sprintf("%.2f days", ds["time"][n] / day)
-
-        plot(T[:, n], z, linewidth=2, xlim=(19, 20), ylim=(-100, 0),
-             label="Oceananigans T(z,t)", xlabel="Temperature (°C)", ylabel="Depth z (meters)",
-             title="Free convection: $time_str", legend=:bottomright, show=false)
-
-        plot!(S⁻¹_T.(sol_npde[:, i]), z_coarse, linewidth=2, label="Neural PDE")
-    end
-
-    @info "Saving $filepath"
-    mp4(anim, filepath, fps=fps)
-
-    return nothing
-end
-
-#####
-##### Preparing to train free convection T(z,t) neural PDE
-#####
-
-NN_fast = FastChain(NN)
-
-function generate_NN_fast_heat_flux(NN, bottom_flux, top_flux)
-    return FastChain(
-        NN,
-        (wT, _) -> cat(bottom_flux, wT, top_flux, dims=1)
-    )
-end
-
-S_T  = standardization.T.standardize
-S_wT = standardization.wT.standardize
-
-ρ₀ = nc_constant(ds[75], "Reference density")
-cₚ = nc_constant(ds[75], "Specific_heat_capacity")
-
-flux_standarized(Q) = Q / (ρ₀ * cₚ) |> S_wT
-
-best_weights, _ = Flux.destructure(NN)
-
-H  = abs(ds[Qs[1]]["zF"][1])
-zF = coarse_grain(ds[Qs[1]]["zF"], Nz, Face)
-Δẑ = diff(zF)[2] / H
-
-Dzᶜ = Dᶜ(Nz, Δẑ)
 
 #####
 ##### Train on multiple simulations at once while incrementally increasing the time span
