@@ -115,12 +115,12 @@ nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, ou
 
 function nn_callback()
     μ_loss = nn_training_set_loss(training_data) 
-    @info @sprintf("Training on free convection neural network... mean training set MSE loss = %.12e", μ_loss)
+    @info @sprintf("Training free convection neural network... mean training set MSE loss = %.12e", μ_loss)
     return μ_loss
 end
 
 epochs = 2
-optimizers = [ADAM(1e-2), Descent(1e-3)]
+optimizers = [ADAM(1e-3), Descent(1e-4)]
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
     @info "Training heat flux with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"
@@ -140,9 +140,10 @@ end
 ##### Save neural network + weights
 #####
 
-neural_network_parameters =
-    Dict(   :weights => NN,
-          :T_scaling => T_scaling,
-         :wT_scaling => wT_scaling)
+neural_network_parameters = Dict(
+       :grid_points => Nz,
+    :neural_network => NN,
+         :T_scaling => T_scaling,
+        :wT_scaling => wT_scaling)
 
 bson("free_convection_neural_network_parameters.bson", neural_network_parameters)

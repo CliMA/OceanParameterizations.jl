@@ -11,18 +11,13 @@ using ClimateParameterizations
 using Oceananigans.Grids: Cell, Face
 
 #####
-##### Neural differential equation parameters
-#####
-
-Nz = 32  # Number of grid points
-
-#####
 ##### Load weights and feature scaling from train_neural_network.jl
 #####
 
 neural_network_parameters = BSON.load("free_convection_neural_network_parameters.bson")
 
-NN = neural_network_parameters[:weights]
+grid_points = neural_network_parameters[:grid_points]
+NN = neural_network_parameters[:neural_network]
 T_scaling = neural_network_parameters[:T_scaling]
 wT_scaling = neural_network_parameters[:wT_scaling]
 
@@ -37,16 +32,26 @@ Qs_train = [25, 75]
 ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs_train)
 
 #####
-##### Utils for training the neural differential equation
+##### Train neural differential equation on incrementally increasing time spans
 #####
 
-nde_training_data(ds, iterations, T_scaling) =
-    cat([T_scaling.(coarse_grain(ds["T"][:, i], Nz, Cell)) for i in iterations]..., dims=2)
+training_iterations = (1:100, 1:2:201, 1:4:401, 1:8:801)
+training_epochs     = (50,    100,     100,     100)
 
-function train_free_convection_nde!(NN, nde, nde_params, T₀, true_sol, epochs, opt)
+for (iterations, epochs) in zip(training_iterations, training_epochs)
+
+    # Doesn't matter which Q we use to construct the NDE.
+    nde = FreeConvectionNDE(NN, ds[first(Qs_train)], grid_points, iterations)
+
+    nde_params = Dict(Q => FreeConvectionNDEParameters(ds[Q], T_scaling, wT_scaling) for Q in Qs_train)
+    T₀ = Dict(Q => initial_condition(ds[Q], T_scaling) for Q in Qs_train)
+    
+    true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points, iterations, scaling=T_scaling) for Q in Qs_train)
+    true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
+
     function nde_loss()
-        nde_sol = solve_free_convection_nde(nde, NN, T₀, Tsit5(), nde_params) |> Array
-        return Flux.mse(nde_sol, true_sol)
+        nde_sols = cat([solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q]) |> Array for Q in Qs_train]..., dims=2)
+        return Flux.mse(nde_sols, true_sols)
     end
 
     function nde_callback()
@@ -54,25 +59,8 @@ function train_free_convection_nde!(NN, nde, nde_params, T₀, true_sol, epochs,
         return nothing
     end
 
-    nn_params = Flux.params(NN)
-    Flux.train!(nde_loss, nn_params, Iterators.repeated((), epochs), opt, cb=nde_callback)
-end
-
-#####
-##### Train neural differential equation
-#####
-
-training_iterations = (1:50, 1:100, 1:2:201, 1:4:401, 1:8:801)
-training_epochs     = (50,   50,    100,     100,     100)
-
-for (iterations, epochs) in zip(training_iterations, training_epochs)
-    nde = FreeConvectionNDE(NN, ds[75], Nz, iterations)
-    nde_params = FreeConvectionNDEParameters(ds[75], T_scaling, wT_scaling)
-    T₀ = initial_condition(ds[75], T_scaling)
-    true_sol = nde_training_data(ds, iterations, T_scaling)
-
     @info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
-    train_free_convection_nde!(NN, nde, nde_params, T₀, true_sol, epochs, ADAM())
+    Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), ADAM(), cb=nde_callback)
 end
 
 # 1:9:length(ds[75]["time"])
@@ -81,9 +69,10 @@ end
 ##### Save trained neural network to disk
 #####
 
-neural_network_parameters =
-    Dict(   :weights => NN,
-          :T_scaling => T_scaling,
-         :wT_scaling => wT_scaling)
+neural_network_parameters = Dict(
+       :grid_points => Nz,
+    :neural_network => NN,
+         :T_scaling => T_scaling,
+        :wT_scaling => wT_scaling)
 
 bson("free_convection_neural_differential_equation_trained.bson", neural_network_parameters)

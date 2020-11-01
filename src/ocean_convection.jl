@@ -17,13 +17,14 @@ rescale(old, T_scaling, wT_scaling) =
 
 Return a `Nt × grid_points` array of coarse-grained data from the NetCDF variable `ϕ` where `Nt` is the number of times.
 """
-function convection_training_data(ϕ; grid_points)
+function convection_training_data(ϕ; grid_points, iterations=nothing, scaling=identity)
     Nz, Nt = size(ϕ)
     loc = location_z(ϕ)
 
-    data = cat((coarse_grain(ϕ[:, n], grid_points, loc) for n in 1:Nt)..., dims=2)
+    iterations = isnothing(iterations) ? (1:Nt) : iterations
+    data = cat((coarse_grain(ϕ[:, n], grid_points, loc) for n in iterations)..., dims=2)
 
-    return data
+    return scaling.(data)
 end
 
 """
