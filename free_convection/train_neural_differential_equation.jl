@@ -49,7 +49,7 @@ training_epochs     = (50,    50,      100,     100)
 for (iterations, epochs) in zip(training_iterations, training_epochs)
 
     # Doesn't matter which Q we use to construct the NDE.
-    nde = FreeConvectionNDE(NN, ds[first(Qs_train)], Nz, iterations)
+    nde = FreeConvectionNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
     
     true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling) for Q in Qs_train)
     true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
@@ -72,13 +72,13 @@ for (iterations, epochs) in zip(training_iterations, training_epochs)
 end
 
 #####
-##### Train on entire solution while decreasing the learning rate
+##### Train on entire solution then decrease the learning rate
 #####
 
 iterations = 1:9:length(ds[75]["time"])
-epochs = 200
+epochs = 500
 
-nde = FreeConvectionNDE(NN, ds[first(Qs_train)], Nz, iterations)
+nde = FreeConvectionNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
 
 true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling) for Q in Qs_train)
 true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
@@ -98,14 +98,14 @@ end
 @info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
 Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), ADAM(), cb=nde_callback)
 
-# Δ = -1e-4
-# η(e) = max(1e-2 + Δ*e, 1e-4)
+Δ = -1.8e6
+η(e) = max(1e-3 + Δ*e, 1e-4)
 
-# @info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
-# for e in 1:epochs
-#     @info "Training rate η=$(η(e))"
-#     Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), 1), ADAM(η(e)), cb=nde_callback)
-# end
+@info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
+for e in 1:epochs
+    @info "Training rate η=$(η(e))"
+    Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), 1), ADAM(η(e)), cb=nde_callback)
+end
 
 #####
 ##### Save trained neural network to disk
