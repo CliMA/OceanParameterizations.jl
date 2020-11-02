@@ -3,17 +3,122 @@ using Plots
 using Oceananigans.Utils
 using ClimateParameterizations
 
+function plot_loss_history(ds, nn_filepath, nn_history_filepath)
+    neural_network_parameters = BSON.load(nn_filepath)
+
+    Nz = neural_network_parameters[:grid_points]
+    NN = neural_network_parameters[:neural_network]
+    T_scaling = neural_network_parameters[:T_scaling]
+    wT_scaling = neural_network_parameters[:wT_scaling]
+    
+    nn_history = BSON.load(nn_history_filepath)[:nn_history]
+
+    Qs = keys(ds)
+    epochs = length(nn_history)
+    loss_history = Dict(Q => [] for Q in Qs)
+
+    true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, scaling=T_scaling) for Q in Qs)
+
+    nde_params = Dict(Q => FreeConvectionNDEParameters(ds[Q], T_scaling, wT_scaling) for Q in Qs)
+    T₀ = Dict(Q => initial_condition(ds[Q], grid_points=Nz, scaling=T_scaling) for Q in Qs)
+
+    loss_history = Dict(Q => [] for Q in Qs)
+
+    for e in 1:epochs
+        @info "Computing loss history for epoch $e/$epochs..."
+        NN = nn_history[e]
+        nde = FreeConvectionNDE(NN, ds[first(Qs)], Nz)
+
+        for Q in Qs
+            nde_sol = solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q])
+            mse_loss = Flux.mse(nde_sol, true_sols[Q])
+            push!(loss_history[Q], mse_loss)
+        end
+    end
+
+    p = plot(dpi=200)
+
+    for Q in Qs
+        label = @sprintf("Q=%dW", Q)
+        title = "Free convection NDE"
+
+        plot!(p, 1:epochs, loss_history[Q], linewidth=2, yaxis=:log, ylims=(1e-3, 10),
+              label=label, title=title, xlabel="Epochs", ylabel="Mean squared error",
+              legend = :outertopright)
+    end
+
+    png_filepath = "free_convection_nde_loss_history.png"
+    savefig(png_filepath)
+
+    return p
+end
+
+function plot_loss_evolution(ds, nn_filepath, nn_history_filepath, fps=15)
+    neural_network_parameters = BSON.load(nn_filepath)
+
+    Nz = neural_network_parameters[:grid_points]
+    NN = neural_network_parameters[:neural_network]
+    T_scaling = neural_network_parameters[:T_scaling]
+    wT_scaling = neural_network_parameters[:wT_scaling]
+    
+    nn_history = BSON.load(nn_history_filepath)[:nn_history]
+
+    Qs = keys(ds)
+    epochs = length(nn_history)
+    loss_history = Dict(Q => [] for Q in Qs)
+
+    true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, scaling=T_scaling) for Q in Qs)
+
+    nde_params = Dict(Q => FreeConvectionNDEParameters(ds[Q], T_scaling, wT_scaling) for Q in Qs)
+    T₀ = Dict(Q => initial_condition(ds[Q], grid_points=Nz, scaling=T_scaling) for Q in Qs)
+
+    loss_evolution = Dict(Q => [] for Q in Qs)
+
+    for e in 1:epochs
+        @info "Computing loss history for epoch $e/$epochs..."
+        NN = nn_history[e]
+        nde = FreeConvectionNDE(NN, ds[first(Qs)], Nz)
+
+        for Q in Qs
+            nde_sol = solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q])
+            mse_loss = Flux.mse(nde_sol, true_sols[Q], agg=x->mean(x, dims=1))
+            push!(loss_evolution[Q], mse_loss)
+        end
+    end
+
+    times = ds[first(Qs)]["time"] ./ days
+
+    anim = @animate for e in 1:epochs
+        @info "Plotting NDE loss evolution... epoch $e/$epochs"
+        
+        title = "Training free convection NDE: epoch $e"
+
+        p = plot(dpi=200)
+        for Q in Qs
+            label = @sprintf("Q=%dW", Q)
+            plot!(p, times, loss_evolution[Q][e][:], linewidth=2, yaxis=:log, ylims=(1e-6, 10),
+                  label=label, xlabel="Epochs", ylabel="Mean squared error",
+                  title=title, legend=:bottomright, dpi=200)
+        end
+    end
+
+    mp4(anim, "free_convection_nde_loss_evolution.mp4", fps=fps)
+
+    return nothing
+end
+
 function nde_mse(ds, nn_filepath)
     neural_network_parameters = BSON.load(nn_filepath)
 
-    NN = neural_network_parameters[:weights]
+    Nz = neural_network_parameters[:grid_points]
+    NN = neural_network_parameters[:neural_network]
     T_scaling = neural_network_parameters[:T_scaling]
     wT_scaling = neural_network_parameters[:wT_scaling]
 
     iterations = 1:length(ds["time"])
-    true_sol = free_convection_solution(ds, iterations, T_scaling)
+    true_sol = convection_training_data(ds["T"]; grid_points=Nz, iterations, scaling=T_scaling)
 
-    nde = FreeConvectionNDE(NN, ds, 32, iterations)
+    nde = FreeConvectionNDE(NN, ds, Nz, iterations)
     nde_params = FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     T₀ = initial_condition(ds, T_scaling)
     sol_npde = solve_free_convection_nde(nde, NN, T₀, Tsit5(), nde_params) |> Array
@@ -24,14 +129,15 @@ end
 function plot_nde_mse_in_time(ds, nn_filepath)
     neural_network_parameters = BSON.load(nn_filepath)
 
-    NN = neural_network_parameters[:weights]
+    Nz = neural_network_parameters[:grid_points]
+    NN = neural_network_parameters[:neural_network]
     T_scaling = neural_network_parameters[:T_scaling]
     wT_scaling = neural_network_parameters[:wT_scaling]
 
     iterations = 1:length(ds["time"])
-    true_sol = free_convection_solution(ds, iterations, T_scaling)
+    true_sol = convection_training_data(ds["T"]; grid_points=Nz, iterations, scaling=T_scaling)
 
-    nde = FreeConvectionNDE(NN, ds, 32, iterations)
+    nde = FreeConvectionNDE(NN, ds, Nz, iterations)
     nde_params = FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     T₀ = initial_condition(ds, T_scaling)
     sol_npde = solve_free_convection_nde(nde, NN, T₀, Tsit5(), nde_params) |> Array
@@ -51,7 +157,8 @@ end
 function plot_nde_mse_in_time(ds, nn_filepath, Qs)
     neural_network_parameters = BSON.load(nn_filepath)
 
-    NN = neural_network_parameters[:weights]
+    Nz = neural_network_parameters[:grid_points]
+    NN = neural_network_parameters[:neural_network]
     T_scaling = neural_network_parameters[:T_scaling]
     wT_scaling = neural_network_parameters[:wT_scaling]
 
@@ -59,9 +166,9 @@ function plot_nde_mse_in_time(ds, nn_filepath, Qs)
 
     for Q in Qs
         iterations = 1:length(ds[Q]["time"])
-        true_sol = free_convection_solution(ds[Q], iterations, T_scaling)
+        true_sol = convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling)
 
-        nde = FreeConvectionNDE(NN, ds[Q], 32, iterations)
+        nde = FreeConvectionNDE(NN, ds[Q], Nz, iterations)
         nde_params = FreeConvectionNDEParameters(ds[Q], T_scaling, wT_scaling)
         T₀ = initial_condition(ds[Q], T_scaling)
         sol_npde = solve_free_convection_nde(nde, NN, T₀, Tsit5(), nde_params) |> Array
@@ -123,8 +230,6 @@ function animate_learned_free_convection(ds, nn_filepath; grid_points, iteration
     return anim
 end
 
-Nz = 32  # Number of grid points
-
 nn_filepath = "free_convection_neural_differential_equation_trained.bson"
 
 Qs = [25, 50, 75, 100]
@@ -132,6 +237,8 @@ Qs_train = [25, 75]
 Qs_test = [50, 100]
 
 ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q in Qs)
+
+plot_loss_history(ds, nn_filepath)
 
 for Q in Qs
     @info @sprintf("Free convection NDE MSE for Q=%dW: %.4e", Q, nde_mse(ds[Q], nn_filepath))
