@@ -107,7 +107,7 @@ function animate_learned_heat_flux(ds, NN, T_scaling, wT_scaling; grid_points, f
     return nothing
 end
 
-function FreeConvectionNDE(NN, ds, Nz, iterations)
+function FreeConvectionNDE(NN, ds, Nz, iterations=nothing)
     weights, reconstruct = Flux.destructure(NN)
     
     H = abs(ds["zF"][1]) # Domain height
@@ -115,6 +115,10 @@ function FreeConvectionNDE(NN, ds, Nz, iterations)
     zC = coarse_grain(ds["zC"], Nz, Cell)
     Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
     Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
+
+    if isnothing(iterations)
+        iterations = 1:length(ds["time"])
+    end
 
     """
     Non-dimensional PDE is
@@ -155,9 +159,9 @@ function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     fixed_params = [bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ]
 end
 
-function initial_condition(ds, scaling=identity)
+function initial_condition(ds; grid_points, scaling=identity)
     T₀ = ds["T"][:, 1]
-    T₀ = coarse_grain(T₀, Nz, Cell)
+    T₀ = coarse_grain(T₀, grid_points, Cell)
     return scaling.(T₀)
 end
 
