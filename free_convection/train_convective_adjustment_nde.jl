@@ -49,26 +49,28 @@ training_epochs     = (50,    50,      100,     100)
 for (iterations, epochs) in zip(training_iterations, training_epochs)
 
     # Doesn't matter which Q we use to construct the NDE.
-    nde = FreeConvectionNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
+    nde = ConvectiveAdjustmentNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
     
     true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling) for Q in Qs_train)
     true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
 
     function nde_loss()
-        nde_sols = [solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q]) |> Array for Q in Qs_train]
+        nde_sols = [solve_convective_adjustment_nde(nde, NN, T₀[Q], ROCK4(), nde_params[Q]) |> Array for Q in Qs_train]
         nde_sols = cat(nde_sols..., dims=2)
         return Flux.mse(nde_sols, true_sols)
     end
 
     function nde_callback()
         mse_loss = nde_loss()
-        @info @sprintf("Training free convection NDE... mse loss = %.12e", mse_loss)
+        @info @sprintf("Training convective adjustment NDE... mse loss = %.12e", mse_loss)
         push!(nn_history, deepcopy(NN))
         return nothing
     end
 
-    @info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
+    @info "Training convective adjustment NDE with iterations=$iterations for $epochs epochs..."
     Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), ADAM(), cb=nde_callback)
+
+    bson("convective_adjustment_nn_history.bson", Dict(:nn_history => nn_history))
 end
 
 #####
@@ -78,26 +80,30 @@ end
 iterations = 1:9:length(ds[75]["time"])
 epochs = 500
 
-nde = FreeConvectionNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
+nde = ConvectiveAdjustmentNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
 
 true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling) for Q in Qs_train)
 true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
 
 function nde_loss()
-    nde_sols = cat([solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q]) |> Array for Q in Qs_train]..., dims=2)
+    nde_sols = cat([solve_convective_adjustment_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q]) |> Array for Q in Qs_train]..., dims=2)
     return Flux.mse(nde_sols, true_sols)
 end
 
 function nde_callback()
     full_loss = nde_loss()
-    @info @sprintf("Training free convection NDE... mse loss = %.12e", full_loss)
+    @info @sprintf("Training convective adjustment NDE... mse loss = %.12e", full_loss)
     push!(nn_history, deepcopy(NN))
     return nothing
 end
 
-@info "Training free convection NDE with iterations=$iterations for $epochs epochs..."
+@info "Training convective adjustment NDE with iterations=$iterations for $epochs epochs..."
 Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), ADAM(1e-3), cb=nde_callback)
+bson("convective_adjustment_nn_history.bson", Dict(:nn_history => nn_history))
+
+@info "Training convective adjustment NDE with iterations=$iterations for $epochs epochs..."
 Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), ADAM(1e-4), cb=nde_callback)
+bson("convective_adjustment_nn_history.bson", Dict(:nn_history => nn_history))
 
 #####
 ##### Save trained neural network to disk
@@ -109,6 +115,6 @@ neural_network_parameters = Dict(
                :T_scaling => T_scaling,
               :wT_scaling => wT_scaling)
 
-bson("free_convection_neural_differential_equation_trained.bson", neural_network_parameters)
+bson("convective_adjustment_nde.bson", neural_network_parameters)
 
-bson("free_convection_neural_network_history.bson", Dict(:nn_history => nn_history))
+bson("convective_adjustment_nn_history.bson", Dict(:nn_history => nn_history))

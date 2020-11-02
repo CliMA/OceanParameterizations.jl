@@ -13,8 +13,8 @@ export
     # Ocean convection
     nc_constant,
     FreeConvectionTrainingDataInput, rescale,
-    FreeConvectionNDE, FreeConvectionNDEParameters, initial_condition,
-    solve_free_convection_nde, free_convection_solution,
+    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
+    solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
     animate_variable, convection_training_data, animate_learned_heat_flux
 
 using LinearAlgebra
