@@ -2,8 +2,6 @@
 ##### Modified from https://github.com/sandreza/Learning/blob/master/sandbox/gaussian_process.jl
 #####
 
-using LinearAlgebra
-
 """
     GaussianProcess{K, D, P, M, C}
 
