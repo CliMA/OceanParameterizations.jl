@@ -45,14 +45,14 @@ function animate_gif(xs, y, t, x_str, x_label=["" for i in length(xs)], filename
     x_max = maximum(maximum(x) for x in xs)
     x_min = minimum(minimum(x) for x in xs)
         @info "$x_str frame of $n/$(size(uw,2))"
-        fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)))
+        fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom)
         for i in 1:length(xs)
             plot!(fig, xs[i][:,n], y, label=x_label[i], title="t = $(round(t[n]/86400, digits=2)) days")
         end
         xlabel!(fig, "$x_str")
         ylabel!(fig, "z")
     end
-    gif(anim, joinpath(PATH, "Output", "$(x_str).gif"), fps=30)
+    gif(anim, joinpath(PATH, "Output", "$(filename).gif"), fps=30)
 end
 
 animate_gif([uw], zC, t, "uw")
@@ -94,6 +94,10 @@ function feature_scaling(x, mean, std)
     (x .- mean) ./ std
 end
 
+function reverse_scaling(x, mean, std)
+    x .* std .+ mean
+end
+
 ##
 u_coarse = cat((coarse_grain(u[:,i], 32, Cell) for i in 1:size(u,2))..., dims=2)
 v_coarse = cat((coarse_grain(v[:,i], 32, Cell) for i in 1:size(v,2))..., dims=2)
@@ -109,110 +113,78 @@ vw_mean = mean(vw_coarse)
 vw_std = std(vw_coarse)
 wT_mean = mean(wT_coarse)
 wT_std = std(wT_coarse)
+u_mean = mean(u_coarse)
+u_std = std(u_coarse)
+v_mean = mean(v_coarse)
+v_std = std(v_coarse)
+T_mean = mean(T_coarse)
+T_std = std(T_coarse)
 
 uw_scaled = feature_scaling.(uw_coarse, uw_mean, uw_std)
 vw_scaled = feature_scaling.(vw_coarse, vw_mean, vw_std)
 wT_scaled = feature_scaling.(wT_coarse, wT_mean, wT_std)
+u_scaled = feature_scaling.(u_coarse, u_mean, u_std)
+v_scaled = feature_scaling.(v_coarse, v_mean, v_std)
+T_scaled = feature_scaling.(T_coarse, T_mean, T_std)
+
+uvT_scaled = cat(u_scaled, v_scaled, T_scaled, dims=1)
 ##
-uw_train_scaled = [(u_coarse[:,i], uw_scaled[:,i]) for i in 1:size(u_coarse,2)]
-uw_train = [(u_coarse[:,i], uw_coarse[:,i]) for i in 1:size(u_coarse,2)]
+uw_train = [(uvT_scaled[:,i], uw_scaled[:,i]) for i in 1:size(uvT_scaled,2)]
+vw_train = [(uvT_scaled[:,i], vw_scaled[:,i]) for i in 1:size(uvT_scaled,2)]
+wT_train = [(uvT_scaled[:,i], wT_scaled[:,i]) for i in 1:size(uvT_scaled,2)]
 
-model_uw = Chain(Dense(32,30, relu), Dense(30,32))
+model_uw = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,32))
 loss_uw(x, y) = Flux.Losses.mse(model_uw(x), y)
-loss_uw_scaled(x, y) = Flux.Losses.mse(feature_scaling.(model_uw(x), uw_mean, uw_std), y)
-p_uw = params(model_uw)
 
-# function cb()
-#     @info mean([loss_uw_scaled(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)])
-# end
+optimizers_uw = [ADAM(), ADAM(), ADAM(), ADAM(), Descent(), Descent(), Descent(), Descent(), Descent()]
 
-function cb()
+for opt in optimizers_uw
+    @info opt
+    Flux.train!(loss_uw, params(model_uw), uw_train, opt, cb = Flux.throttle(cb_uw, 2))
+end
+
+function cb_uw()
     @info mean([loss_uw(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)])
     false
 end
 
-# Flux.train!(loss_uw_scaled, params(model_uw), uw_train, Descent(), cb = cb, maxiters=5)
-optimizers = [Descent(), Descent(), Descent(), ADAM(0.01)]
 
-for opt in optimizers
-    Flux.train!(loss_uw, params(model_uw), uw_train, opt, cb = cb)
-end
-# Flux.train!(loss_uw_scaled, params(model_uw), uw_train_scaled, Descent(), cb = cb)
+uw_NN = (cat((reverse_scaling(model_uw(uw_train[i][1]), uw_mean, uw_std) for i in 1:length(uw_train))...,dims=2), uw_coarse)
+animate_gif(uw_NN, zC_coarse, t, "uw", ["NN(u,v,T)", "truth"], "uw_NN")
 
 
-params(model_uw)
-
-
-uw_NN = (cat((model_uw(uw_train[i][1]) for i in 1:length(uw_train))...,dims=2), uw_coarse)
-
-animate_gif(uw_NN, zC_coarse, t, "uw_train", ["NN", "truth"])
-
-
-model_uw_uvT = Chain(Dense(96,30, relu), Dense(30,32))
-loss_uw(x, y) = Flux.Losses.mse(model_uw_uvT(x), y)
-loss_uw_scaled(x, y) = Flux.Losses.mse(feature_scaling.(model_uw_uvT(x), uw_mean, uw_std), y)
-p_uw_uvT = params(model_uw_uvT)
-
-uvT_coarse = cat(u_coarse, v_coarse, T_coarse, dims=1)
-
-uw_train_uvT = [(uvT_coarse[:,i], uw_coarse[:,i]) for i in 1:size(uvT_coarse,2)]
-
-optimizers_uw_uvT = [Descent(), Descent(), Descent()]
-
-function cb_uvT()
-    @info mean([loss_uw(uw_train_uvT[i][1], uw_train_uvT[i][2]) for i in 1:length(uw_train_uvT)])
-    false
-end
-
-
-for opt in optimizers_uw_uvT
-    Flux.train!(loss_uw, params(model_uw_uvT), uw_train_uvT, opt, cb = cb_uvT)
-end
-
-uw_NN_uvT = (cat((model_uw_uvT(uw_train_uvT[i][1]) for i in 1:length(uw_train_uvT))...,dims=2), uw_coarse)
-
-animate_gif(uw_NN_uvT, zC_coarse, t, "uw", ["NN(u,v,T)", "truth"], "uw_uvT")
-
-
-
-model_vw = Chain(Dense(96,30, relu), Dense(30,32))
+model_vw = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,32))
 loss_vw(x, y) = Flux.Losses.mse(model_vw(x), y)
-# loss_uw_scaled(x, y) = Flux.Losses.mse(feature_scaling.(model_uw_uvT(x), uw_mean, uw_std), y)
-p_vw = params(model_vw)
 
-vw_train = [(uvT_coarse[:,i], vw_coarse[:,i]) for i in 1:size(uvT_coarse,2)]
+optimizers_vw = [ADAM(), ADAM(), ADAM(), ADAM(), Descent(), Descent(), Descent(), Descent(), Descent()]
 
 function cb_vw()
     @info mean([loss_vw(vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train)])
     false
 end
 
-optimizers_vw = [Descent(), Descent(), Descent(), Descent()]
 for opt in optimizers_vw
-    Flux.train!(loss_vw, params(model_vw), vw_train, opt, cb = cb_vw)
+    @info opt
+    Flux.train!(loss_vw, params(model_vw), vw_train, opt, cb = Flux.throttle(cb_vw, 2))
 end
 
-vw_NN = (cat((model_vw(vw_train[i][1]) for i in 1:length(vw_train))...,dims=2), vw_coarse)
+vw_NN = (cat((reverse_scaling(model_vw(vw_train[i][1]), vw_mean, vw_std) for i in 1:length(vw_train))...,dims=2), vw_coarse)
+animate_gif(vw_NN, zC_coarse, t, "vw", ["NN(u,v,T)", "truth"], "vw_NN")
 
-animate_gif(vw_NN, zC_coarse, t, "vw", ["NN(u,v,T)", "truth"], "vw_uvT")
-
-model_wT = Chain(Dense(96,30, relu), Dense(30,32))
+model_wT = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,32))
 loss_wT(x, y) = Flux.Losses.mse(model_wT(x), y)
-# loss_uw_scaled(x, y) = Flux.Losses.mse(feature_scaling.(model_uw_uvT(x), uw_mean, uw_std), y)
-p_wT = params(model_wT)
-
-wT_train = [(uvT_coarse[:,i], wT_coarse[:,i]) for i in 1:size(uvT_coarse,2)]
 
 function cb_wT()
     @info mean([loss_wT(wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train)])
     false
 end
 
-optimizers_wT = [Descent(), Descent(), Descent(), Descent()]
+optimizers_wT = [ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent()]
+
 for opt in optimizers_wT
-    Flux.train!(loss_wT, params(model_wT), wT_train, opt, cb = cb_wT)
+    @info opt
+    Flux.train!(loss_wT, params(model_wT), wT_train, opt, cb = Flux.throttle(cb_wT, 2))
 end
 
-wT_NN = (cat((model_wT(wT_train[i][1]) for i in 1:length(wT_train))...,dims=2), wT_coarse)
-
-animate_gif(wT_NN, zC_coarse, t, "wT", ["NN(u,v,T)", "truth"], "wT_uvT")
+wT_NN = (cat((reverse_scaling(model_wT(wT_train[i][1]), wT_mean, wT_std) for i in 1:length(wT_train))...,dims=2), wT_coarse)
+animate_gif(wT_NN, zC_coarse, t, "wT", ["NN(u,v,T)", "truth"], "wT_NN")
