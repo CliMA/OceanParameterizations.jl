@@ -4,6 +4,7 @@ using Plots
 using Flux, DiffEqFlux, Optim
 # using ClimateSurrogates
 using Oceananigans.Grids
+using BSON
 
 ##
 PATH = joinpath(pwd(), "wind_mixing")
@@ -188,3 +189,14 @@ end
 
 wT_NN = (cat((reverse_scaling(model_wT(wT_train[i][1]), wT_mean, wT_std) for i in 1:length(wT_train))...,dims=2), wT_coarse)
 animate_gif(wT_NN, zC_coarse, t, "wT", ["NN(u,v,T)", "truth"], "wT_NN")
+
+
+uw_NN_params = Dict(
+       :grid_points => 32,
+    :neural_network => model_uw,
+        :u_scaling => u_scaled,
+        :v_scaling => v_scaled,
+         :T_scaling => T_scaled,
+        :uw_scaling => uw_scaled)
+
+bson(joinpath(PATH, "Output","uw_NN_params.bson"), uw_NN_params)
