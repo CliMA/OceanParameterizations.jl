@@ -23,6 +23,7 @@ docs/site/
 
 # Other output
 *.bson
+*.backup
 
 # Plotting output
 *.mp4
