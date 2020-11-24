@@ -2,7 +2,7 @@ using Statistics
 using NCDatasets
 using Plots
 using Flux, DiffEqFlux, Optim
-# using ClimateSurrogates
+using ClimateParameterizations
 using Oceananigans.Grids
 using BSON
 
@@ -11,8 +11,6 @@ PATH = joinpath(pwd(), "wind_mixing")
 DATA_PATH = joinpath(PATH, "Data", "wind_mixing_horizontal_averages_0.02Nm2_8days.nc")
 
 ds = NCDataset(DATA_PATH)
-keys(ds)
-
 
 xC = Array(ds["xC"])
 xF = Array(ds["xF"])
@@ -56,40 +54,12 @@ function animate_gif(xs, y, t, x_str, x_label=["" for i in length(xs)], filename
     gif(anim, joinpath(PATH, "Output", "$(filename).gif"), fps=30)
 end
 
-animate_gif([uw], zC, t, "uw")
-animate_gif([vw], zC, t, "vw")
-animate_gif([wT], zF, t, "wT")
-animate_gif([u], zC, t, "u")
-animate_gif([v], zC, t, "v")
-animate_gif([T], zC, t, "T")
-
-function coarse_grain(Φ, n, ::Type{Cell})
-    N = length(Φ)
-    Δ = Int(N / n)
-    Φ̅ = similar(Φ, n)
-    for i in 1:n
-        Φ̅[i] = mean(Φ[Δ*(i-1)+1:Δ*i])
-    end
-    return Φ̅
-end
-
-function coarse_grain(Φ, n, ::Type{Face})
-    N = length(Φ)
-    Φ̅ = similar(Φ, n)
-    Δ = (N-2) / (n-2)
-    if isinteger(Δ)
-        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
-        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
-    else
-        Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
-        for i in 2:n-1
-            i1 = round(Int, 2 + (i-2)*Δ)
-            i2 = round(Int, 2 + (i-1)*Δ)
-            Φ̅[i] = mean(Φ[i1:i2])
-        end
-    end
-    return Φ̅
-end
+# animate_gif([uw], zC, t, "uw")
+# animate_gif([vw], zC, t, "vw")
+# animate_gif([wT], zF, t, "wT")
+# animate_gif([u], zC, t, "u")
+# animate_gif([v], zC, t, "v")
+# animate_gif([T], zC, t, "T")
 
 function feature_scaling(x, mean, std)
     (x .- mean) ./ std
@@ -99,14 +69,16 @@ function reverse_scaling(x, mean, std)
     x .* std .+ mean
 end
 
+
 ##
 u_coarse = cat((coarse_grain(u[:,i], 32, Cell) for i in 1:size(u,2))..., dims=2)
 v_coarse = cat((coarse_grain(v[:,i], 32, Cell) for i in 1:size(v,2))..., dims=2)
 T_coarse = cat((coarse_grain(T[:,i], 32, Cell) for i in 1:size(T,2))..., dims=2)
 uw_coarse = cat((coarse_grain(uw[:,i], 32, Cell) for i in 1:size(uw,2))..., dims=2)
 vw_coarse = cat((coarse_grain(vw[:,i], 32, Cell) for i in 1:size(vw,2))..., dims=2)
-wT_coarse = cat((coarse_grain(wT[:,i], 32, Face) for i in 1:size(wT,2))..., dims=2)
-zC_coarse = cat((coarse_grain(zC[:,i], 32, Cell) for i in 1:size(zC,2))..., dims=2)
+wT_coarse = cat((coarse_grain_linear_interpolation(wT[:,i], 33, Face) for i in 1:size(wT,2))..., dims=2)
+zC_coarse = coarse_grain(zC, 32, Cell)
+zF_coarse = coarse_grain_linear_interpolation(zF, 33, Face)
 
 uw_mean = mean(uw_coarse)
 uw_std = std(uw_coarse)
@@ -137,16 +109,16 @@ wT_train = [(uvT_scaled[:,i], wT_scaled[:,i]) for i in 1:size(uvT_scaled,2)]
 model_uw = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,32))
 loss_uw(x, y) = Flux.Losses.mse(model_uw(x), y)
 
+function cb_uw()
+    @info mean([loss_uw(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)])
+    false
+end
+
 optimizers_uw = [ADAM(), ADAM(), ADAM(), ADAM(), Descent(), Descent(), Descent(), Descent(), Descent()]
 
 for opt in optimizers_uw
     @info opt
     Flux.train!(loss_uw, params(model_uw), uw_train, opt, cb = Flux.throttle(cb_uw, 2))
-end
-
-function cb_uw()
-    @info mean([loss_uw(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)])
-    false
 end
 
 
@@ -172,7 +144,7 @@ end
 vw_NN = (cat((reverse_scaling(model_vw(vw_train[i][1]), vw_mean, vw_std) for i in 1:length(vw_train))...,dims=2), vw_coarse)
 animate_gif(vw_NN, zC_coarse, t, "vw", ["NN(u,v,T)", "truth"], "vw_NN")
 
-model_wT = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,32))
+model_wT = Chain(Dense(96,96, relu), Dense(96,96, relu), Dense(96,33))
 loss_wT(x, y) = Flux.Losses.mse(model_wT(x), y)
 
 function cb_wT()
@@ -194,9 +166,35 @@ animate_gif(wT_NN, zC_coarse, t, "wT", ["NN(u,v,T)", "truth"], "wT_NN")
 uw_NN_params = Dict(
        :grid_points => 32,
     :neural_network => model_uw,
+                :zC => zC_coarse,
         :u_scaling => u_scaled,
         :v_scaling => v_scaled,
          :T_scaling => T_scaled,
+         :uvT_scaling => uvT_scaled,
         :uw_scaling => uw_scaled)
 
 bson(joinpath(PATH, "Output","uw_NN_params.bson"), uw_NN_params)
+
+vw_NN_params = Dict(
+       :grid_points => 32,
+    :neural_network => model_vw,
+                :zC => zC_coarse,
+        :u_scaling => u_scaled,
+        :v_scaling => v_scaled,
+         :T_scaling => T_scaled,
+         :uvT_scaling => uvT_scaled,
+        :vw_scaling => vw_scaled)
+
+bson(joinpath(PATH, "Output","vw_NN_params.bson"), vw_NN_params)
+
+wT_NN_params = Dict(
+       :grid_points => 32,
+    :neural_network => model_wT,
+                :zF => zF_coarse,
+        :u_scaling => u_scaled,
+        :v_scaling => v_scaled,
+         :T_scaling => T_scaled,
+         :uvT_scaling => uvT_scaled,
+        :wT_scaling => wT_scaled)
+
+bson(joinpath(PATH, "Output","wT_NN_params.bson"), wT_NN_params)
