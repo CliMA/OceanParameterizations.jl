@@ -7,6 +7,7 @@ using ClimateParameterizations
 using Oceananigans.Grids
 using BSON
 
+# load dataset and NN
 PATH = joinpath(pwd(), "wind_mixing")
 DATA_PATH = joinpath(PATH, "Data", "wind_mixing_horizontal_averages_0.02Nm2_8days.nc")
 ds = NCDataset(DATA_PATH)
@@ -35,28 +36,35 @@ zF_coarse = wT_NN_params[:zF]
 tspan_train = (0.0, t[100])
 uvT₀ = uvT_scaled[:,1]
 
-D_cell = Dᶜ(Nz, zC_coarse[2] - zC_coarse[1])
-D_face = Dᶠ(Nz, zF_coarse[2] - zF_coarse[1])
+Nz = 32
 
-D_cell * uw_NN(uvT₀)
-D_face * wT_NN(uvT₀)
+# central derivative as gradient approximator, periodic boundary conditions
 
+function central_difference(input, z)
+    Δ = z[2] - z[1]
+    output = similar(input)
+    vals = @view output[2:length(output)-1]
+    vals .= (@view(input[3:end]) .-@view(input[1:end-2])) ./ (2Δ)
+    output[1] = (input[2] - input[end]) / (2Δ)
+    output[end] = (input[1] - input[end-1])/(2Δ)
+    return output
+end
 
-uw_NN(uvT₀)
+# interpolation from face centered values to cell centered values
+function face_to_cell(input)
+    output = similar(input, length(input)-1)
+    output .= (@view(input[1:end-1]) .+ @view(input[2:end]) ) ./ 2
+    return output
+end
 
-# uw_NN = Chain(Dense(32, 128, relu), Dense(128, 32))
-prob_uw = NeuralODE(uw_NN, tspan_train, Tsit5(), saveat=t[1:100])
-params(uw_NN)
-
-Array(prob_uw(uw_scaled[:,1]))
-prob_uw.p
-
-zF = Array(ds["zF"])
-diff(zF)
-
-zF_linear_interpolation = coarse_grain_linear_interpolation(zF, 31, Face)
-
-diff(zF_linear_interpolation)
+# splicing data to train the NN
+function time_window(t, uvT, stopindex)
+    if stopindex < length(t)
+        return (t[1:stopindex], uvT[:,1:stopindex])
+    else
+        @info "stop index larger than length of t"
+    end
+end
 
 function NDE!(dx, x, p, t)
     f = p[1]
@@ -64,12 +72,20 @@ function NDE!(dx, x, p, t)
     u = x[1:Nz]
     v = x[Nz+1:2*Nz]
     T = x[2*Nz+1:end]
-    dx[1:Nz] = - d_cell * uw_NN(x) + f*v
-    dx[Nz+1:2*Nz] = - d_cell * vw_NN(x) + f*u
-    dx[2*Nz+1:end] = - d_face * wT_NN(x)
+    dx[1:Nz] .= -1 .* central_difference(uw_NN(x), zC_coarse) .+ f .* v
+    dx[Nz+1:2*Nz] .= -1 .* central_difference(vw_NN(x), zC_coarse) .- f .* u
+    dx[2*Nz+1:end] .= -1 .* central_difference(face_to_cell(wT_NN(x)), zC_coarse)
 end
 
-prob = ODEProblem(NDE!, uvT₀, (0.,10.), [10e-4, 32])
+t_train, uvT_train = time_window(t, uvT_scaled, 2)
+
+prob = ODEProblem(NDE!, uvT₀, (t_train[1],t_train[end]), [10e-4, 32], saveat=t_train)
+
 solve(prob)
 
-∂z(u) + fv
+function loss_NDE(x, y)
+    return Flux.mse(x, y)
+end
+
+Flux.train!(loss_NDE, Flux.params([uw_NN, vw_NN, wT_NN]), zip(Array(solve(prob)),uvT_train), ADAM())
+
