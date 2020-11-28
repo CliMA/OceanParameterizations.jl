@@ -44,9 +44,11 @@ function central_difference(input, z)
     Δ = z[2] - z[1]
     output = similar(input)
     vals = @view output[2:length(output)-1]
-    vals .= (@view(input[3:end]) .-@view(input[1:end-2])) ./ (2Δ)
-    output[1] = (input[2] - input[end]) / (2Δ)
-    output[end] = (input[1] - input[end-1])/(2Δ)
+    vals .= (@view(input[3:end]) .- @view(input[1:end-2])) ./ (2Δ)
+    # output[1] = (input[2] - input[end]) / (2Δ)
+    # output[end] = (input[1] - input[end-1])/(2Δ)
+    output[1] = 0
+    output[end] = 0
     return output
 end
 
@@ -79,13 +81,18 @@ end
 
 t_train, uvT_train = time_window(t, uvT_scaled, 2)
 
+
 prob = ODEProblem(NDE!, uvT₀, (t_train[1],t_train[end]), [10e-4, 32], saveat=t_train)
 
-solve(prob)
+sol = solve(prob)
+plot(sol[:,end][33:64], zC_coarse)
 
 function loss_NDE(x, y)
     return Flux.mse(x, y)
 end
 
-Flux.train!(loss_NDE, Flux.params([uw_NN, vw_NN, wT_NN]), zip(Array(solve(prob)),uvT_train), ADAM())
+function cb()
+    @info Flux.mse(Array(solve(prob)), uvT_train)
+end
 
+Flux.train!(loss_NDE, Flux.params([uw_NN, vw_NN, wT_NN]), zip(Array(solve(prob)),uvT_train), ADAM(), cb = Flux.throttle(cb, 2))
