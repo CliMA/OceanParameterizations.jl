@@ -29,3 +29,7 @@ docs/site/
 *.mp4
 *.gif
 *.png
+
+# output gifs
+Output/
+Output2/
