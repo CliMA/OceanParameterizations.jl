@@ -53,6 +53,13 @@ export
     # append_tke,
     # partial_temp_profile,
 
+    # Data / les/read_les_output.jl
+    read_les_output,
+
+    # Data
+    closure_free_convection_kpp_full_evolution,
+    closure_free_convection_tke_full_evolution,
+
     # NeuralNetwork / NeuralNetwork.jl
     nn_model,
 
@@ -81,12 +88,7 @@ export
     mean_square_error,
     predict,
 
-    # Main / plot_profile.jl
-    plot_profile,
-    plot_model_output,
-    animate_profile,
-    animate_profile_and_model_output,
-
+    # Data / animate_gif.jl
     animate_gif
 
     # kernel options

@@ -1,4 +1,4 @@
-function animate_gif(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=x_str, dir="Output")
+function animate_gif(xs, y, t, x_str; x_label=["" for i in length(xs)], filename=x_str, directory="Output")
     try
         mkdir(pwd*"/"*dir)
     catch
@@ -14,5 +14,5 @@ function animate_gif(xs, y, t, x_str, x_label=["" for i in length(xs)], filename
         xlabel!(fig, "$x_str")
         ylabel!(fig, "z")
     end
-    gif(anim, pwd()*"/$(dir)/$(filename).gif", fps=20)
+    gif(anim, pwd()*"/$(directory)/$(filename).gif", fps=20)
 end
