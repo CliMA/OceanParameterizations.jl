@@ -1,8 +1,5 @@
-using Plots
-using DifferentialEquations
 using ClimateParameterizations
-using Flux
-using OceanTurb
+using Flux, OceanTurb, DifferentialEquations, Plots
 
 output_gif_directory = "Output1"
 
@@ -11,11 +8,11 @@ test_file = "strong_wind"
 
 𝒟train = ClimateParameterizations.Data.data(train_files,
                                         scale_type=ZeroMeanUnitVarianceScaling,
-                                        animate=true,
+                                        animate=false,
                                         animate_dir="$(output_gif_directory)/Training")
 𝒟test = ClimateParameterizations.Data.data(test_file,
                                         override_scalings=𝒟train.scalings, # use the scalings from the training data
-                                        animate=true,
+                                        animate=false,
                                         animate_dir="$(output_gif_directory)/Testing")
 
 ## Neural Networks
@@ -75,7 +72,7 @@ animate_gif(wT_GP, 𝒟test.wT.z, 𝒟test.t, "wT", ["GP(u,v,T)", "truth"], "wT_
 Δt = 𝒟test.t[2] - 𝒟test.t[1]
 les = read_les_output(test_file)
 parameters = KPP.Parameters() # default parameters
-predictions = closure_free_convection_kpp_full_evolution(problem.parameters, 33, Δt, les)
+predictions = closure_free_convection_kpp_full_evolution(parameters, 33, Δt, les)
 T_KPP = (predictions, 𝒟test.T_coarse)
 mse(T_KPP)
 animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["KPP(T)", "truth"], "T_KPP", dir=output_gif_directory)

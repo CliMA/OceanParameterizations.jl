@@ -18,9 +18,6 @@ export  plot_landscapes_compare_error_metrics,
         get_min_gamma_alpha,
         train_validate_test
 
-include("animate_gif.jl")
-export animate_gif
-
 include("mean_square_error.jl")
 export mean_square_error
 
