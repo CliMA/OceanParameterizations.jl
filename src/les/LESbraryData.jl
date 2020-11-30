@@ -241,8 +241,10 @@ function ReadJLD2_LESbraryData(filename)
     return LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}(container...)
 end
 
-# avg = "src/les/data/2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2"
-# ReadJLD2_LESbraryData(avg)
+avg = "src/les/data/2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2"
+les = jldopen(avg, "r")
+keys(les)
+les["timeseries"]
 #
 #
 #

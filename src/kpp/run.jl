@@ -35,7 +35,10 @@ function closure_free_convection_kpp_full_evolution(parameters, D, Δt, les::LES
      # # set parameters
      # parameters = KPP.Parameters( CSL = 𝑪[1], CNL = 𝑪[2], Cb_T = 𝑪[3], CKE = 𝑪[4])
      # Build the model with a Backward Euler timestepper
-     constants = Constants(Float64; α = les.α , β = les.β, ρ₀= les.ρ, cP=les.cᵖ, f=les.f⁰, g=les.g)
+     ρ = 1027.0
+     cᵖ = 4000.0
+     f #
+     constants = Constants(Float64; α = les.α , β = les.β, ρ₀= ρ, cP=cᵖ, f=f, g=les.g)
      model = KPP.Model(N=D, H=les.L, stepper=:BackwardEuler, constants = constants, parameters = parameters)
      # Get grid if necessary
      if grid != 1
@@ -44,8 +47,15 @@ function closure_free_convection_kpp_full_evolution(parameters, D, Δt, les::LES
      end
 
      # Set boundary conditions
-     model.bcs.T.top = FluxBoundaryCondition(les.top_T)
-     model.bcs.T.bottom = GradientBoundaryCondition(les.bottom_T)
+     # model.bcs.T.top = FluxBoundaryCondition(les.top_T)
+     # model.bcs.T.bottom = FluxBoundaryCondition(0.0)
+
+     model.bcs.u.top = FluxBoundaryCondition(Qu)
+     model.bcs.u.bottom = FluxBoundaryCondition(0.0)
+
+     model.bcs.b.top = FluxBoundaryCondition(Qb)
+     model.bcs.b.bottom = FluxBoundaryCondition(0.0) # may need to fix
+
 
     # define the closure
     function free_convection()
