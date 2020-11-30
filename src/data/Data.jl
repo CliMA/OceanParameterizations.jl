@@ -7,13 +7,9 @@ module Data
 using OceanTurb
 using OrderedCollections
 using Statistics
-using Plots
 
 include("../data/coarse_graining.jl")
 export coarse_grain
-
-include("animate_gif.jl")
-export animate_gif
 
 # harvesting Oceananigans data
 include("../les/read_les_output.jl")
@@ -35,13 +31,13 @@ export convective_adjust!
 
 # running OceanTurb KPP simulations based on OceananigansData conditions
 include("../kpp/run.jl")
-export closure_free_convection_kpp_full_evolution
-       # closure_free_convection_kpp
+export closure_free_convection_kpp_full_evolution,
+       closure_free_convection_kpp
 
 # running OceanTurb TKE simulations based on OceananigansData conditions
 include("../tke/run.jl")
-export closure_free_convection_tke_full_evolution
-       # closure_free_convection_tke
+export closure_free_convection_tke_full_evolution,
+       closure_free_convection_tke
 
 # Structs
 export  ProfileData,
@@ -82,7 +78,7 @@ data(filename::String; animate=false, scale_type::AbstractScaling=ZeroMeanUnitVa
 - scale_type: (AbstractFeatureScaling) ZeroMeanUnitVarianceScaling or MinMaxScaling
 - override_scalings: (Dict)     For if you want the testing simulation data to be scaled in the same way as the training data. Set to 𝒟train.scalings to use the scalings from 𝒟train.
 """
-function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output", override_scalings=nothing)
+function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output", override_scalings::Dict=nothing)
 
     if typeof(filenames) <: String; filenames = [filenames] end
 
@@ -105,12 +101,13 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     zF = all_les[filenames[1]].zF
 
     if animate == true
-        animate_gif([uw], zF, t, "uw", directory=animate_dir)
-        animate_gif([vw], zF, t, "vw", directory=animate_dir)
-        animate_gif([wT], zF, t, "wT", directory=animate_dir)
-        animate_gif([u], zC, t, "u", directory=animate_dir)
-        animate_gif([v], zC, t, "v", directory=animate_dir)
-        animate_gif([T], zC, t, "T", directory=animate_dir)
+        plot(T[:,end], zC)
+        animate_gif([uw], zF, t, "uw", dir=animate_dir)
+        animate_gif([vw], zF, t, "vw", dir=animate_dir)
+        animate_gif([wT], zF, t, "wT", dir=animate_dir)
+        animate_gif([u], zC, t, "u", dir=animate_dir)
+        animate_gif([v], zC, t, "v", dir=animate_dir)
+        animate_gif([T], zC, t, "T", dir=animate_dir)
     end
 
     coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Cell) for i in 1:size(x,2))..., dims=2)
@@ -126,20 +123,18 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     zF_coarse = coarse_grain(zF, 33, Face)
     # zF_coarse = coarse_grain_linear_interpolation(zF, 33, Face)
 
-    function get_scaling(name, coarse)
-        if override_scalings==nothing
-            # set the scaling according to the data (for training simulations)
-            return scale_type(coarse)
-        else
-            # for if you want the testing simulation data to be scaled in the same way as the training data
-            return override_scalings[name]
-        end
+    if override_scalings==nothing
+        # set the scaling according to the data (for training simulations)
+        get_scaling(coarse) = scale_type(coarse)
+    else
+        # for if you want the testing simulation data to be scaled in the same way as the training data
+        get_scaling(coarse) = override_scalings[coarse]
     end
 
     all_scalings=Dict()
     for (name, coarse) in [("u",u_coarse), ("v",v_coarse), ("T",T_coarse),
                          ("uw",uw_coarse), ("vw",vw_coarse), ("wT",wT_coarse)]
-        all_scalings[name] = get_scaling(name, coarse)
+        all_scalings[name] = get_scaling(coarse)
     end
 
     get_scaled(name, coarse) = all_scalings[name].(coarse)
@@ -149,7 +144,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     uvT_scaled = cat(u_scaled, v_scaled, T_scaled, dims=1)
 
     function get_VData(name, coarse, z)
-        scaling = get_scaling(name, coarse)
+        scaling = get_scaling(coarse)
         scaled = get_scaled(name, coarse)
         # unscale_fn(x) = unscale(x, scaling)
         unscale_fn = Base.inv(scaling)
