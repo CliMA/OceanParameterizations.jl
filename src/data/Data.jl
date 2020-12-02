@@ -12,9 +12,6 @@ using Plots
 include("../data/coarse_graining.jl")
 export coarse_grain
 
-include("animate_gif.jl")
-export animate_gif
-
 # harvesting Oceananigans data
 include("../les/read_les_output.jl")
 export read_les_output
@@ -33,25 +30,31 @@ export append_tke,
 include("convective_adjust.jl")
 export convective_adjust!
 
+include("animate_gif.jl")
+export animate_gif
+
+include("reconstruct_fluxes.jl")
+export reconstruct_flux_profiles
+
 # running OceanTurb KPP simulations based on OceananigansData conditions
 include("../kpp/run.jl")
-export closure_free_convection_kpp_full_evolution
-       # closure_free_convection_kpp
+export closure_free_convection_kpp_full_evolution,
+       closure_free_convection_kpp
 
 # running OceanTurb TKE simulations based on OceananigansData conditions
 include("../tke/run.jl")
-export closure_free_convection_tke_full_evolution
-       # closure_free_convection_tke
+export closure_free_convection_tke_full_evolution,
+       closure_free_convection_tke
+
+# Functions
+export  data
 
 # Structs
 export  ProfileData,
-        VData
+        uvTData,
+        FluxData
 
-# Functions
-export  data,
-        animate_gif
-
-struct VData # for each of uw, vw, and wT
+struct FluxData # for each of uw, vw, and wT
     z # z vector for the variable
     coarse # Nz x Nt array of unscaled profiles
     scaled # Nz x Nt array of scaled profiles
@@ -59,16 +62,22 @@ struct VData # for each of uw, vw, and wT
     training_data # (uvT, scaled) pairs
 end
 
+struct uvTData # for each of u, v, T
+    z # z vector for the variable
+    coarse # Nz x Nt array of unscaled profiles
+    scaled # Nz x Nt array of scaled profiles
+    unscale_fn # function to unscaled profile vectors with
+end
+
 struct ProfileData
     grid_points # Integer
     uvT_scaled # 3Nz x Nt array
-    u_scaled # Nz x Nt array
-    v_scaled # Nz x Nt array
-    T_scaled # Nz x Nt array
-    T_coarse
-    uw::VData
-    vw::VData
-    wT::VData
+    u::uvTData
+    v::uvTData
+    T::uvTData
+    uw::FluxData
+    vw::FluxData
+    wT::FluxData
     t # timeseries Vector
     scalings::Dict # maps name (e.g. "uw") to the AbstractFeatureScaling object associated with it
 end
@@ -82,7 +91,7 @@ data(filename::String; animate=false, scale_type::AbstractScaling=ZeroMeanUnitVa
 - scale_type: (AbstractFeatureScaling) ZeroMeanUnitVarianceScaling or MinMaxScaling
 - override_scalings: (Dict)     For if you want the testing simulation data to be scaled in the same way as the training data. Set to 𝒟train.scalings to use the scalings from 𝒟train.
 """
-function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output", override_scalings=nothing)
+function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output", override_scalings=nothing, reconstruct_fluxes=false)
 
     if typeof(filenames) <: String; filenames = [filenames] end
 
@@ -126,6 +135,11 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     zF_coarse = coarse_grain(zF, 33, Face)
     # zF_coarse = coarse_grain_linear_interpolation(zF, 33, Face)
 
+    f = 1e-4 # for now
+    if reconstruct_fluxes == true
+        u_coarse,v_coarse,T_coarse,uw_coarse,vw_coarse,wT_coarse,t = reconstruct_flux_profiles(u_coarse, v_coarse, T_coarse, zF, t, f)
+    end
+
     function get_scaling(name, coarse)
         if override_scalings==nothing
             # set the scaling according to the data (for training simulations)
@@ -142,26 +156,34 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
         all_scalings[name] = get_scaling(name, coarse)
     end
 
-    get_scaled(name, coarse) = all_scalings[name].(coarse)
-    u_scaled = get_scaled("u", u_coarse)
-    v_scaled = get_scaled("v", v_coarse)
-    T_scaled = get_scaled("T", T_coarse)
-    uvT_scaled = cat(u_scaled, v_scaled, T_scaled, dims=1)
-
-    function get_VData(name, coarse, z)
+    function get_scaled(name, coarse)
         scaling = get_scaling(name, coarse)
-        scaled = get_scaled(name, coarse)
-        # unscale_fn(x) = unscale(x, scaling)
+        scaled = all_scalings[name].(coarse)
         unscale_fn = Base.inv(scaling)
-        training_data = [(uvT_scaled[:,i], scaled[:,i]) for i in 1:size(uvT_scaled,2)] # (predictor, target) pairs
-        return VData(z, coarse, scaled, unscale_fn, training_data)
+        return (scaled, unscale_fn)
     end
 
-    uw = get_VData("uw", uw_coarse, zF_coarse)
-    vw = get_VData("vw", vw_coarse, zF_coarse)
-    wT = get_VData("wT", wT_coarse, zF_coarse)
+    function get_uvTData(name, coarse, z)
+        scaled, unscale_fn = get_scaled(name, coarse)
+        return uvTData(z, coarse, scaled, unscale_fn)
+    end
 
-    return ProfileData(33, uvT_scaled, u_scaled, v_scaled, T_scaled, T_coarse, uw, vw, wT, t, all_scalings)
+    function get_FluxData(name, coarse, z)
+        scaled, unscale_fn = get_scaled(name, coarse)
+        training_data = [(uvT_scaled[:,i], scaled[:,i]) for i in 1:size(uvT_scaled,2)] # (predictor, target) pairs
+        return FluxData(z, coarse, scaled, unscale_fn, training_data)
+    end
+
+    u = get_uvTData("u", u_coarse, zC_coarse)
+    v = get_uvTData("v", v_coarse, zC_coarse)
+    T = get_uvTData("T", T_coarse, zC_coarse)
+    uvT_scaled = cat(u.scaled, v.scaled, T.scaled, dims=1)
+
+    uw = get_FluxData("uw", uw_coarse, zF_coarse)
+    vw = get_FluxData("vw", vw_coarse, zF_coarse)
+    wT = get_FluxData("wT", wT_coarse, zF_coarse)
+
+    return ProfileData(33, uvT_scaled, u, v, T, uw, vw, wT, t, all_scalings)
 end
 
 end

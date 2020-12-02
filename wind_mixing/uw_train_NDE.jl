@@ -3,8 +3,15 @@ using Flux, OceanTurb, DifferentialEquations, Plots
 
 output_gif_directory = "Output1"
 
+all_files
 train_files = ["strong_wind", "free_convection"]
 test_file = "strong_wind"
+
+# 𝒟all = ClimateParameterizations.Data.data(all_files,
+#                                         scale_type=ZeroMeanUnitVarianceScaling,
+#                                         animate=false,
+#                                         animate_dir="$(output_gif_directory)/Training")
+# scalings = 𝒟all.scalings
 
 𝒟train = ClimateParameterizations.Data.data(train_files,
                                         scale_type=ZeroMeanUnitVarianceScaling,

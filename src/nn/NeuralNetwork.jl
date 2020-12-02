@@ -11,7 +11,7 @@ function cb(train,loss)
 end
 
 # Return a trained neural network model
-function nn_model(;𝒱::VData=nothing, model=nothing, optimizers=nothing)
+function nn_model(;𝒱::FluxData=nothing, model=nothing, optimizers=nothing)
     loss(x,y) = Flux.Losses.mse(model(x), y)
     for opt in optimizers
         @info opt
