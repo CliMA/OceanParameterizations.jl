@@ -25,11 +25,8 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
         """
         ans = zeros(Nz+1, Nt-1) # one fewer column than T
         for i=1:Nt-1
-            # ans[1,i] = 0.0
-            # ans[2,i] = Δz[1]*dwV_dz[1,i]
             for h=1:Nz-1
-                c = 0.5*Δz[h]*(dwV_dz[h+1,i]+dwV_dz[h,i]) # trapezoidal riemann sum
-                ans[h+1,i] = ans[h,i] + c
+                ans[h+1,i] = ans[h,i] + Δz[h]*(dwV_dz[h,i])
             end
         end
         ans
