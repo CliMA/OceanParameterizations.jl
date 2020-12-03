@@ -14,8 +14,8 @@ export  Kernel,
         Matern12I,
         Matern32I,
         Matern52I,
-        SpectralMixtureProductI,
-        SpectralMixtureProductA,
+        # SpectralMixtureProductI,
+        # SpectralMixtureProductA,
         kernel_function
 
 include("distances.jl")

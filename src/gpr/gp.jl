@@ -28,23 +28,6 @@ struct GP{Kernel, 𝒮, 𝒮2, 𝒰, 𝒱, 𝒜}
 end
 
 """
-GP_multiple
-# Description
-- data structure for GPR computations where each gridpoint in the prediction has a different predictor
-# Data Structure and Description
-    GPs, Array of GP objects
-    kernel, Kernel object
-    x_train
-"""
-struct GP_multiple
-    GPs::Array{GP}
-    kernel::Kernel
-    x_train
-    stencil_size
-    stencil_ranges
-end
-
-"""
 model(x_train, y_train; kernel; sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
 # Description
 Constructs the posterior distribution for a gp. In other words this does the 'training' automagically.
@@ -124,21 +107,13 @@ Create an instance of GP using data from ProfileData object 𝒟.
 - kernel::Kernel,
 - stencil_size::Int64
 """
-function GPmodel(𝒱; kernel::Kernel = Kernel(), stencil_size::Int64=0)
+function GPmodel(𝒱; kernel::Kernel = Kernel())
 
     x_train = [pair[1] for pair in 𝒱.training_data]
     y_train = [pair[2] for pair in 𝒱.training_data]
 
     # create instance of GP using data from ProfileData object
-    if stencil_size == 0
-        return GPmodel(x_train, y_train, kernel, 𝒱.z);
-    end
-
-    D = length(x_train[1])
-    # create instance of GP using data from ProfileData object
-    r = [stencil_range(D,stencil_size,i) for i=1:D]
-    GPs = [model(stencil(x_train,r[i]), stencil(y_train,i), kernel, 𝒱.z[r[i]]) for i=1:D]
-    return GP_multiple(GPs, kernel, x_train, stencil_size, r);
+    return GPmodel(x_train, y_train, kernel, 𝒱.z);
 end
 
 """
@@ -160,21 +135,6 @@ function model_output(x, 𝒢::GP)
         𝒢.cache[i] = 𝒢.kernel(x, 𝒢.x_train[i])
     end
     return 𝒢.α * 𝒢.cache
-end
-
-"""
-prediction(x, 𝒢::GP_multiple)
-# Description
-- Given state x, GP_multiple 𝒢, returns the mean GP prediction
-# Arguments
-- `x`: single scaled state
-- `𝒢`: GP_multiple object with which to make the prediction
-# Return
-- `y`: scaled prediction
-"""
-function model_output(x, 𝒢::GP_multiple)
-    xs = [x[r] for r in 𝒢.stencil_ranges]
-    return [model_output(xs[i], 𝒢.GPs[i])[1] for i in 1:length(xs)]
 end
 
 """

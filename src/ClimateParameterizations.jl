@@ -49,15 +49,13 @@ export
     VData,
     ProfileData,
 
-    # Data / modify_predictor_fns.jl,
-    # append_tke,
-    # partial_temp_profile,
-
     # Data / les/read_les_output.jl
     read_les_output,
 
-    # Data
+    # Data / kpp/run.jl
     closure_free_convection_kpp_full_evolution,
+
+    # Data / tke/run.jl
     closure_free_convection_tke_full_evolution,
 
     # NeuralNetwork / NeuralNetwork.jl
@@ -76,27 +74,12 @@ export
     derivative_distance,
     antiderivative_distance,
 
-    # GaussianProcess / hyperparameter_landscapes.jl
-    plot_landscapes_compare_error_metrics,
-    plot_landscapes_compare_files_me,
-    plot_error_histogram,
-    get_min_gamma,
-    get_min_gamma_alpha,
-    train_validate_test,
-
     # Main
     mean_square_error,
     predict,
 
     # Data / animate_gif.jl
     animate_gif
-
-    # kernel options
-    #  1   =>   "Squared exponential"         => "Squared exponential kernel:        k(x,x') = σ * exp( - ||x-x'||² / 2γ² )",
-    #  2   =>   "Matern 1/2"                  => "Matérn with ʋ=1/2:                 k(x,x') = σ * exp( - ||x-x'|| / γ )",
-    #  3   =>   "Matern 3/2"                  => "Matérn with ʋ=3/2:                 k(x,x') = σ * (1+c) * exp(-√(3)*||x-x'||)/γ)",
-    #  4   =>   "Matern 5/2"                  => "Matérn with ʋ=5/2:                 k(x,x') = σ * ( 1 + √(5)*||x-x'||)/γ + 5*||x-x'||²/(3*γ^2) ) * exp(-√(5)*||x-x'||)/γ)",
-    #  5   =>   "Rational quadratic w/ α=1"   => "Rational quadratic kernel:         k(x,x') = σ * (1+(x-x')'*(x-x')/(2*α*(γ²))^(-α)",
 
 # modules
 using Plots,
