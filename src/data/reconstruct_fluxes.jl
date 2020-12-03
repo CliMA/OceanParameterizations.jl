@@ -26,10 +26,10 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
         ans = zeros(Nz+1, Nt-1) # one fewer column than T
         for i=1:Nt-1
             # ans[1,i] = 0.0
-            ans[2,i] = Δz[1]*dwV_dz[1,i]
+            # ans[2,i] = Δz[1]*dwV_dz[1,i]
             for h=1:Nz-1
                 c = 0.5*Δz[h]*(dwV_dz[h+1,i]+dwV_dz[h,i]) # trapezoidal riemann sum
-                ans[h+2,i] = ans[h+1,i] + c
+                ans[h+1,i] = ans[h,i] + c
             end
         end
         ans
@@ -46,7 +46,7 @@ end
 
 using ClimateParameterizations, Plots
 #
-𝒟 = ClimateParameterizations.Data.data("strong_wind_weak_heating")
+𝒟 = ClimateParameterizations.Data.data("strong_wind")
 
 𝒟_reconstructed = ClimateParameterizations.Data.data("strong_wind_weak_heating", reconstruct_fluxes=true)
 
@@ -56,14 +56,14 @@ t = 𝒟_reconstructed.t
 Nt = length(𝒟.t)
 output_gif_directory = "TestReconstructFluxes"
 animate_gif((𝒟_reconstructed.uw.coarse, 𝒟.uw.coarse[:,1:Nt-1]), z, t, "uw",
-            x_label=["reconstructed from du/dt", "truth"],
+            x_label=["∫(-du/dt + fv)dz", "truth"],
             filename="uw_reconstructed",
             directory=output_gif_directory)
 animate_gif((𝒟_reconstructed.vw.coarse, 𝒟.vw.coarse[:,1:Nt-1]), z, t, "vw",
-            x_label=["reconstructed from dv/dt", "truth"],
+            x_label=["∫(-dv/dt - fu)dz", "truth"],
             filename="vw_reconstructed",
             directory=output_gif_directory)
 animate_gif((𝒟_reconstructed.wT.coarse, 𝒟.wT.coarse[:,1:Nt-1]), z, t, "wT",
-            x_label=["reconstructed from du/dt", "truth"],
+            x_label=["∫(-dw/dt)dz", "truth"],
             filename="wT_reconstructed",
             directory=output_gif_directory)
