@@ -1,2 +1,2 @@
-# ClimateParameterizations.jl
-Machine learning and uncertainty quantification of surrogate models for climate modeling using probabilistic programming
+# OceanParameterizations.jl
+Machine learning and uncertainty quantification of parameterizations for ocean and climate modeling.
