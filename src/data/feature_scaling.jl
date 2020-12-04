@@ -19,8 +19,8 @@ function ZeroMeanUnitVarianceScaling(data)
     return ZeroMeanUnitVarianceScaling(μ, σ)
 end
 
-scale(x, s::ZeroMeanUnitVarianceScaling) = (x - s.μ) / s.σ
-unscale(y, s::ZeroMeanUnitVarianceScaling) = s.σ * y + s.μ
+scale(x, s::ZeroMeanUnitVarianceScaling) = (x .- s.μ) / s.σ
+unscale(y, s::ZeroMeanUnitVarianceScaling) = s.σ * y .+ s.μ
 
 #####
 ##### Min-max feature scaling
@@ -44,10 +44,10 @@ function MinMaxScaling(data; a=0, b=1)
 end
 
 scale(x, s::MinMaxScaling) = s.a + (x - s.data_min) * (s.b - s.a) / (s.data_max - s.data_min)
-unscale(y, s::MinMaxScaling) = s.data_min + (y - s.a) * (s.data_max - s.data_min) / (s.b - s.a)
+unscale(y, s::MinMaxScaling) = s.data_min .+ (y .- s.a) * (s.data_max - s.data_min) / (s.b - s.a)
 
 #####
-##### Convinience functions
+##### Convenience functions
 #####
 
 (s::AbstractFeatureScaling)(x) = scale(x, s)
