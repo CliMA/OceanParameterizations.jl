@@ -14,7 +14,9 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
 
     Nz,Nt = size(T)
 
-    dVdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    dudt = (u[:,2:Nt] .- u[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    dvdt = (v[:,2:Nt] .- v[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    dTdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
     u = u[:,1:Nt-1]
     v = v[:,1:Nt-1]
     T = T[:,1:Nt-1]
@@ -28,9 +30,9 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
         return ans
     end
 
-    duw_dz = -dVdt .+ f*v
-    dvw_dz = -dVdt .- f*u
-    dwT_dz = -dVdt
+    duw_dz = -dudt .+ f*v
+    dvw_dz = -dvdt .- f*u
+    dwT_dz = -dTdt
 
     # println(size(wV(duw_dz)))
     # u, v, T, uw, vw, wT, t

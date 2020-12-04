@@ -8,21 +8,20 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_win
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=false) # <: OceananigansData
+    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
     Ts3[file] = 𝒟.uw.coarse
 end
 
 Ts3
 
 anim = @animate for i in 1:288
-    # plot(legend=false, xlabel="uw", ylabel="z", xlims=(-0.0007,0.0001))
-    plot(legend=false, xlabel="uw", ylabel="z", xlims=(-2e-4,1e-4))
+    plot(legend=false, xlabel="uw", ylabel="z", xlims=(-0.0006,0.0001))
     for (file, T) in Ts3
         # println(T[:,i])
         plot!(T[:,i], collect(1:33), title = "Unscaled", label="$(file)")
     end
 end
-gif(anim, pwd()*"/uw_unscaled_les.gif", fps=20)
+gif(anim, pwd()*"/uw_unscaled_reconstructed.gif", fps=20)
 
 ## vw profiles unscaled
 
@@ -34,13 +33,13 @@ end
 
 Ts3
 
-anim = @animate for i in 1:289
+anim = @animate for i in 1:288
     plot(legend=false, xlabel="vw", ylabel="z", xlims=(-0.0001,0.0005))
     for (file, T) in Ts3
-        plot!(T[:,i], collect(-33:1), title = "Unscaled", label="$(file)")
+        plot!(T[:,i], collect(1:33), title = "Unscaled", label="$(file)")
     end
 end
-gif(anim, pwd()*"/vw_unscaled.gif", fps=20)
+gif(anim, pwd()*"/vw_unscaled_reconstructed.gif", fps=20)
 
 
 ## wT profiles unscaled
@@ -48,15 +47,15 @@ gif(anim, pwd()*"/vw_unscaled.gif", fps=20)
 Ts3 = Dict() # maps file name to T array
 for file in files
     𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
-    Ts3[file] = les.wT
+    Ts3[file] = 𝒟.wT.coarse
 end
 
 Ts3
 
-anim = @animate for i in 1:289
+anim = @animate for i in 1:288
     plot(legend=false, xlabel="wT", ylabel="z", xlims=(-0.00009,0.00006))
     for (file, T) in Ts3
-        plot!(T[:,i], collect(-33:1), title = "Unscaled", label="$(file)")
+        plot!(T[:,i], collect(1:33), title = "Unscaled", label="$(file)")
     end
 end
-gif(anim, pwd()*"/wT_unscaled.gif", fps=20)
+gif(anim, pwd()*"/wT_unscaled_reconstructed.gif", fps=20)
