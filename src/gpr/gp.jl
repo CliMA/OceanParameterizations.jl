@@ -83,20 +83,6 @@ function GPmodel(x_train, y_train, kernel, zavg; sparsity_threshold = 0.0, robus
     return GP(kernel, x_train, α', K, Array(CK), zeros(length(x_train)))
 end
 
-function stencil_range(D, stencil_size, i)
-    k = Int(floor(stencil_size/2))
-    if i-k < 1
-        return 1:stencil_size
-    elseif i-k+stencil_size-1 > D
-        return D-stencil_size+1:D
-    else
-        start = i-k
-        start:start+stencil_size-1
-    end
-end
-
-stencil(data, stencil_range) = [x[stencil_range] for x in data]
-
 """
 model(𝒟::VData; kernel::Kernel = Kernel(), stencil_size=nothing)
 # Description
