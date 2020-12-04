@@ -1,4 +1,3 @@
-
 """
 # Description
 Takes NzxNt arrays of profiles for variables u, v, T and returns
@@ -20,16 +19,13 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
     v = v[:,1:Nt-1]
     T = T[:,1:Nt-1]
 
-    function wV(dwV_dz)
-        """ evaluates wV = ∫(dwV_dz)dz
-        """
+    """ evaluates wϕ = ∫ ∂z(wϕ) dz """
+    function wϕ(∂z_wϕ)
         ans = zeros(Nz+1, Nt-1) # one fewer column than T
-        for i=1:Nt-1
-            for h=1:Nz-1
-                ans[h+1,i] = ans[h,i] + Δz[h]*(dwV_dz[h,i])
-            end
+        for i in 1:Nt-1, h in 1:Nz-1
+            ans[h+1, i] = ans[h, i] + Δz[h] * ∂z_wϕ[h, i]
         end
-        ans
+        return ans
     end
 
     duw_dz = -dVdt .+ f*v
@@ -38,7 +34,7 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
 
     # println(size(wV(duw_dz)))
     # u, v, T, uw, vw, wT, t
-    return (u, v, T, wV(duw_dz), wV(dvw_dz), wV(dwT_dz), t[1:Nt-1])
+    return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
 end
 
 using ClimateParameterizations, Plots
