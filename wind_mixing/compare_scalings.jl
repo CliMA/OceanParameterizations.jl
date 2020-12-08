@@ -1,5 +1,5 @@
 using Plots
-using ClimateParameterizations
+using OceanParameterizations
 
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_wind_strong_cooling",
           "strong_wind_weak_cooling", "strong_wind_weak_heating"]
@@ -12,7 +12,7 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_win
 Ts = Dict() # maps file name to T array
 Ts2 = Dict() # maps file name to T array
 for file in files
-    les = ClimateParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
+    les = OceanParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
     Ts[file] = ZeroMeanUnitVarianceScaling(les.T).(les.T)
     Ts2[file] = MinMaxScaling(les.T).(les.T)
 end
@@ -43,7 +43,7 @@ gif(anim, pwd()*"/MinMaxScaling.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    les = ClimateParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
+    les = OceanParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
     Ts3[file] = les.wu
 end
 
@@ -64,7 +64,7 @@ gif(anim, pwd()*"/uw_unscaled.gif", fps=20)
 Ts = Dict() # maps file name to T array
 Ts2 = Dict() # maps file name to T array
 for file in files
-    les = ClimateParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
+    les = OceanParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
     Ts[file] = ZeroMeanUnitVarianceScaling(les.wu).(les.wu)
     Ts2[file] = MinMaxScaling(les.wu).(les.wu)
 end
@@ -92,7 +92,7 @@ gif(anim, pwd()*"/MinMaxScaling_uw.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    les = ClimateParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
+    les = OceanParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
     Ts3[file] = les.wv
 end
 
@@ -111,7 +111,7 @@ gif(anim, pwd()*"/vw_unscaled.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    les = ClimateParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
+    les = OceanParameterizations.DataWrangling.read_les_output(file) # <: OceananigansData
     Ts3[file] = les.wT
 end
 

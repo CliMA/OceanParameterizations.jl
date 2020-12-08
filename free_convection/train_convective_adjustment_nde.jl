@@ -7,7 +7,7 @@ using DiffEqFlux
 using Flux
 using NCDatasets
 
-using ClimateParameterizations
+using OceanParameterizations
 using Oceananigans.Grids: Cell, Face
 
 #####
@@ -50,7 +50,7 @@ for (iterations, epochs) in zip(training_iterations, training_epochs)
 
     # Doesn't matter which Q we use to construct the NDE.
     nde = ConvectiveAdjustmentNDE(NN, ds[first(Qs_train)]; grid_points=Nz, iterations)
-    
+
     true_sols = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=Nz, iterations, scaling=T_scaling) for Q in Qs_train)
     true_sols = cat([true_sols[Q] for Q in Qs_train]..., dims=2)
 

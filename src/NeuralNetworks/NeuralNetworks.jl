@@ -1,6 +1,6 @@
 module NeuralNetworks
 
-using ClimateParameterizations.DataWrangling
+using OceanParameterizations.DataWrangling
 using Flux
 
 export nn_model

@@ -37,7 +37,7 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
     return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
 end
 
-using ClimateParameterizations, Plots
+using OceanParameterizations, Plots
 
 𝒟 = data("strong_wind")
 

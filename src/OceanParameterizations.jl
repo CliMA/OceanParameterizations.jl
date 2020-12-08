@@ -1,7 +1,7 @@
-module ClimateParameterizations
+module OceanParameterizations
 
 if VERSION < v"1.5"
-    error("ClimateParameterizations.jl requires Julia v1.5 or newer.")
+    error("OceanParameterizations.jl requires Julia v1.5 or newer.")
 end
 
 export

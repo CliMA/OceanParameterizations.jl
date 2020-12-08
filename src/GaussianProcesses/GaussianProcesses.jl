@@ -16,7 +16,7 @@ export
     # Gaussian process functions
     model_output, uncertainty, compute_kernel_matrix, mean_log_marginal_loss, GPmodel, gp_model, get_kernel
 
-using ClimateParameterizations.DataWrangling
+using OceanParameterizations.DataWrangling
 using Flux
 
 include("kernels.jl")

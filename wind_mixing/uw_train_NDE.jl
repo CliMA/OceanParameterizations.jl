@@ -1,4 +1,4 @@
-using ClimateParameterizations
+using OceanParameterizations
 using Flux, OceanTurb, DifferentialEquations, Plots
 
 include("lesbrary_data.jl")
@@ -11,17 +11,17 @@ all_files
 train_files = ["strong_wind", "free_convection"]
 test_file = "strong_wind"
 
-# 𝒟all = ClimateParameterizations.DataWrangling.data(all_files,
+# 𝒟all = OceanParameterizations.DataWrangling.data(all_files,
 #                                         scale_type=ZeroMeanUnitVarianceScaling,
 #                                         animate=false,
 #                                         animate_dir="$(output_gif_directory)/Training")
 # scalings = 𝒟all.scalings
 
-𝒟train = ClimateParameterizations.DataWrangling.data(train_files,
+𝒟train = OceanParameterizations.DataWrangling.data(train_files,
                                         scale_type=ZeroMeanUnitVarianceScaling,
                                         animate=false,
                                         animate_dir="$(output_gif_directory)/Training")
-𝒟test = ClimateParameterizations.DataWrangling.data(test_file,
+𝒟test = OceanParameterizations.DataWrangling.data(test_file,
                                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                                         animate=false,
                                         animate_dir="$(output_gif_directory)/Testing")
@@ -58,10 +58,10 @@ animate_gif(wT_NN, 𝒟test.wT.z, 𝒟test.t, "wT", ["NN(u,v,T)", "truth"], "wT_
 
 # trained GP models
 logγ_range=-2.0:0.5:2.0
-# uw_GP_model = ClimateParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range, kernel=get_kernel(1, 0.3, 0.0, euclidean_distance))
-uw_GP_model = ClimateParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range)
-vw_GP_model = ClimateParameterizations.GaussianProcess.gp_model(𝒟train.vw, logγ_range=logγ_range)
-wT_GP_model = ClimateParameterizations.GaussianProcess.gp_model(𝒟train.wT, logγ_range=logγ_range)
+# uw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range, kernel=get_kernel(1, 0.3, 0.0, euclidean_distance))
+uw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range)
+vw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.vw, logγ_range=logγ_range)
+wT_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.wT, logγ_range=logγ_range)
 
 # GP predictions on test data
 uw_GP = predict(𝒟test.uw, uw_GP_model)
