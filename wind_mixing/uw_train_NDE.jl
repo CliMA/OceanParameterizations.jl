@@ -1,23 +1,27 @@
 using ClimateParameterizations
 using Flux, OceanTurb, DifferentialEquations, Plots
 
+include("lesbrary_data.jl")
+include("data_containers.jl")
+include("reconstruct_fluxes.jl")
+
 output_gif_directory = "Output1"
 
 all_files
 train_files = ["strong_wind", "free_convection"]
 test_file = "strong_wind"
 
-# 𝒟all = ClimateParameterizations.Data.data(all_files,
+# 𝒟all = ClimateParameterizations.DataWrangling.data(all_files,
 #                                         scale_type=ZeroMeanUnitVarianceScaling,
 #                                         animate=false,
 #                                         animate_dir="$(output_gif_directory)/Training")
 # scalings = 𝒟all.scalings
 
-𝒟train = ClimateParameterizations.Data.data(train_files,
+𝒟train = ClimateParameterizations.DataWrangling.data(train_files,
                                         scale_type=ZeroMeanUnitVarianceScaling,
                                         animate=false,
                                         animate_dir="$(output_gif_directory)/Training")
-𝒟test = ClimateParameterizations.Data.data(test_file,
+𝒟test = ClimateParameterizations.DataWrangling.data(test_file,
                                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                                         animate=false,
                                         animate_dir="$(output_gif_directory)/Testing")

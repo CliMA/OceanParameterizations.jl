@@ -38,10 +38,10 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
 end
 
 using ClimateParameterizations, Plots
-#
-𝒟 = ClimateParameterizations.Data.data("strong_wind")
 
-𝒟_reconstructed = ClimateParameterizations.Data.data("strong_wind_weak_heating", reconstruct_fluxes=true)
+𝒟 = data("strong_wind")
+
+𝒟_reconstructed = data("strong_wind_weak_heating", reconstruct_fluxes=true)
 
 𝒟_reconstructed
 z = 𝒟_reconstructed.uw.z

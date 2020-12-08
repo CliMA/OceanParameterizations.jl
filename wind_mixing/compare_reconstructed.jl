@@ -8,7 +8,7 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_win
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=false) # <: OceananigansData
+    𝒟 = ClimateParameterizations.DataWrangling.data(file, reconstruct_fluxes=false) # <: OceananigansData
     Ts3[file] = 𝒟.uw.coarse
 end
 
@@ -28,7 +28,7 @@ gif(anim, pwd()*"/uw_unscaled_les.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
+    𝒟 = ClimateParameterizations.DataWrangling.data(file, reconstruct_fluxes=true) # <: OceananigansData
     Ts3[file] = 𝒟.vw.coarse
 end
 
@@ -47,7 +47,7 @@ gif(anim, pwd()*"/vw_unscaled.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
+    𝒟 = ClimateParameterizations.DataWrangling.data(file, reconstruct_fluxes=true) # <: OceananigansData
     Ts3[file] = les.wT
 end
 

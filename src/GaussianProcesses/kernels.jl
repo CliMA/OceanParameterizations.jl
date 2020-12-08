@@ -22,20 +22,20 @@ abstract type Kernel end
 #  | Isotropic covariance functions |
 #  *--*--*--*--*--*--*--*--*--*--*--*
 
-""" SquaredExponentialI(γ,σ): squared exponential covariance function, isotropic """
+"""
+    SquaredExponentialI <: Kernel
+
+SquaredExponentialI(γ, σ): squared exponential covariance function, isotropic
+
+    k(x, x') = σ * exp( - d(x,x')² / 2γ² )
+"""
 struct SquaredExponentialI <: Kernel
-    # Hyperparameters
-    # "Length scale"
-    γ::Float64
-    # "Signal variance"
-    σ::Float64
-    # "Distance metric"
-    d::Function
+    γ :: Float64  # "Length scale"
+    σ :: Float64  # "Signal variance"
+    d :: Function # "Distance metric"
 end
 
-# evaluates the kernel function for a given pair of inputs
 function kernel_function(k::SquaredExponentialI; z=nothing)
-    # k(x,x') = σ * exp( - d(x,x')² / 2γ² )
     σ = k.σ
     γ = k.γ
     d = k.d
@@ -43,18 +43,18 @@ function kernel_function(k::SquaredExponentialI; z=nothing)
   return evaluate
 end
 
+"""
+    Matern12I <: Kernel
+
+    k(x, x') = σ * exp( - ||x-x'|| / γ )
+"""
 struct Matern12I <: Kernel
-    # Hyperparameters
-    "Length scale"
-    γ::Float64
-    "Signal variance"
-    σ::Float64
-    "Distance metric"
-    d::Function
+    γ :: Float64   # length scale
+    σ :: Float64   # signal variance
+    d :: Function  # distance metric
 end
 
 function kernel_function(k::Matern12I; z=nothing)
-  # k(x,x') = σ * exp( - ||x-x'|| / γ )
   σ = k.σ
   γ = k.γ
   d = k.d
@@ -62,18 +62,18 @@ function kernel_function(k::Matern12I; z=nothing)
   return evaluate
 end
 
+"""
+    Matern32I <: Kernel
+
+    k(x, x') = σ * (1+c) * exp(-√3 ||x-x'|| / γ)
+"""
 struct Matern32I <: Kernel
-    # Hyperparameters
-    # "Length scale"
-    γ::Float64
-    # "Signal variance"
-    σ::Float64
-    # "Distance metric"
-    d::Function
+    γ :: Float64   # length scale
+    σ :: Float64   # signal variance
+    d :: Function  # distance metric
 end
 
 function kernel_function(k::Matern32I; z=nothing)
-    # k(x,x') = σ * (1+c) * exp(-√(3)*||x-x'||)/γ)
     σ = k.σ
     γ = k.γ
     d = k.d
@@ -84,18 +84,18 @@ function kernel_function(k::Matern32I; z=nothing)
   return evaluate
 end
 
+"""
+    Matern32I <: Kernel
+
+    k(x, x') = σ * (1 + √5 ||x-x'||) / γ + 5||x-x'||² / 3γ^2 * exp(-√5 ||x-x'|| / γ)
+"""
 struct Matern52I <: Kernel
-    # Hyperparameters
-    # "Length scale"
-    γ::Float64
-    # "Signal variance"
-    σ::Float64
-    # "Distance metric"
-    d::Function
+    γ :: Float64   # length scale
+    σ :: Float64   # signal variance
+    d :: Function  # distance metric
 end
 
 function kernel_function(k::Matern52I; z=nothing)
-    # k(x,x') = σ * ( 1 + √(5)*||x-x'||)/γ + 5*||x-x'||²/(3*γ^2) ) * exp(-√(5)*||x-x'||)/γ)
     σ = k.σ
     γ = k.γ
     d = k.d
@@ -107,39 +107,33 @@ function kernel_function(k::Matern52I; z=nothing)
   return evaluate
 end
 
+"""
+    RationalQuadraticI <: Kernel
+
+    k(x, x') = σ * (1 + (x-x')' * (x-x') / (2αγ²))^-α
+"""
 struct RationalQuadraticI <: Kernel
-    # Hyperparameters
-    "Length scale"
-    γ::Float64
-    "Signal variance"
-    σ::Float64
-    "Shape parameter"
-    α::Float64
-    "Distance metric"
-    d::Function
+    γ :: Float64   # length scale
+    σ :: Float64   # signal variance
+    α :: Float64   # shape parameter
+    d :: Function  # distance metric
 end
 
 function kernel_function(k::RationalQuadraticI; z=nothing)
-    # k(x,x') = σ * (1+(x-x')'*(x-x')/(2*α*(γ²))^(-α)
     σ = k.σ
     α = k.α
     d = k.d
-    l = γ^2 # squared length scale
+    l = γ^2
     function evaluate(a,b)
        return σ * (1+(a-b)'*(a-b)/(2*α*l))^(-α)
   end
   return evaluate
 end
 
-## IN DEVELOPMENT
-
 struct SpectralMixtureProductI <: Kernel
-    # """Mixture weights"""
-    w::Array{Float64}
-    # """Spectral means"""
-    μ::Array{Float64}
-    # """Spectral variances"""
-    γ::Array{Float64}
+    w :: Array{Float64} # mixture weights
+    μ :: Array{Float64} # spectral means
+    γ :: Array{Float64} # spectral variances
 end
 
 function SpectralMixtureProductI(hyp)
@@ -165,30 +159,28 @@ function kernel_function(k::SpectralMixtureProductI; z=nothing)
 
         K = 1
         for d=1:D
-            # println(w)
-            # println(h((τ[d] .^ 2)*k.γ, τ[d]*k.μ))
             K *= w * h((τ[d] .^ 2)*γ, τ[d]*μ)
         end
-        K
+        return K
     end
+
    return evaluate
 end
 
 struct SpectralMixtureProductA <: Kernel
-    # """Mixture weights"""
-    w::Array{Float64} # D x Q array
-    # """Spectral means"""
-    μ::Array{Float64} # D x Q array
-    # """Spectral variances"""
-    γ::Array{Float64} # D x Q array
+    w::Array{Float64} # mixture weights (D x Q array)
+    μ::Array{Float64} # spectral means (D x Q array)
+    γ::Array{Float64} # spectral variances (D x Q array)
 end
 
 function SpectralMixtureProductA(hyp, D)
     Q = Int(floor(length(hyp)/(3D)))
-    w = reshape(  hyp[                      1:D*Q],D,Q);   # mixture weights
-    μ = reshape(  hyp[D .* Q .+           (1:D*Q)],D,Q);   # spectral means
-    γ = reshape(  hyp[D .* Q .+ D .* Q .+ (1:D*Q)],D,Q);   # spectral variances
-    SpectralMixtureProductA(w, μ, γ)
+
+    w = reshape(hyp[                      1:D*Q],D,Q)  # mixture weights
+    μ = reshape(hyp[D .* Q .+           (1:D*Q)],D,Q)  # spectral means
+    γ = reshape(hyp[D .* Q .+ D .* Q .+ (1:D*Q)],D,Q)  # spectral variances
+
+    return SpectralMixtureProductA(w, μ, γ)
 end
 
 # https://github.com/alshedivat/gpml/blob/master/cov/covSM.m
@@ -199,14 +191,14 @@ function kernel_function(k::SpectralMixtureProductA; z=nothing)
     h(arg1, arg2) = exp.(-0.5 * arg1).*cos.(arg2);
     D,Q  = size(w)
 
-    function evaluate(a,b)
+    function evaluate(a, b)
         τ = (a .- b) * 2*pi
-
         K = 1
         for d=1:D
             K = K .* (w[d,:]' * h((τ[d] .^ 2)*γ[d,:], τ[d]*μ[d,:]) )
         end
-        K
+        return K
     end
-  return evaluate
+
+    return evaluate
 end

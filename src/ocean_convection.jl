@@ -42,7 +42,7 @@ end
 
 function FreeConvectionNDE(NN, ds; grid_points, iterations=nothing)
     weights, reconstruct = Flux.destructure(NN)
-    
+
     H = abs(ds["zF"][1]) # Domain height
     τ = ds["time"][end]  # Simulation length
     zC = coarse_grain(ds["zC"], grid_points, Cell)
@@ -80,12 +80,12 @@ end
 
 function ConvectiveAdjustmentNDE(NN, ds; grid_points, iterations=nothing)
     weights, reconstruct = Flux.destructure(NN)
-    
+
     H = abs(ds["zF"][1]) # Domain height
     τ = ds["time"][end]  # Simulation length
     zC = coarse_grain(ds["zC"], grid_points, Cell)
     Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
-    
+
     # Differentiation matrix operators
     Dzᶠ = Dᶠ(grid_points, Δẑ)
     Dzᶜ = Dᶜ(grid_points, Δẑ)
@@ -98,7 +98,7 @@ function ConvectiveAdjustmentNDE(NN, ds; grid_points, iterations=nothing)
     Non-dimensional PDE is
 
         ∂T/∂t = - σ_wT/σ_T * τ/H * ∂/∂z(wT + K ∂T/∂z)
-    
+
     where K = 0 if ∂T/∂z < 0 and K = 100 if ∂T/∂z > 0.
     """
     function ∂T∂t(T, p, t)
@@ -130,14 +130,14 @@ end
 function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     H = abs(ds["zF"][1]) # Domain height
     τ = ds["time"][end]  # Simulation length
-    
+
     Q  = nc_constant(ds.attrib["Heat flux"])
     ρ₀ = nc_constant(ds.attrib["Reference density"])
     cₚ = nc_constant(ds.attrib["Specific_heat_capacity"])
-    
+
     bottom_flux = wT_scaling(0)
     top_flux = wT_scaling(Q / (ρ₀ * cₚ))
-    
+
     fixed_params = [bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ]
 end
 

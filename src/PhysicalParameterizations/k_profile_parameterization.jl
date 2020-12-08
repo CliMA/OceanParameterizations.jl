@@ -4,36 +4,33 @@ https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/
 updated for latest version of OceanTurb
 """
 
-# include("../les/custom_avg.jl")
-# include("../les/output_to_data.jl")
-# include("../les/get_les_data.jl")
-# include("../data/scalings.jl")
-
-# using OceanTurb
 
 """
-closure_free_convection(N, Δt, les::LESbraryData; subsample = 1, grid = 1)
-# Description
-- constructs forward map. Assumes initial conditions and boundary conditions are taken from les data.
+closure_free_convection_kpp_full_evolution(parameters, D, Δt, les::LESbraryData; subsample = 1, grid = 1)
+
+Constructs forward map. Assumes initial conditions and boundary conditions are taken from les data.
+
 # Arguments
 - `N`: number of gridpoints to output to
 - `Δt`: time step size in seconds
 - `les`: les data of the LESbraryData type
+
 # Keyword Arguments
 - `subsample`: indices to subsample in time,
 - `grid`: in case one wants to save the model grid
+
 # Output
 - The forward map. A function that takes parameters and outputs temperature profiles
--   `𝑪`: parameters in KPP, assumes that \n
-    𝑪[1]: Surface Layer Fraction  \n
-    𝑪[2]: Nonlocal Flux Amplitude \n
-    𝑪[3]: Diffusivity Amplitude \n
-    𝑪[4]: Shear Constant \n
+-   `𝑪`: parameters in KPP, assumes that
+    𝑪[1]: Surface Layer Fraction
+    𝑪[2]: Nonlocal Flux Amplitude
+    𝑪[3]: Diffusivity Amplitude
+    𝑪[4]: Shear Constant
 """
-function closure_free_convection_kpp_full_evolution(parameters, D, Δt, les::LESbraryData;
-                                     subsample = 1, grid = 1)
+function closure_free_convection_kpp_full_evolution(parameters, D, Δt, les::LESbraryData; subsample = 1, grid = 1)
      # # set parameters
      # parameters = KPP.Parameters( CSL = 𝑪[1], CNL = 𝑪[2], Cb_T = 𝑪[3], CKE = 𝑪[4])
+
      # Build the model with a Backward Euler timestepper
      ρ = 1027.0
      cᵖ = 4000.0

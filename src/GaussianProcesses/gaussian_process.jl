@@ -1,36 +1,30 @@
 """
 Adapted from sandreza/Learning/sandbox/gaussian_process.jl
 https://github.com/sandreza/Learning/blob/master/sandbox/gaussian_process.jl
-Changed handling of kernel functions; changed some variable names;
-added log marginal likelihood function.
+Changed handling of kernel functions, some variable names, and added log marginal likelihood function.
 """
 
 using LinearAlgebra
 
 """
-GP
-# Description
-- data structure for typical GPR computations
-# Data Structure and Description
-    kernel::ℱ, a Kernel object
-    x_train::𝒮 , an array of vectors (n-length array of D-length vectors)
-    α::𝒮2 , an array
-    K::𝒰 , matrix or sparse matrix
-    CK::𝒱, cholesky factorization of K
+    GP{K, 𝒮, 𝒮2, 𝒰, 𝒱, 𝒜}
+
+Data structure for typical Gaussian process regression computations.
 """
-struct GP{Kernel, 𝒮, 𝒮2, 𝒰, 𝒱, 𝒜}
-    kernel::Kernel
-    x_train::𝒮
-    α::𝒮2
-    K::𝒰
-    CK::𝒱
-    cache::𝒜
+struct GP{K, 𝒮, 𝒮2, 𝒰, 𝒱, 𝒜}
+     kernel :: K  # a Kernel object
+    x_train :: 𝒮  # an array of vectors (n-length array of D-length vectors)
+          α :: 𝒮2 # an array
+          K :: 𝒰  # matrix or sparse matrix
+         CK :: 𝒱  # cholesky factorization of K
+      cache :: 𝒜
 end
 
 """
-model(x_train, y_train; kernel; sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
-# Description
-Constructs the posterior distribution for a gp. In other words this does the 'training' automagically.
+    GPmodel(x_train, y_train, kernel, zavg; sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
+
+Constructs the posterior distribution for a Gaussian process. In other words this does the "training" automagically.
+
 # Arguments
 - `x_train`: (array). training inputs (predictors), must be an array of states.
                       length-n array of D-length vectors, where D is the length of each input n is the number of training points.
@@ -40,18 +34,22 @@ Constructs the posterior distribution for a gp. In other words this does the 'tr
                       kernel_function(kernel)(x,x') maps predictor x predictor to real numbers.
 # Keyword Arguments
 - `z`: (vector). values w.r.t. which to derivate the state (default none).
+
 - `normalize`: (bool). whether to normalize the data during preprocessing and reverse the scaling for postprocessing. Can lead to better performance.
+
 - `hyperparameters`: (array). default = []. hyperparameters that enter into the kernel
+
 - `sparsity_threshold`: (number). default = 0.0. a number between 0 and 1 that determines when to use sparse array format. The default is to never use it
+
 - `robust`: (bool). default = true. This decides whether to uniformly scale the diagonal entries of the Kernel Matrix. This sometimes helps with Cholesky factorizations.
+
 - `entry_threshold`: (number). default = sqrt(eps(1.0)). This decides whether an entry is "significant" or not. For typical machines this number will be about 10^(-8) * largest entry of kernel matrix.
-# Return
-- GP object
 """
 function GPmodel(x_train, y_train, kernel, zavg; sparsity_threshold = 0.0, robust = true, entry_threshold = sqrt(eps(1.0)))
 
     # get k(x,x') function from kernel object
     kernel = kernel_function(kernel; z=zavg)
+
     # fill kernel matrix with values
     K = compute_kernel_matrix(kernel, x_train)
 
@@ -84,17 +82,14 @@ function GPmodel(x_train, y_train, kernel, zavg; sparsity_threshold = 0.0, robus
 end
 
 """
-model(𝒟::VData; kernel::Kernel = Kernel(), stencil_size=nothing)
-# Description
+    GPmodel(𝒱; kernel::Kernel = Kernel())
+
 Create an instance of GP using data from ProfileData object 𝒟.
+
 # Arguments
 - 𝒱::VData, Data for training the GP
-# Keyword Arguments
-- kernel::Kernel,
-- stencil_size::Int64
 """
 function GPmodel(𝒱; kernel::Kernel = Kernel())
-
     x_train = [pair[1] for pair in 𝒱.training_data]
     y_train = [pair[2] for pair in 𝒱.training_data]
 
@@ -104,18 +99,16 @@ end
 
 """
 prediction(x, 𝒢::GP)
-# Description
-- Given state x, GP 𝒢, returns the mean GP prediction
+
+Given state x, GP 𝒢, returns the mean GP prediction
+
 # Arguments
 - `x`: single scaled state
 - `𝒢`: GP object with which to make the prediction
+
 # Return
 - `y`: scaled prediction
 """
-# function model_output(x, 𝒢::GP)
-#     return 𝒢.α * 𝒢.kernel.([x], 𝒢.x_train)
-# end
-
 function model_output(x, 𝒢::GP)
     for i in 1:length(𝒢.cache)
         𝒢.cache[i] = 𝒢.kernel(x, 𝒢.x_train[i])
@@ -124,11 +117,13 @@ function model_output(x, 𝒢::GP)
 end
 
 """
-uncertainty(x, 𝒢::GP)
-# Description
-- Given state x and GP 𝒢, output the variance at a point
+    uncertainty(x, 𝒢::GP)
+
+Given state x and GP 𝒢, output the variance at a point
+
 # Arguments
 - `x`: state
+
 # Return
 - `var`: variance
 """
@@ -139,22 +134,23 @@ function uncertainty(x, 𝒢::GP)
     end
     # no ldiv for suitesparse
     tmpv2 = 𝒢.CK \ tmpv
-    var = k(x, x) .- tmpv'*tmpv2  # var(f*) = k(x*,x*) - tmpv'*tmpv2
+    var = k(x, x) .- tmpv'*tmpv2
     return var
 end
 
 """
-compute_kernel_matrix(kernel, x)
-# Description
-- Computes the kernel matrix for GPR
+    compute_kernel_matrix(kernel, x)
+
+Computes the kernel matrix for GPR.
+
 # Arguments
 - `k` : (Kernel) kernel function k(a,b).
 - `x` : (array of predictors). x[1] is a vector
+
 # Return
 - `sK`: (symmetric matrix). A symmetric matrix with entries sK[i,j] = k(x[i], x[j]). This is only meaningful if k(x,y) = k(y,x) (it should)
 """
 function compute_kernel_matrix(k, x)
-
     K = [k(x[i], x[j]) for i in eachindex(x), j in eachindex(x)]
 
     if typeof(K[1,1]) <: Number
@@ -166,20 +162,22 @@ function compute_kernel_matrix(k, x)
 end
 
 """
-mean_log_marginal_loss(y_train, 𝒢::GP; add_constant=false)
-# Description
-Computes log marginal loss for each element in the output and averages the results.
-Assumes noise-free observations.
+    mean_log_marginal_loss(y_train, 𝒢::GP; add_constant=false)
 
-log(p(y|X)) = -(1/2) * (y'*α + 2*sum(Diagonal(CK)) + n*log(2*pi))
+Computes log marginal loss for each element in the output and averages the results.
+
+Assumes noise-free observations
+
+    log(p(y|X)) = -(1/2) * (y'*α + 2*sum(Diagonal(CK)) + n*log(2*pi))
+
 where n is the number of training points and
 
 # Arguments
 - `y_train`: (Array). training outputs (prediction), must have the same number as x_train
 - `𝒢`: (GP).
+
 # Keyword Arguments
 - `add_constant`: (bool). whether to give the exact value of the loss or leave out an added constant for efficiency.
-
 """
 function mean_log_marginal_loss(y_train, 𝒢::GP; add_constant=false)
     n = length(𝒢.x_train)

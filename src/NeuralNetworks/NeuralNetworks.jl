@@ -1,6 +1,6 @@
-module NeuralNetwork
+module NeuralNetworks
 
-using ClimateParameterizations.Data
+using ClimateParameterizations.DataWrangling
 using Flux
 
 export nn_model
@@ -11,13 +11,15 @@ function cb(train,loss)
 end
 
 # Return a trained neural network model
-function nn_model(;𝒱::FluxData=nothing, model=nothing, optimizers=nothing)
+function nn_model(; 𝒱=nothing, model=nothing, optimizers=nothing)
     loss(x,y) = Flux.Losses.mse(model(x), y)
+
     for opt in optimizers
         @info opt
         Flux.train!(loss, params(model), 𝒱.training_data, opt, cb = Flux.throttle(cb(𝒱.training_data,loss), 2))
     end
-    model
+
+    return model
 end
 
 end

@@ -1,8 +1,8 @@
 module Main
 
-using ClimateParameterizations.Data
-using ClimateParameterizations.GaussianProcess
-using ClimateParameterizations.NeuralNetwork
+using ClimateParameterizations.DataWrangling
+using ClimateParameterizations.GaussianProcesses
+using ClimateParameterizations.NeuralNetworks
 
 model_output(x, time_index, ℳ, 𝒟) = GaussianProcess.model_output(𝒟.modify_predictor_fn(x, time_index), ℳ)
 

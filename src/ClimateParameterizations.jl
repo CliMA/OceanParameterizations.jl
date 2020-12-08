@@ -99,14 +99,13 @@ using OceanTurb
 export KPP, TKEMassFlux
 
 # submodules
-include("data/Data.jl")
-include("gpr/GaussianProcess.jl")
-include("nn/NeuralNetwork.jl")
-include("main/Main.jl")
+include("DataWrangling/DataWrangling.jl")
+include("GaussianProcesses/GaussianProcesses.jl")
+include("NeuralNetworks/NeuralNetworks.jl")
+# include("main/Main.jl")
 
-using .Data
-using .GaussianProcess
-using .NeuralNetwork
-using .Main
+using .DataWrangling
+using .GaussianProcesses
+using .NeuralNetworks
 
 end # module
