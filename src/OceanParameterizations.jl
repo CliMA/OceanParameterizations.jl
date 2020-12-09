@@ -16,13 +16,6 @@ export
     # NeuralNetworks
     nn_model,
 
-    # Ocean convection
-    nc_constant,
-    FreeConvectionTrainingDataInput, rescale,
-    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
-    solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
-    animate_variable, convection_training_data, animate_learned_heat_flux,
-
     # PhysicalParameterizations
     closure_free_convection_kpp_full_evolution,
     closure_free_convection_tke_full_evolution
@@ -32,7 +25,7 @@ using Printf
 using Statistics
 using Logging
 
-using DifferentialEquations
+# using DifferentialEquations
 using Flux
 using JLD2
 using NCDatasets
@@ -47,7 +40,6 @@ import Base.inv
 
 include("differentiation_operators.jl")
 include("predict.jl")
-include("ocean_convection.jl")
 
 # submodules
 include("DataWrangling/DataWrangling.jl")
@@ -59,9 +51,5 @@ using .DataWrangling
 using .GaussianProcesses
 using .NeuralNetworks
 using .PhysicalParameterizations
-
-function __init__()
-    Logging.global_logger(OceananigansLogger())
-end
 
 end # module

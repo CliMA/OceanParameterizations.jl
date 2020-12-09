@@ -1,5 +1,6 @@
 using NCDatasets
-using ClimateSurrogates
+using OceanParameterizations
+using FreeConvection
 
 Qs = [25, 50, 75, 100]
 

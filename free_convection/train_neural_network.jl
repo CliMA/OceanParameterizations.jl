@@ -6,6 +6,7 @@ using BSON
 using Flux
 using NCDatasets
 using OceanParameterizations
+using FreeConvection
 
 #####
 ##### Neural differential equation parameters
