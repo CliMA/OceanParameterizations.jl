@@ -1,9 +1,10 @@
 module NeuralNetworks
 
-using OceanParameterizations.DataWrangling
-using Flux
-
 export nn_model
+
+using Statistics
+using Flux
+using OceanParameterizations.DataWrangling
 
 function cb(train,loss)
     f() = @info mean([loss(train[i][1], train[i][2]) for i in 1:length(train)])
