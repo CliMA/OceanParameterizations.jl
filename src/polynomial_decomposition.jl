@@ -63,4 +63,3 @@ anim = @animate for N in 0:16
 end
 mp4(anim, "chebyshev_decomposition.mp4", fps=5)
 mp4(anim, "chebyshev_decomposition.gif", fps=5)
-

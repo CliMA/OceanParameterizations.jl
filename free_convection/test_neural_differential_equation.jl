@@ -6,7 +6,7 @@ using Flux
 using NCDatasets
 using Plots
 using Oceananigans.Utils
-using ClimateParameterizations
+using OceanParameterizations
 
 function compute_nde_solution_history(ds, Qs, nn_filepath, nn_history_filepath)
     neural_network_parameters = BSON.load(nn_filepath)
@@ -15,7 +15,7 @@ function compute_nde_solution_history(ds, Qs, nn_filepath, nn_history_filepath)
     NN = neural_network_parameters[:neural_network]
     T_scaling = neural_network_parameters[:T_scaling]
     wT_scaling = neural_network_parameters[:wT_scaling]
-    
+
     nn_history = BSON.load(nn_history_filepath)[:nn_history]
 
     solution_history = Dict(Q => [] for Q in Qs)
@@ -60,7 +60,7 @@ end
 function animate_nde_loss(ds, Qs, nde_solutions, true_solutions, fps=15)
     epochs = length(nde_solutions[first(Qs)])
     times = ds[first(Qs)]["time"] ./ days
-    
+
     anim = @animate for e in 1:epochs
         @info "Plotting NDE loss evolution... epoch $e/$epochs"
         title = "Training free convection NDE: epoch $e"

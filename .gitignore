@@ -17,6 +17,9 @@ deps/src/
 docs/build/
 docs/site/
 
+# Mac OS stuff
+.DS_Store
+
 # Oceananigans output
 *.nc
 *.jld2

@@ -81,7 +81,7 @@ function execute(cmd::Cmd)
 end
 
 global_attributes = Dict(
-    "ClimateParameterizations.jl git commit SHA1" => execute(`git rev-parse HEAD`).stdout |> strip,
+    "OceanParameterizations.jl git commit SHA1" => execute(`git rev-parse HEAD`).stdout |> strip,
     "Reference density" => "$ρ₀ kg/m³",
     "Specific_heat_capacity" => "$cₚ J/kg/K",
     "Coriolis parameter" => "$f₀ s⁻¹",
