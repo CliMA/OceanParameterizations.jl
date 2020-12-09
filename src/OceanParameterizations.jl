@@ -56,7 +56,6 @@ end
 # modules
 using Plots,
       JLD2,
-      NetCDF,
       Statistics,
       BenchmarkTools,
       Optim,
