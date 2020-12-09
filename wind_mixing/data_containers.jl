@@ -18,42 +18,49 @@ directories = Dict(
     "strong_wind_weak_heating" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_statistics.jld2",
 )
 
-prefix = pwd() * "/src/les/data/"
-
 function read_les_output(filename::String)
-    filename = prefix * directories[filename]
+    filename = pwd() * "/" * directories[filename]
     return ReadJLD2_LESbraryData(filename)
 end
 
-# les = read_les_output("strong_wind_weak_heating")
-# les.t
+"""
+# Description
+Takes NzxNt arrays of profiles for variables u, v, T and returns
+Nzx(Nt-1) arrays of the profile evolution for u, v, T, u'w', v'w', and w'T'
+the horizontally averaged flux for variable V.
 
-# directories=Dict(
-#
-#     "free_convection" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-#
-#     "strong_wind" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-#
-#     "strong_wind_no_coriolis" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-#
-#     "weak_wind_strong_cooling" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-#
-#     "strong_wind_weak_cooling" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-#
-#     "strong_wind_weak_heating" => Dict(
-#         2 => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     ),
-# )
+# Arguments
+Unscaled u, v, T, z, t, and f
+"""
+function reconstruct_flux_profiles(u, v, T, z, t, f)
+
+    Δz = diff(z)
+    Δt = diff(t, dims=1)'
+
+    Nz,Nt = size(T)
+
+    dVdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    u = u[:,1:Nt-1]
+    v = v[:,1:Nt-1]
+    T = T[:,1:Nt-1]
+
+    """ evaluates wϕ = ∫ ∂z(wϕ) dz """
+    function wϕ(∂z_wϕ)
+        ans = zeros(Nz+1, Nt-1) # one fewer column than T
+        for i in 1:Nt-1, h in 1:Nz-1
+            ans[h+1, i] = ans[h, i] + Δz[h] * ∂z_wϕ[h, i]
+        end
+        return ans
+    end
+
+    duw_dz = -dVdt .+ f*v
+    dvw_dz = -dVdt .- f*u
+    dwT_dz = -dVdt
+
+    # println(size(wV(duw_dz)))
+    # u, v, T, uw, vw, wT, t
+    return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
+end
 
 struct FluxData{Z, C, S, U, T} # for each of uw, vw, and wT
                 z :: Z # z vector for the variable

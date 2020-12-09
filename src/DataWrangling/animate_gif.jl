@@ -1,10 +1,10 @@
 function animate_gif(xs, y, t, x_str; x_label=["" for i in 1:length(xs)], filename=x_str, directory="Output")
-    filepath = pwd() * "/" * directory
+    filepath = pwd() * "/" * directory * "/"
     isdir(dirname(filepath)) || mkpath(filepath)
 
-    anim = @animate for n in 1:size(xs[1],2)
-        x_max = maximum(maximum(x) for x in xs)
-        x_min = minimum(minimum(x) for x in xs)
+    anim = @animate for n in 1:length(t)
+        x_max = maximum([maximum(x) for x in xs])
+        x_min = minimum([minimum(x) for x in xs])
 
         fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom)
         for i in 1:length(xs)

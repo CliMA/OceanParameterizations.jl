@@ -8,20 +8,29 @@ export
     # Utils
     coarse_grain, Dᶠ, Dᶜ,
     ZeroMeanUnitVarianceScaling, MinMaxScaling, scale, unscale,
-    GaussianProcess, predict, uncertainty, SquaredExponential,
+    predict, animate_gif,
 
+    # GaussianProcesses
+    gp_model, get_kernel, euclidean_distance, derivative_distance, antiderivative_distance,
+
+    # NeuralNetworks
+    nn_model,
+    
     # Ocean convection
     nc_constant,
     FreeConvectionTrainingDataInput, rescale,
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
     solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
-    animate_variable, convection_training_data, animate_learned_heat_flux
+    animate_variable, convection_training_data, animate_learned_heat_flux,
+
+    # PhysicalParameterizations
+    closure_free_convection_kpp_full_evolution,
+    closure_free_convection_tke_full_evolution
 
 using LinearAlgebra
 using Printf
 using Statistics
 using Logging
-
 using DifferentialEquations
 using Flux
 using NCDatasets
@@ -35,58 +44,20 @@ using DiffEqSensitivity: InterpolatingAdjoint, ZygoteVJP
 import Base.inv
 
 include("differentiation_operators.jl")
-# include("gaussian_process.jl")
-
+include("predict.jl")
 include("ocean_convection.jl")
+include("PhysicalParameterizations/k_profile_parameterization.jl")
+include("PhysicalParameterizations/turbulent_kinetic_energy_closure.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
 end
-
-export
-    # Data / profile_data.jl
-    data,
-    VData,
-    ProfileData,
-
-    # Data / les/read_les_output.jl
-    read_les_output,
-
-    # Data / kpp/run.jl
-    closure_free_convection_kpp_full_evolution,
-
-    # Data / tke/run.jl
-    closure_free_convection_tke_full_evolution,
-
-    # NeuralNetwork / NeuralNetwork.jl
-    nn_model,
-
-    # GaussianProcess / gp.jl
-    gp_model,
-
-    # GaussianProcess / kernels.jl
-    Kernel,
-    get_kernel,
-    kernel_function,
-
-    # GaussianProcess / distances.jl
-    euclidean_distance,
-    derivative_distance,
-    antiderivative_distance,
-
-    # Main
-    mean_square_error,
-    predict,
-
-    # Data / animate_gif.jl
-    animate_gif
 
 # modules
 using Plots,
       JLD2,
       NetCDF,
       Statistics,
-      # LinearAlgebra,
       BenchmarkTools,
       Optim,
       Statistics,

@@ -23,9 +23,12 @@ include("kernels.jl")
 include("distances.jl")
 include("gaussian_process.jl")
 
-mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
+function predict(𝒱, model)
+    unscaled = (𝒱.unscale_fn(model(𝒱.training_data[i][1])) for i in 1:length(𝒱.training_data))
+    return (cat(unscaled...,dims=2), 𝒱.coarse)
+end
 
-predict(𝒱, model) = (cat((𝒱.unscale_fn(model(𝒱.training_data[i][1])) for i in 1:length(𝒱.training_data))..., dims=2), 𝒱.coarse)
+mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
 
 function gp_model(𝒱; logγ_range=-2.0:0.1:2.0, kernel=nothing)
     function m(𝒱, kernel)
