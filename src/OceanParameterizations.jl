@@ -15,7 +15,7 @@ export
 
     # NeuralNetworks
     nn_model,
-    
+
     # Ocean convection
     nc_constant,
     FreeConvectionTrainingDataInput, rescale,
@@ -31,8 +31,10 @@ using LinearAlgebra
 using Printf
 using Statistics
 using Logging
+
 using DifferentialEquations
 using Flux
+using JLD2
 using NCDatasets
 using Plots
 using Oceananigans.Utils
@@ -46,36 +48,20 @@ import Base.inv
 include("differentiation_operators.jl")
 include("predict.jl")
 include("ocean_convection.jl")
-include("PhysicalParameterizations/k_profile_parameterization.jl")
-include("PhysicalParameterizations/turbulent_kinetic_energy_closure.jl")
-
-function __init__()
-    Logging.global_logger(OceananigansLogger())
-end
-
-# modules
-using Plots,
-      JLD2,
-      Statistics,
-      BenchmarkTools,
-      Optim,
-      Statistics,
-      Flux,
-      DiffEqFlux,
-      Oceananigans.Grids
-
-# OceanTurb for KPP
-using OceanTurb
-export KPP, TKEMassFlux
 
 # submodules
 include("DataWrangling/DataWrangling.jl")
 include("GaussianProcesses/GaussianProcesses.jl")
 include("NeuralNetworks/NeuralNetworks.jl")
-# include("main/Main.jl")
+include("PhysicalParameterizations/PhysicalParameterizations.jl")
 
 using .DataWrangling
 using .GaussianProcesses
 using .NeuralNetworks
+using .PhysicalParameterizations
+
+function __init__()
+    Logging.global_logger(OceananigansLogger())
+end
 
 end # module
