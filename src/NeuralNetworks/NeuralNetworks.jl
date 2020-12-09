@@ -22,4 +22,4 @@ function nn_model(; 𝒱=nothing, model=nothing, optimizers=nothing)
     return model
 end
 
-end
+end #module

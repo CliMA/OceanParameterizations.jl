@@ -3,28 +3,20 @@ using Flux, OceanTurb, DifferentialEquations, Plots
 
 include("lesbrary_data.jl")
 include("data_containers.jl")
-include("reconstruct_fluxes.jl")
 
 output_gif_directory = "Output1"
 
-all_files
 train_files = ["strong_wind", "free_convection"]
 test_file = "strong_wind"
 
-# 𝒟all = OceanParameterizations.DataWrangling.data(all_files,
-#                                         scale_type=ZeroMeanUnitVarianceScaling,
-#                                         animate=false,
-#                                         animate_dir="$(output_gif_directory)/Training")
-# scalings = 𝒟all.scalings
-
-𝒟train = OceanParameterizations.DataWrangling.data(train_files,
-                                        scale_type=ZeroMeanUnitVarianceScaling,
-                                        animate=false,
-                                        animate_dir="$(output_gif_directory)/Training")
-𝒟test = OceanParameterizations.DataWrangling.data(test_file,
-                                        override_scalings=𝒟train.scalings, # use the scalings from the training data
-                                        animate=false,
-                                        animate_dir="$(output_gif_directory)/Testing")
+𝒟train = data(train_files,
+                    scale_type=ZeroMeanUnitVarianceScaling,
+                    animate=false,
+                    animate_dir="$(output_gif_directory)/Training")
+𝒟test = data(test_file,
+                    override_scalings=𝒟train.scalings, # use the scalings from the training data
+                    animate=false,
+                    animate_dir="$(output_gif_directory)/Testing")
 
 ## Neural Networks
 
@@ -49,19 +41,18 @@ vw_NN = predict(𝒟test.vw, vw_NN_model)
 wT_NN = predict(𝒟test.wT, wT_NN_model)
 
 # Compare NN predictions to truth
-animate_gif(uw_NN, 𝒟test.uw.z, 𝒟test.t, "uw", ["NN(u,v,T)", "truth"], "uw_NN", dir=output_gif_directory)
-animate_gif(vw_NN, 𝒟test.vw.z, 𝒟test.t, "vw", ["NN(u,v,T)", "truth"], "vw_NN", dir=output_gif_directory)
-animate_gif(wT_NN, 𝒟test.wT.z, 𝒟test.t, "wT", ["NN(u,v,T)", "truth"], "wT_NN", dir=output_gif_directory)
-
+animate_gif(uw_NN, 𝒟test.uw.z, 𝒟test.t, "uw", x_label=["NN(u,v,T)", "truth"], filename="uw_NN", directory=output_gif_directory)
+animate_gif(vw_NN, 𝒟test.vw.z, 𝒟test.t, "vw", x_label=["NN(u,v,T)", "truth"], filename="vw_NN", directory=output_gif_directory)
+animate_gif(wT_NN, 𝒟test.wT.z, 𝒟test.t, "wT", x_label=["NN(u,v,T)", "truth"], filename="wT_NN", directory=output_gif_directory)
 
 ## Gaussian Process Regression
 
 # trained GP models
 logγ_range=-2.0:0.5:2.0
 # uw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range, kernel=get_kernel(1, 0.3, 0.0, euclidean_distance))
-uw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range)
-vw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.vw, logγ_range=logγ_range)
-wT_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.wT, logγ_range=logγ_range)
+uw_GP_model = gp_model(𝒟train.uw, logγ_range=logγ_range)
+vw_GP_model = gp_model(𝒟train.vw, logγ_range=logγ_range)
+wT_GP_model = gp_model(𝒟train.wT, logγ_range=logγ_range)
 
 # GP predictions on test data
 uw_GP = predict(𝒟test.uw, uw_GP_model)
@@ -74,9 +65,9 @@ mse(vw_GP)
 mse(wT_GP)
 
 # Compare GP predictions to truth
-animate_gif(uw_GP, 𝒟test.uw.z, 𝒟test.t, "uw", ["GP(u,v,T)", "truth"], "uw_GP", dir=output_gif_directory)
-animate_gif(vw_GP, 𝒟test.vw.z, 𝒟test.t, "vw", ["GP(u,v,T)", "truth"], "vw_GP", dir=output_gif_directory)
-animate_gif(wT_GP, 𝒟test.wT.z, 𝒟test.t, "wT", ["GP(u,v,T)", "truth"], "wT_GP", dir=output_gif_directory)
+animate_gif(uw_GP, 𝒟test.uw.z, 𝒟test.t, "uw", x_label=["GP(u,v,T)", "truth"], filename="uw_GP", directory=output_gif_directory)
+animate_gif(vw_GP, 𝒟test.vw.z, 𝒟test.t, "vw", x_label=["GP(u,v,T)", "truth"], filename="vw_GP", directory=output_gif_directory)
+animate_gif(wT_GP, 𝒟test.wT.z, 𝒟test.t, "wT", x_label=["GP(u,v,T)", "truth"], filename="wT_GP", directory=output_gif_directory)
 
 ## KPP Parameterization (no training)
 
@@ -86,7 +77,7 @@ parameters = KPP.Parameters() # default parameters
 predictions = closure_free_convection_kpp_full_evolution(parameters, 33, Δt, les)
 T_KPP = (predictions, 𝒟test.T_coarse)
 mse(T_KPP)
-animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["KPP(T)", "truth"], "T_KPP", dir=output_gif_directory)
+animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["KPP(T)", "truth"], "T_KPP", directory=output_gif_directory)
 
 ## TKE Parameterization (no training; use default parameters)
 
@@ -96,7 +87,7 @@ parameters = TKEMassFlux.TKEParameters() # default parameters
 predictions = closure_free_convection_kpp_full_evolution(problem.parameters, 33, Δt, les)
 T_KPP = (predictions, 𝒟test.T_coarse)
 mse(T_KPP)
-animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["TKE(T)", "truth"], "T_TKE", dir=output_gif_directory)
+animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["TKE(T)", "truth"], "T_TKE", directory=output_gif_directory)
 
 ## Solving the PDEs using the predictions from NN or GP models
 
