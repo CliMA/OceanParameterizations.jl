@@ -25,16 +25,13 @@ using Printf
 using Statistics
 using Logging
 
-# using DifferentialEquations
 using Flux
 using JLD2
 using NCDatasets
 using Plots
 using Oceananigans.Utils
 
-using Oceananigans: OceananigansLogger
 using Oceananigans.Grids: Cell, Face
-using DiffEqSensitivity: InterpolatingAdjoint, ZygoteVJP
 
 import Base.inv
 
