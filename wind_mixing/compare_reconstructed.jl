@@ -8,11 +8,8 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_win
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-<<<<<<< refs/remotes/origin/ali/bit-of-cleanup
     𝒟 = OceanParameterizations.DataWrangling.data(file, reconstruct_fluxes=false) # <: OceananigansData
-=======
     𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
->>>>>>> Correct DE's in reconstruct_flux_profiles function
     Ts3[file] = 𝒟.uw.coarse
 end
 

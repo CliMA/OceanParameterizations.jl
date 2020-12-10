@@ -1,5 +1,6 @@
 using OceanParameterizations
-using Flux, OceanTurb, DifferentialEquations, Plots
+using Flux, OceanTurb, Plots
+using DifferentialEquations
 
 include("lesbrary_data.jl")
 include("data_containers.jl")
