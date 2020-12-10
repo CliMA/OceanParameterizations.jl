@@ -47,7 +47,6 @@ gif(anim, pwd()*"/vw_unscaled_reconstructed.gif", fps=20)
 
 Ts3 = Dict() # maps file name to T array
 for file in files
-<<<<<<< refs/remotes/origin/ali/bit-of-cleanup
     𝒟 = OceanParameterizations.DataWrangling.data(file, reconstruct_fluxes=true) # <: OceananigansData
     Ts3[file] = les.wT
 =======
