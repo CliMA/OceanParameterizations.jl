@@ -15,7 +15,6 @@ export
 
 using Statistics
 using OrderedCollections
-using OceanTurb
 using Plots
 
 include("coarse_graining.jl")
