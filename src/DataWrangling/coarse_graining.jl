@@ -38,3 +38,25 @@ function coarse_grain(Φ, n, ::Type{Face})
 
     return Φ̅
 end
+
+"""
+    coarse_grain_linear_interpolation(Φ, n, ::Type{Face})
+
+Average or coarse grain a `Face`-centered field `Φ` down to size `n` using linear interpolation. `Φ` is required to have evenly spaced points. The values at the left and right endpoints of `Φ` will be preserved in the output.
+"""
+function coarse_grain_linear_interpolation(Φ, n, ::Type{Face})
+    N = length(Φ)
+    Φ̅ = similar(Φ, n)
+    Φ̅[1] = Φ[1]
+    Φ̅[end] = Φ[end]
+    gap = (N-1)/(n-1)
+
+    for i=2:n-1
+        Φ̅[i] = 1 + (i-1)*gap
+    end
+
+    for i=2:n-1
+        Φ̅[i] = (floor(Φ̅[i])+1 - Φ̅[i]) * Φ[Int(floor(Φ̅[i]))] + (Φ̅[i] - floor(Φ̅[i])) * Φ[Int(floor(Φ̅[i]))+1]
+    end
+    return Φ̅
+end

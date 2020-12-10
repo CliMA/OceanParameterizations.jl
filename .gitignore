@@ -33,6 +33,9 @@ docs/site/
 *.gif
 *.png
 
+# Simulation log
+wind_mixing/simulation_output
+
 # output gifs
 Output/
 Output2/
