@@ -1,6 +1,7 @@
 using OceanParameterizations
 using Flux, OceanTurb, Plots
 using DifferentialEquations
+using Oceananigans.Grids: Cell, Face
 
 include("lesbrary_data.jl")
 include("data_containers.jl")

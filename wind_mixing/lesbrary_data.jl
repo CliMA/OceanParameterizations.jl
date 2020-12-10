@@ -25,10 +25,11 @@ struct LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}
     vv :: 𝒯
     ww :: 𝒯
 
-    # Subfilter momentum fluxes
+    # Subfilter fluxes
     νₑ_∂z_u :: 𝒯
     νₑ_∂z_v :: 𝒯
     νₑ_∂z_w :: 𝒯
+    κₑ_∂z_T :: 𝒯
 
     # Simulation constants
     α  :: 𝒰
@@ -87,6 +88,7 @@ function ReadJLD2_LESbraryData(filename)
     νₑ_∂z_u  = zeros(Nz+1, Nt)
     νₑ_∂z_v  = zeros(Nz+1, Nt)
     νₑ_∂z_w  = zeros(Nz, Nt)
+    κₑ_∂z_T  = zeros(Nz+1, Nt)
 
     # grab arrays
     for j in 1:Nt
@@ -105,10 +107,11 @@ function ReadJLD2_LESbraryData(filename)
         @. vv[:, j] = les_data["timeseries"]["vv"][key][1, 1, :]
         @. ww[:, j] = les_data["timeseries"]["ww"][key][1, 1, :]
 
-        # Subfilter momentum fluxes
+        # Subfilter fluxes
         @. νₑ_∂z_u[:, j] = les_data["timeseries"]["νₑ_∂z_u"][key][1, 1, :]
         @. νₑ_∂z_v[:, j] = les_data["timeseries"]["νₑ_∂z_v"][key][1, 1, :]
         @. νₑ_∂z_w[:, j] = les_data["timeseries"]["νₑ_∂z_w"][key][1, 1, :]
+        @. κₑ_∂z_T[:, j] = les_data["timeseries"]["κₑ_∂z_T"][key][1, 1, :]
 
         t[j] = les_data["timeseries"]["t"][key]
     end
@@ -127,8 +130,8 @@ function ReadJLD2_LESbraryData(filename)
     # Push second order statistics into container
     push!(container, wT, wu, wv, uu, vv, ww)
 
-    # Push subfilter momentum fluxes into container
-    push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w)
+    # Push subfilter fluxes into container
+    push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w, κₑ_∂z_T)
 
     # Now grab parameter
     α = les_data["buoyancy"]["equation_of_state"]["α"]
@@ -179,6 +182,24 @@ end
 # file = "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2"
 # les = jldopen(file, "r")
 # keys(les["timeseries"])
+# les["timeseries"]["κₑ_∂z_T"]
 # les["timeseries"]["v"]["0"][1,1,:]
 # les["grid"]["Δx"]
-# ReadJLD2_LESbraryData(file)
+
+# using Plots
+# file = "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2"
+# myles = ReadJLD2_LESbraryData(file)
+#
+# vbl = myles.κₑ_∂z_T
+# xlims=(-1.2e-5, maximum(myles.κₑ_∂z_T))
+# vbl = myles.wT
+# xlims=(minimum(myles.wT), maximum(myles.wT))
+#
+# anim = @animate for i=1:288
+#     plot(vbl[:,i], myles.zF, legend=false, xlims=xlims, size=(400,600))
+# end
+# gif(anim, "wT.gif")
+#
+# Δt = diff(myles.t, dims=1)'
+# Nz,Nt = size(myles.T)
+# dudt = (myles.u[:,2:Nt] .- myles.u[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dUdt values
