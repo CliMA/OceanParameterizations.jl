@@ -49,10 +49,6 @@ Ts3 = Dict() # maps file name to T array
 for file in files
     𝒟 = OceanParameterizations.DataWrangling.data(file, reconstruct_fluxes=true) # <: OceananigansData
     Ts3[file] = les.wT
-=======
-    𝒟 = ClimateParameterizations.Data.data(file, reconstruct_fluxes=true) # <: OceananigansData
-    Ts3[file] = 𝒟.wT.coarse
->>>>>>> Correct DE's in reconstruct_flux_profiles function
 end
 
 Ts3
