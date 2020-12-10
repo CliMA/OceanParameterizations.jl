@@ -86,7 +86,7 @@ function ReadJLD2_LESbraryData(filename)
     # Subfilter momentum fluxes
     νₑ_∂z_u  = zeros(Nz+1, Nt)
     νₑ_∂z_v  = zeros(Nz+1, Nt)
-    νₑ_∂z_w  = zeros(Nz+1, Nt)
+    νₑ_∂z_w  = zeros(Nz, Nt)
 
     # grab arrays
     for j in 1:Nt
@@ -177,6 +177,8 @@ end
 
 # TESTING
 # file = "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2"
-# les_data = jldopen(file, "r")
-# keys(les["timeseries"]["t"])
-# les["boundary_conditions"]
+# les = jldopen(file, "r")
+# keys(les["timeseries"])
+# les["timeseries"]["v"]["0"][1,1,:]
+# les["grid"]["Δx"]
+# ReadJLD2_LESbraryData(file)
