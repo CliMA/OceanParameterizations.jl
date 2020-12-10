@@ -39,3 +39,6 @@ wind_mixing/simulation_output
 # output gifs
 Output/
 Output2/
+
+# data
+2DaySuite/
