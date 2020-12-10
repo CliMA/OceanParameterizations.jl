@@ -24,7 +24,7 @@ In `train_neural_differential_equation.jl` the neural network is then embedded w
 ∂T/∂t = - ∂/∂z(wT).
 ```
 
-Alternatively, in `train_convective_adjustment_nde.jl` 
+Alternatively, in `train_convective_adjustment_nde.jl`
 
 ## Testing the neural differential equation
 

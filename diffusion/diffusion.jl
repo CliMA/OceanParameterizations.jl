@@ -3,7 +3,7 @@ using DiffEqFlux
 using Flux
 using Gen
 using Plots
-using ClimateParameterizations
+using OceanParameterizations
 
 # For quick headless plotting without warnings.
 # See: https://github.com/jheinen/GR.jl/issues/278

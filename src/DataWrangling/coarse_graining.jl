@@ -1,3 +1,5 @@
+using Oceananigans.Grids: Cell, Face
+
 """
     coarse_grain(Φ, n, ::Type{Cell})
 
@@ -23,7 +25,7 @@ function coarse_grain(Φ, n, ::Type{Face})
     Φ̅ = similar(Φ, n)
     Δ = (N-2) / (n-2)
     Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
-    
+
     if isinteger(Δ)
         Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
     else
@@ -33,7 +35,7 @@ function coarse_grain(Φ, n, ::Type{Face})
             Φ̅[i] = mean(Φ[i1:i2])
         end
     end
-    
+
     return Φ̅
 end
 

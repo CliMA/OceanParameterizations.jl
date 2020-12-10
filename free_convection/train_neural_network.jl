@@ -5,7 +5,8 @@ using Statistics
 using BSON
 using Flux
 using NCDatasets
-using ClimateParameterizations
+using OceanParameterizations
+using FreeConvection
 
 #####
 ##### Neural differential equation parameters
@@ -114,7 +115,7 @@ nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output)
 nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, output) in training_data)
 
 function nn_callback()
-    μ_loss = nn_training_set_loss(training_data) 
+    μ_loss = nn_training_set_loss(training_data)
     @info @sprintf("Training free convection neural network... mean training set MSE loss = %.12e", μ_loss)
     return μ_loss
 end

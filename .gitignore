@@ -17,6 +17,9 @@ deps/src/
 docs/build/
 docs/site/
 
+# Mac OS stuff
+.DS_Store
+
 # Oceananigans output
 *.nc
 *.jld2
@@ -32,3 +35,7 @@ docs/site/
 
 # Simulation log
 wind_mixing/simulation_output
+
+# output gifs
+Output/
+Output2/
