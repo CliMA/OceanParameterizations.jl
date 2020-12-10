@@ -1,21 +1,21 @@
-# time averaged
-# directories=Dict(
-#     "free_convection"          => "2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     "strong_wind"              => "2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     "strong_wind_no_coriolis"  => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128_averaged_statistics.jld2",
-#     "weak_wind_strong_cooling" => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     "strong_wind_weak_cooling" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
-#     "strong_wind_weak_heating" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2",
+# # Old
+# directories = Dict(
+#     "free_convection"          => "2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
+#     "strong_wind"              => "2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128_statistics.jld2",
+#     "strong_wind_no_coriolis"  => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128_statistics.jld2",
+#     "weak_wind_strong_cooling" => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
+#     "strong_wind_weak_cooling" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_statistics.jld2",
+#     "strong_wind_weak_heating" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_statistics.jld2",
 # )
 
-# not time averaged
+# New
 directories = Dict(
-    "free_convection"          => "2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
-    "strong_wind"              => "2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128_statistics.jld2",
-    "strong_wind_no_coriolis"  => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128_statistics.jld2",
-    "weak_wind_strong_cooling" => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
-    "strong_wind_weak_cooling" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_statistics.jld2",
-    "strong_wind_weak_heating" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_statistics.jld2",
+    "free_convection"          => "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2",
+    "strong_wind"              => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2",
+    "strong_wind_no_coriolis"  => "2DaySuite/three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2",
+    "weak_wind_strong_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu3.0e-04_Qb1.0e-07_f1.0e-04_Nh256_Nz128_weak_wind_strong_cooling_statistics.jld2",
+    "strong_wind_weak_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu8.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling_statistics.jld2",
+    "strong_wind_weak_heating" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_heating_statistics.jld2"
 )
 
 function read_les_output(filename::String)
@@ -39,7 +39,9 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
 
     Nz,Nt = size(T)
 
-    dVdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    dudt = (u[:,2:Nt] .- u[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dUdt values
+    dvdt = (v[:,2:Nt] .- v[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
+    dTdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dTdt values
     u = u[:,1:Nt-1]
     v = v[:,1:Nt-1]
     T = T[:,1:Nt-1]
@@ -53,11 +55,10 @@ function reconstruct_flux_profiles(u, v, T, z, t, f)
         return ans
     end
 
-    duw_dz = -dVdt .+ f*v
-    dvw_dz = -dVdt .- f*u
-    dwT_dz = -dVdt
+    duw_dz = -dudt .+ f*v
+    dvw_dz = -dvdt .- f*u
+    dwT_dz = -dTdt
 
-    # println(size(wV(duw_dz)))
     # u, v, T, uw, vw, wT, t
     return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
 end
