@@ -25,6 +25,11 @@ struct LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}
     vv :: 𝒯
     ww :: 𝒯
 
+    # Subfilter momentum fluxes
+    νₑ_∂z_u :: 𝒯
+    νₑ_∂z_v :: 𝒯
+    νₑ_∂z_w :: 𝒯
+
     # Simulation constants
     α  :: 𝒰
     β  :: 𝒰
@@ -36,6 +41,12 @@ struct LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}
     t  :: 𝒮
     zC :: 𝒮
     zF :: 𝒮
+
+    # Boundary conditions
+    θ_top    :: 𝒰
+    u_top    :: 𝒰
+    θ_bottom :: 𝒰
+    u_bottom :: 𝒰
 
     # Info about the simulation
     info :: 𝒱
@@ -72,6 +83,11 @@ function ReadJLD2_LESbraryData(filename)
     wu  = zeros(Nz+1, Nt)
     wv  = zeros(Nz+1, Nt)
 
+    # Subfilter momentum fluxes
+    νₑ_∂z_u  = zeros(Nz+1, Nt)
+    νₑ_∂z_v  = zeros(Nz+1, Nt)
+    νₑ_∂z_w  = zeros(Nz+1, Nt)
+
     # grab arrays
     for j in 1:Nt
         key = timeseries_keys[j]
@@ -88,6 +104,11 @@ function ReadJLD2_LESbraryData(filename)
         @. uu[:, j] = les_data["timeseries"]["uu"][key][1, 1, :]
         @. vv[:, j] = les_data["timeseries"]["vv"][key][1, 1, :]
         @. ww[:, j] = les_data["timeseries"]["ww"][key][1, 1, :]
+
+        # Subfilter momentum fluxes
+        @. νₑ_∂z_u[:, j] = les_data["timeseries"]["νₑ_∂z_u"][key][1, 1, :]
+        @. νₑ_∂z_v[:, j] = les_data["timeseries"]["νₑ_∂z_v"][key][1, 1, :]
+        @. νₑ_∂z_w[:, j] = les_data["timeseries"]["νₑ_∂z_w"][key][1, 1, :]
 
         t[j] = les_data["timeseries"]["t"][key]
     end
@@ -106,6 +127,9 @@ function ReadJLD2_LESbraryData(filename)
     # Push second order statistics into container
     push!(container, wT, wu, wv, uu, vv, ww)
 
+    # Push subfilter momentum fluxes into container
+    push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w)
+
     # Now grab parameter
     α = les_data["buoyancy"]["equation_of_state"]["α"]
     β = les_data["buoyancy"]["equation_of_state"]["β"]
@@ -122,6 +146,15 @@ function ReadJLD2_LESbraryData(filename)
 
     # push
     push!(container, t, zC, zF)
+
+    # now grab boundary condition data
+    θ_top = les_data["boundary_conditions"]["θ_top"]
+    u_top = les_data["boundary_conditions"]["u_top"]
+    θ_bottom = les_data["boundary_conditions"]["θ_bottom"]
+    u_bottom = les_data["boundary_conditions"]["u_bottom"]
+
+    # push to container
+    push!(container, θ_top, u_top, θ_bottom, u_bottom)
 
     # Now construct types
     𝒮 = typeof(T⁰)
@@ -142,21 +175,8 @@ function ReadJLD2_LESbraryData(filename)
     return LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}(container...)
 end
 
-# avg = "src/les/data/2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_averaged_statistics.jld2"
-# les = jldopen(avg, "r")
-# keys(les)
-# les["timeseries"]
-
-# avg = "src/les/data/general_strat_sandreza/general_strat_4_profiles/general_strat_4_profiles.jld2"
-
-# avg = "src_NDE/les/data/2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_statistics.jld2"
-# les_data = jldopen(avg, "r")
-# les_keys = keys(les_data)
-# timeseries_keys = keys(les_data["timeseries"]["t"])
-
-# for k in keys(les_data["timeseries"])
-#     println(k)
-# end
-
-# stats = "src/les/data/2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_Nh128_Nz128_statistics.jld2"
-# ReadJLD2_OceananigansData(stats)
+# TESTING
+# file = "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2"
+# les_data = jldopen(file, "r")
+# keys(les["timeseries"]["t"])
+# les["boundary_conditions"]
