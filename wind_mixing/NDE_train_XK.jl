@@ -8,7 +8,7 @@ using DiffEqSensitivity
 
 using Oceananigans.Grids
 using OceanParameterizations
-# ENV["CUDA_VISIBLE_DEVICES"]="-1"
+# ENV["CUDA_VISIBLE_DEVICES"]="0"
 
 # load dataset and NN
 PATH = pwd()
@@ -129,7 +129,30 @@ function NDE_nondimensional!(dx, x, p, t)
     dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN(x))
 end
 
-t_train, uvT_train = time_window(t, uvT_scaled, 10)
+
+function NDE_nondimensional_flux!(dx, x, p, t)
+    f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT = p[1:12]
+    Nz = 32
+    uw_weights = p[13:21740]
+    vw_weights = p[21741:43468]
+    wT_weights = p[43469:end]
+    uw_NN = re_uw(uw_weights)
+    vw_NN = re_vw(vw_weights)
+    wT_NN = re_wT(wT_weights)
+    A = - τ / H
+    B = f * τ
+    D_face = Dᶠ(Nz, 1/Nz)
+    D_cell = Dᶜ(Nz, 1/Nz)
+    u = x[1:Nz]
+    v = x[Nz+1:2*Nz]
+    T = x[2*Nz+1:end]
+    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+    dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* cell_to_cell_derivative(D_face, vw_NN(x)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN(x))
+end
+
+
+t_train, uvT_train = time_window(t, uvT_scaled, 3)
 t_train = Float32.(t_train ./ τ)
 # t_train, uvT_train = time_window(t, uvT_scaled, 100)
 prob = ODEProblem(NDE_nondimensional!, uvT₀, (t_train[1], t_train[end]), p_nondimensional, saveat=t_train) # divide τ needs to be changed
@@ -139,10 +162,12 @@ sol = solve(prob)
 # plot(sol[:,tpoint][33:64], zC_coarse)
 # plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
 
+opt = ROCK2()
+
 function loss_NDE_NN()
     p = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
     # _prob = remake(prob, p=p)
-    _sol = Array(solve(prob, ROCK4(), p=p, reltol=1e-3, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol = Array(solve(prob, opt, p=p, reltol=1e-3, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
     loss = Flux.mse(_sol, uvT_train)
     return loss
 end
@@ -150,7 +175,7 @@ end
 function cb()
     p = cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1)
     # _prob = remake(prob, p=p)
-    _sol = Array(solve(prob, ROCK4(), p=p, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol = Array(solve(prob, opt, p=p, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
     loss = Flux.mse(_sol, uvT_train)
     @info loss
     return _sol
