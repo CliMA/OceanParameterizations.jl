@@ -32,24 +32,30 @@ the horizontally averaged flux for variable V.
 # Arguments
 Unscaled u, v, T, z, t, and f
 """
-function reconstruct_flux_profiles(u, v, T, νₑ_∂z_u, νₑ_∂z_v, κₑ_∂z_T, z, t, f)
+function reconstruct_flux_profiles(u, v, T, νₑ_∂z_u, νₑ_∂z_v, κₑ_∂z_T, zF, t, f)
 
-    Δz = diff(z)
+    Δz = diff(zF)
     Δt = diff(t, dims=1)'
 
     Nz,Nt = size(T)
 
-    dudt = (u[:,2:Nt] .- u[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dUdt values
-    dvdt = (v[:,2:Nt] .- v[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dVdt values
-    dTdt = (T[:,2:Nt] .- T[:,1:Nt-1]) ./ Δt # Nz x (Nt-1) array of approximate dTdt values
+    ∂t(A) = (A[:,2:Nt] .- A[:,1:Nt-1]) ./ Δt
+    dudt = ∂t(u) # Nz x (Nt-1) array of approximate dUdt values
+    dvdt = ∂t(v) # Nz x (Nt-1) array of approximate dVdt values
+    dTdt = ∂t(T) # Nz x (Nt-1) array of approximate dTdt values
 
-    vₑ_∂²z_u = (vₑ_∂z_u[1:Nz-1,:] .- vₑ_∂z_u[2:Nz,:]) ./ Δz
-    vₑ_∂²z_v = (vₑ_∂z_v[1:Nz-1,:] .- vₑ_∂z_v[2:Nz,:]) ./ Δz
-    κₑ_∂²z_T = (κₑ_∂z_T[1:Nz-1,:] .- κₑ_∂z_T[2:Nz,:]) ./ Δz
+    ∂z(A) = (A[1:Nz,:] .- A[2:Nz+1,:]) ./ Δz
+    νₑ_∂²z_u = ∂z(νₑ_∂z_u)
+    νₑ_∂²z_v = ∂z(νₑ_∂z_v)
+    κₑ_∂²z_T = ∂z(κₑ_∂z_T)
 
+    # remove the last timestep from the variables that were not differentiated w.r.t t
     u = u[:,1:Nt-1]
     v = v[:,1:Nt-1]
     T = T[:,1:Nt-1]
+    νₑ_∂²z_u = νₑ_∂²z_u[:,1:Nt-1]
+    νₑ_∂²z_v = νₑ_∂²z_v[:,1:Nt-1]
+    κₑ_∂²z_T = κₑ_∂²z_T[:,1:Nt-1]
 
     """ evaluates wϕ = ∫ ∂z(wϕ) dz """
     function wϕ(∂z_wϕ)
@@ -60,9 +66,14 @@ function reconstruct_flux_profiles(u, v, T, νₑ_∂z_u, νₑ_∂z_v, κₑ_�
         return ans
     end
 
-    duw_dz = -dudt .+ f*v .+ vₑ_∂²z_u
-    dvw_dz = -dvdt .- f*u .+ vₑ_∂²z_v
+    duw_dz = -dudt .+ f*v .+ νₑ_∂²z_u
+    dvw_dz = -dvdt .- f*u .+ νₑ_∂²z_v
     dwT_dz = -dTdt .+ κₑ_∂²z_T
+
+    # Without subgrid fluxes:
+    # duw_dz = -dudt .+ f*v
+    # dvw_dz = -dvdt .- f*u
+    # dwT_dz = -dTdt
 
     # u, v, T, uw, vw, wT, t
     return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
@@ -164,7 +175,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
 
     if reconstruct_fluxes
         u_coarse, v_coarse, T_coarse, uw_coarse, vw_coarse, wT_coarse, t =
-            reconstruct_flux_profiles(u_coarse, v_coarse, T_coarse, νₑ_∂z_u, νₑ_∂z_v, κₑ_∂z_T, zF, t, f)
+            reconstruct_flux_profiles(u_coarse, v_coarse, T_coarse, νₑ_∂z_u, νₑ_∂z_v, κₑ_∂z_T, zF_coarse, t, f)
     end
 
     function get_scaling(name, coarse)
