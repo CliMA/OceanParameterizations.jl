@@ -14,7 +14,8 @@ export
     euclidean_distance, derivative_distance, antiderivative_distance,
 
     # Gaussian process functions
-    model_output, uncertainty, compute_kernel_matrix, mean_log_marginal_loss, GPmodel, gp_model, get_kernel
+    model_output, uncertainty, compute_kernel_matrix, mean_log_marginal_loss,
+    GPmodel, best_kernel, gp_model, get_kernel
 
 using OceanParameterizations.DataWrangling
 using Flux
@@ -30,7 +31,30 @@ end
 
 mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
 
-function gp_model(𝒱; logγ_range=-2.0:0.1:2.0, kernel=nothing)
+
+function best_kernel(𝒱; logγ_range=-2.0:0.1:2.0)
+    function m(𝒱, kernel)
+        𝒢 = GPmodel(𝒱; kernel=kernel)
+        f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
+        return f
+    end
+
+    best_kernel = nothing
+    best_mse = Inf
+    for k=1:4, logγ=logγ_range
+        kernel = get_kernel(k, logγ, 0.0, euclidean_distance)
+        model = m(𝒱, kernel)
+        error = mse(predict(𝒱, model))
+
+        if error < best_mse
+            best_kernel = kernel
+        end
+    end
+    return best_kernel
+end
+
+
+function gp_model(𝒱, kernel)
     function m(𝒱, kernel)
         𝒢 = GPmodel(𝒱; kernel=kernel)
         f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
