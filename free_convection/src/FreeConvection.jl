@@ -1,66 +1,34 @@
 module FreeConvection
 
 export
-    nc_constant,
+    zC, zF,
     FreeConvectionTrainingDataInput, rescale,
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
     solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
     animate_variable, convection_training_data, animate_learned_heat_flux
 
+using Logging
 using Printf
+using Statistics
+using DataDeps
+using GeoData
 using NCDatasets
 using Plots
 using Oceananigans.Utils
 using OceanParameterizations
 
-using Oceananigans: Cell, Face
+using GeoData: GeoXDim, GeoYDim, GeoZDim
+using Oceananigans: OceananigansLogger, Cell, Face
+
+@dim zC GeoZDim "z"
+@dim zF GeoZDim "z"
 
 # Should not have saved constant units as strings...
 nc_constant(attr) = parse(Float64, attr |> split |> first)
 
 location_z(nc_var) = "zC" in dimnames(nc_var) ? Cell : Face
 
-"""
-    animate_variable(ds, var, loc; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
-
-Create an animation of the variable `var` located in the NetCDF dataset `ds`. The coarse-grained version with `grid_points` will also be plotted. `xlabel` and `xlim` should be specified for the plot. A `filepath should also be specified`. `frameskip` > 1 can be used to skip some profiles to produce the animation more quickly. The output animation will be an mp4 with `fps` frames per second.
-"""
-function animate_variable(ds, var; grid_points, xlabel, xlim, filepath, frameskip=1, fps=15)
-    Nz, Nt = size(ds[var])
-    loc = location_z(ds[var])
-
-    if loc == Cell
-        z_fine = ds["zC"]
-        z_coarse = coarse_grain(ds["zC"], grid_points, Cell)
-    elseif loc == Face
-        z_fine = ds["zF"]
-        z_coarse = coarse_grain(ds["zF"], grid_points+1, Face)
-    end
-
-    anim = @animate for n=1:frameskip:Nt
-        @info "Plotting $var for $filepath [$n/$Nt]..."
-        var_fine = ds[var][:, n]
-
-        if loc == Cell
-            var_coarse = coarse_grain(ds[var][:, n], grid_points, Cell)
-        elseif loc == Face
-            var_coarse = coarse_grain(ds[var][:, n], grid_points+1, Face)
-        end
-
-        time_str = @sprintf("%.2f days", ds["time"][n] / days)
-
-        plot(var_fine, z_fine, linewidth=2, xlim=xlim, ylim=(-100, 0),
-             label="fine (Nz=$(length(z_fine)))", xlabel=xlabel, ylabel="Depth z (meters)",
-             title="Free convection: $time_str", legend=:bottomright, show=false)
-
-        plot!(var_coarse, z_coarse, linewidth=2, label="coarse (Nz=$(length(z_coarse)))")
-    end
-
-    @info "Saving $filepath"
-    mp4(anim, filepath, fps=fps)
-
-    return nothing
-end
+include("animations.jl")
 
 """
     FreeConvectionTrainingDataInput{Θ, B, T}
@@ -248,8 +216,20 @@ function animate_learned_heat_flux(ds, NN, T_scaling, wT_scaling; grid_points, f
     return nothing
 end
 
+const ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary"
+
+const LESBRARY_DATA_DEPS = (
+    DataDep("lesbrary_free_convection_1",
+            "proto-LESbrary.jl free convection statistics (Qb = 5×10⁻⁷ m²/s³)",
+            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb5.0e-07_f1.0e-04_Nh256_Nz128_pilot2", "statistics.nc")),
+    DataDep("lesbrary_free_convection_2",
+            "proto-LESbrary.jl free convection statistics (Qb = 2.5×10⁻⁷ m²/s³)",
+            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb2.5e-07_f1.0e-04_Nh256_Nz128_pilot3", "statistics.nc")),
+)
+
 function __init__()
     Logging.global_logger(OceananigansLogger())
+    return nothing
 end
 
 end # module
