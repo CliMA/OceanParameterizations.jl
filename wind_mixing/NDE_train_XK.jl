@@ -1,6 +1,6 @@
 using Statistics
 using BSON
-using DifferentialEquations
+using OrdinaryDiffEq
 using Flux
 using NCDatasets
 using Plots
@@ -152,17 +152,18 @@ function NDE_nondimensional_flux!(dx, x, p, t)
 end
 
 
-t_train, uvT_train = time_window(t, uvT_scaled, 3)
+t_train, uvT_train = time_window(t, uvT_scaled, 8)
 t_train = Float32.(t_train ./ τ)
 # t_train, uvT_train = time_window(t, uvT_scaled, 100)
 prob = ODEProblem(NDE_nondimensional!, uvT₀, (t_train[1], t_train[end]), p_nondimensional, saveat=t_train) # divide τ needs to be changed
+@info "t_train size = $(size(t_train)), uvT size = $(size(uvT_train))"
 
 # tpoint = 1000
 sol = solve(prob)
 # plot(sol[:,tpoint][33:64], zC_coarse)
 # plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
 
-opt = ROCK2()
+opt = ROCK4()
 
 function loss_NDE_NN()
     p = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
@@ -181,7 +182,7 @@ function cb()
     return _sol
 end
 
-Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 100), ADAM(0.01), cb=Flux.throttle(cb, 2))
+Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 50), ADAM(0.01), cb=Flux.throttle(cb, 2))
 
 
 tpoint = 100
