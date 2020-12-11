@@ -4,9 +4,7 @@ authors = ["ali-ramadhan <ali.hh.ramadhan@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-DataDeps = "124859b0-ceae-595e-8997-d05f6a7a8dfe"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-GeoData = "9b6fcbb8-86d6-11e9-1ce7-23a6bb139a78"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
 OceanParameterizations = "1f034f64-1a41-4bc8-84dc-c8a33b032d87"
