@@ -1,10 +1,16 @@
-function closure_tke_full_evolution(parameters, N, Δt, les; subsample = 1, grid = 1)
+function closure_tke_full_evolution(parameters, T⁰, les; subsample = 1, grid = 1)
 
      # set parameters
      # parameters = TKEMassFlux.TKEParameters( Cᴰ = Cᴰ )
 
+     # assume constant interval between time steps
+     Δt = les.t[2] - les.t[1]
+
+     # number of gridpoints
+     N = length(T⁰)
+
      # Build the model with a Backward Euler timestepper
-     constants = Constants(Float64; α = les.α , β = les.β, f=les.fᶿ, g=les.g)
+     constants = Constants(Float64; α = les.α , β = les.β, f=les.f⁰, g=les.g)
      model = TKEMassFlux.Model(grid = UniformGrid(N, les.L), stepper=:BackwardEuler, constants = constants, tke_equation = parameters)
 
      # Get grid if necessary
@@ -14,16 +20,13 @@ function closure_tke_full_evolution(parameters, N, Δt, les; subsample = 1, grid
      end
 
      # Set boundary conditions
-     model.bcs.u.top    = FluxBoundaryCondition(u_top)
-     model.bcs.u.bottom = FluxBoundaryCondition(u_bottom)
-     model.bcs.b.top    = FluxBoundaryCondition(θ_top)
-     model.bcs.b.bottom = FluxBoundaryCondition(θ_bottom) # may need to fix
+     model.bcs.U.top    = FluxBoundaryCondition(les.u_top)
+     model.bcs.U.bottom = GradientBoundaryCondition(les.u_bottom)
+     model.bcs.T.top    = FluxBoundaryCondition(les.θ_top)
+     model.bcs.T.bottom = GradientBoundaryCondition(les.θ_bottom) # may need to fix
 
     # define the closure
     function evolve()
-
-        # get average of initial condition of LES
-        T⁰ = custom_avg(les.T⁰, N)
 
         # set equal to initial condition of parameterization
         model.solution.T[1:N] = copy(T⁰)
