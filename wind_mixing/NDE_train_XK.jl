@@ -1,19 +1,22 @@
 using Statistics
-using NCDatasets
-using DifferentialEquations
-using Plots
-using Flux, DiffEqFlux
-using ClimateParameterizations
-using Oceananigans.Grids
 using BSON
+using DifferentialEquations
+using Flux
+using NCDatasets
+using Plots
+using DiffEqSensitivity
+
+using Oceananigans.Grids
+using OceanParameterizations
+# ENV["CUDA_VISIBLE_DEVICES"]="0"
 
 # load dataset and NN
-PATH = joinpath(pwd(), "wind_mixing")
+PATH = pwd()
 DATA_PATH = joinpath(PATH, "Data", "wind_mixing_horizontal_averages_0.02Nm2_8days.nc")
 ds = NCDataset(DATA_PATH)
 @info ds.attrib
 t = Array(ds["time"])
-
+# 
 uw_NN_params = BSON.load(joinpath(PATH, "Output","uw_NN_params.bson"))
 vw_NN_params = BSON.load(joinpath(PATH, "Output","vw_NN_params.bson"))
 wT_NN_params = BSON.load(joinpath(PATH, "Output","wT_NN_params.bson"))
@@ -39,36 +42,10 @@ uvT_scaled = uw_NN_params[:uvT_scaling]
 zC_coarse = uw_NN_params[:zC]
 zF_coarse = wT_NN_params[:zF]
 
-tspan_train = (0.0, t[100])
+tspan_train = (0.0, t[2])
 uvT₀ = uvT_scaled[:,1]
 
 Nz = 32
-
-# abstract type AbstractFeatureScaling end
-
-# struct ZeroMeanUnitVarianceScaling{T} <: AbstractFeatureScaling
-#     μ :: T
-#     σ :: T
-# end
-
-
-# function ZeroMeanUnitVarianceScaling(data)
-#     μ, σ = mean(data), std(data)
-#     return ZeroMeanUnitVarianceScaling(μ, σ)
-# end
-
-# scale(x, s::ZeroMeanUnitVarianceScaling) = (x .- s.μ) / s.σ
-# unscale(y, s::ZeroMeanUnitVarianceScaling) = s.σ * y .+ s.μ
-
-u = Array(ds["u"])
-u_scaling = ZeroMeanUnitVarianceScaling(u)
-
-struct ScaledData
-    scaled_data
-    scaling
-end
-
-a = ScaledData(u_scaled, u_scaling)
 
 
 # central derivative as gradient approximator, periodic boundary conditions
@@ -101,27 +78,13 @@ function time_window(t, uvT, stopindex)
     end
 end
 
-# function NDE!(dx, x, p, t)
-#     f = p[1]
-#     Nz = Int(p[2])
-#     u = x[1:Nz]
-#     v = x[Nz+1:2*Nz]
-#     T = x[2*Nz+1:end]
-#     dx[1:Nz] .= -1 .* central_difference(uw_NN(x), zC_coarse) .+ f .* v
-#     dx[Nz+1:2*Nz] .= -1 .* central_difference(vw_NN(x), zC_coarse) .- f .* u
-#     dx[2*Nz+1:end] .= -1 .* central_difference(face_to_cell(wT_NN(x)), zC_coarse)
-# end
-
 function cell_to_cell_derivative(D, data)
     face_data = D * data
     cell_data = 0.5 .* (@view(face_data[1:end-1]) .+ @view(face_data[2:end]))
     return cell_data
 end
 
-D_face = Dᶠ(Nz, 1/Nz)
-cell_to_cell_derivative(D_face, u_scaled[:,20])
-
-f = 10e-4
+f = 1f-4
 H = abs(zF_coarse[end] - zF_coarse[1])
 τ = abs(t[end] - t[1])
 Nz = length(zC_coarse)
@@ -131,20 +94,29 @@ T_scaling = ZeroMeanUnitVarianceScaling(T)
 uw_scaling = ZeroMeanUnitVarianceScaling(uw)
 vw_scaling = ZeroMeanUnitVarianceScaling(vw)
 wT_scaling = ZeroMeanUnitVarianceScaling(wT)
+μ_u = u_scaling.μ
+μ_v = v_scaling.μ
+σ_u = u_scaling.σ
+σ_v = v_scaling.σ
+σ_T = T_scaling.σ
+σ_uw = uw_scaling.σ
+σ_vw = vw_scaling.σ
+σ_wT = wT_scaling.σ
+uw_weights, re_uw = Flux.destructure(uw_NN)
+vw_weights, re_vw = Flux.destructure(vw_NN)
+wT_weights, re_wT = Flux.destructure(wT_NN)
 
-p_nondimensional = (f, τ, H, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling)
+p_nondimensional = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
 
 function NDE_nondimensional!(dx, x, p, t)
-    # uw_NN = reconstruct(weights, NN)
-    f, τ, H, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling = p
-    μ_u = u_scaling.μ
-    μ_v = v_scaling.μ
-    σ_u = u_scaling.σ
-    σ_v = v_scaling.σ
-    σ_T = T_scaling.σ
-    σ_uw = uw_scaling.σ
-    σ_vw = vw_scaling.σ
-    σ_wT = wT_scaling.σ
+    f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT = p[1:12]
+    Nz = 32
+    uw_weights = p[13:21740]
+    vw_weights = p[21741:43468]
+    wT_weights = p[43469:end]
+    uw_NN = re_uw(uw_weights)
+    vw_NN = re_vw(vw_weights)
+    wT_NN = re_wT(wT_weights)
     A = - τ / H
     B = f * τ
     D_face = Dᶠ(Nz, 1/Nz)
@@ -152,29 +124,71 @@ function NDE_nondimensional!(dx, x, p, t)
     u = x[1:Nz]
     v = x[Nz+1:2*Nz]
     T = x[2*Nz+1:end]
-    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimentional gradient
+    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
     dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* cell_to_cell_derivative(D_face, vw_NN(x)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* D_cell * wT_NN(x)
+    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN(x))
 end
 
-t_train, uvT_train = time_window(t, uvT_scaled, 1000)
+
+function NDE_nondimensional_flux!(dx, x, p, t)
+    f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT = p[1:12]
+    Nz = 32
+    uw_weights = p[13:21740]
+    vw_weights = p[21741:43468]
+    wT_weights = p[43469:end]
+    uw_NN = re_uw(uw_weights)
+    vw_NN = re_vw(vw_weights)
+    wT_NN = re_wT(wT_weights)
+    A = - τ / H
+    B = f * τ
+    D_face = Dᶠ(Nz, 1/Nz)
+    D_cell = Dᶜ(Nz, 1/Nz)
+    u = x[1:Nz]
+    v = x[Nz+1:2*Nz]
+    T = x[2*Nz+1:end]
+    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+    dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* cell_to_cell_derivative(D_face, vw_NN(x)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN(x))
+end
+
+
+t_train, uvT_train = time_window(t, uvT_scaled, 3)
+t_train = Float32.(t_train ./ τ)
 # t_train, uvT_train = time_window(t, uvT_scaled, 100)
+prob = ODEProblem(NDE_nondimensional!, uvT₀, (t_train[1], t_train[end]), p_nondimensional, saveat=t_train) # divide τ needs to be changed
 
-prob = ODEProblem(NDE_nondimensional!, uvT₀, (t_train[1]/τ, t_train[end]/τ), p_nondimensional, saveat=t_train./τ)
-
-tpoint = 1000
+# tpoint = 1000
 sol = solve(prob)
-plot(sol[:,tpoint][33:64], zC_coarse)
-plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
+# plot(sol[:,tpoint][33:64], zC_coarse)
+# plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
 
-function loss_NDE(x, y)
-    return Flux.mse(x, y)
+opt = ROCK2()
+
+function loss_NDE_NN()
+    p = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
+    # _prob = remake(prob, p=p)
+    _sol = Array(solve(prob, opt, p=p, reltol=1e-3, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    loss = Flux.mse(_sol, uvT_train)
+    return loss
 end
 
 function cb()
-    @info Flux.mse(Array(solve(prob)), uvT_train)
+    p = cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1)
+    # _prob = remake(prob, p=p)
+    _sol = Array(solve(prob, opt, p=p, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    loss = Flux.mse(_sol, uvT_train)
+    @info loss
+    return _sol
 end
 
-Flux.train!(loss_NDE, Flux.params([uw_NN, vw_NN, wT_NN]), zip(Array(solve(prob)),uvT_train), Descent(), cb = cb)
+Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 100), ADAM(0.01), cb=Flux.throttle(cb, 2))
 
-Flux.params(t_train, [2, 0])
+
+tpoint = 100
+_sol = cb()
+plot(_sol[:,tpoint][33:64], zC_coarse, label="NDE")
+plot!(uvT_scaled[:,tpoint][33:64], zC_coarse, label="truth")
+plot(_sol[:,tpoint][1:32], zC_coarse, label="NDE")
+plot!(uvT_scaled[:,tpoint][1:32], zC_coarse, label="truth")
+plot(_sol[:,tpoint][65:end], zC_coarse, label="NDE", legend=:topleft)
+plot!(uvT_scaled[:,tpoint][65:end], zC_coarse, label="truth")
