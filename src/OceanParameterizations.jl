@@ -11,14 +11,14 @@ export
     predict, animate_gif,
 
     # GaussianProcesses
-    gp_model, get_kernel, euclidean_distance, derivative_distance, antiderivative_distance,
+    gp_model, best_kernel, get_kernel, euclidean_distance, derivative_distance, antiderivative_distance,
 
     # NeuralNetworks
     nn_model,
 
     # PhysicalParameterizations
-    closure_free_convection_kpp_full_evolution,
-    closure_free_convection_tke_full_evolution
+    closure_kpp_full_evolution,
+    closure_tke_full_evolution
 
 using LinearAlgebra
 using Printf

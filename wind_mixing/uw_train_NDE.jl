@@ -5,6 +5,7 @@ using Oceananigans.Grids: Cell, Face
 
 include("lesbrary_data.jl")
 include("data_containers.jl")
+include("animate_prediction.jl")
 
 output_gif_directory = "Output1"
 
@@ -43,18 +44,29 @@ vw_NN = predict(𝒟test.vw, vw_NN_model)
 wT_NN = predict(𝒟test.wT, wT_NN_model)
 
 # Compare NN predictions to truth
-animate_gif(uw_NN, 𝒟test.uw.z, 𝒟test.t, "uw", x_label=["NN(u,v,T)", "truth"], filename="uw_NN", directory=output_gif_directory)
-animate_gif(vw_NN, 𝒟test.vw.z, 𝒟test.t, "vw", x_label=["NN(u,v,T)", "truth"], filename="vw_NN", directory=output_gif_directory)
-animate_gif(wT_NN, 𝒟test.wT.z, 𝒟test.t, "wT", x_label=["NN(u,v,T)", "truth"], filename="wT_NN", directory=output_gif_directory)
+animate_prediction(uw_NN, "uw", 𝒟test, test_file; legend_labels=["NN(u,v,T)", "truth"], filename="uw_NN_$(test_file)", directory=output_gif_directory)
+animate_prediction(vw_NN, "vw", 𝒟test, test_file; legend_labels=["NN(u,v,T)", "truth"], filename="vw_NN_$(test_file)", directory=output_gif_directory)
+animate_prediction(wT_NN, "wT", 𝒟test, test_file; legend_labels=["NN(u,v,T)", "truth"], filename="wT_NN_$(test_file)", directory=output_gif_directory)
 
 ## Gaussian Process Regression
 
-# trained GP models
-logγ_range=-2.0:0.5:2.0
-# uw_GP_model = OceanParameterizations.GaussianProcess.gp_model(𝒟train.uw, logγ_range=logγ_range, kernel=get_kernel(1, 0.3, 0.0, euclidean_distance))
-uw_GP_model = gp_model(𝒟train.uw, logγ_range=logγ_range)
-vw_GP_model = gp_model(𝒟train.vw, logγ_range=logγ_range)
-wT_GP_model = gp_model(𝒟train.wT, logγ_range=logγ_range)
+# A. Find the kernel that minimizes the prediction error on the training data
+# * Sweeps over length-scale hyperparameter value in logγ_range
+# * Sweeps over covariance functions
+logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
+uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+
+# OR set the kernel manually here (to save a bunch of time):
+uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+vw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+wT_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+
+# Trained GP models
+uw_GP_model = gp_model(𝒟train.uw, uw_kernel)
+vw_GP_model = gp_model(𝒟train.vw, vw_kernel)
+wT_GP_model = gp_model(𝒟train.wT, wT_kernel)
 
 # GP predictions on test data
 uw_GP = predict(𝒟test.uw, uw_GP_model)
@@ -67,29 +79,30 @@ mse(vw_GP)
 mse(wT_GP)
 
 # Compare GP predictions to truth
-animate_gif(uw_GP, 𝒟test.uw.z, 𝒟test.t, "uw", x_label=["GP(u,v,T)", "truth"], filename="uw_GP", directory=output_gif_directory)
-animate_gif(vw_GP, 𝒟test.vw.z, 𝒟test.t, "vw", x_label=["GP(u,v,T)", "truth"], filename="vw_GP", directory=output_gif_directory)
-animate_gif(wT_GP, 𝒟test.wT.z, 𝒟test.t, "wT", x_label=["GP(u,v,T)", "truth"], filename="wT_GP", directory=output_gif_directory)
+animate_prediction(uw_GP, "uw", 𝒟test, test_file; legend_labels=["GP(u,v,T)", "truth"], filename="uw_GP_$(test_file)", directory=output_gif_directory)
+animate_prediction(vw_GP, "vw", 𝒟test, test_file; legend_labels=["GP(u,v,T)", "truth"], filename="vw_GP_$(test_file)", directory=output_gif_directory)
+animate_prediction(wT_GP, "wT", 𝒟test, test_file; legend_labels=["GP(u,v,T)", "truth"], filename="wT_GP_$(test_file)", directory=output_gif_directory)
 
 ## KPP Parameterization (no training)
 
-Δt = 𝒟test.t[2] - 𝒟test.t[1]
 les = read_les_output(test_file)
 parameters = KPP.Parameters() # default parameters
-predictions = closure_free_convection_kpp_full_evolution(parameters, 33, Δt, les)
-T_KPP = (predictions, 𝒟test.T_coarse)
+KPP_model = closure_kpp_full_evolution(parameters, 𝒟test.T.coarse[:,1], Δt, les)
+predictions = KPP_model()
+T_KPP = (predictions, 𝒟test.T.coarse)
 mse(T_KPP)
-animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["KPP(T)", "truth"], "T_KPP", directory=output_gif_directory)
+animate_prediction(T_KPP, "T", 𝒟test, test_file; legend_labels=["KPP(T)", "truth"], filename="T_KPP_$(test_file)", directory=output_gif_directory)
 
 ## TKE Parameterization (no training; use default parameters)
 
-Δt = 𝒟test.t[2] - 𝒟test.t[1]
 les = read_les_output(test_file)
 parameters = TKEMassFlux.TKEParameters() # default parameters
-predictions = closure_free_convection_kpp_full_evolution(problem.parameters, 33, Δt, les)
-T_KPP = (predictions, 𝒟test.T_coarse)
-mse(T_KPP)
-animate_gif(T_KPP, 𝒟test.uw.z, 𝒟test.t, "T (C)", ["TKE(T)", "truth"], "T_TKE", directory=output_gif_directory)
+TKE_model = closure_tke_full_evolution(parameters, 𝒟test.T.coarse[:,1], Δt, les)()
+predictions = TKE_model()
+T_TKE = (predictions, 𝒟test.T.coarse)
+mse(T_TKE)
+animate_prediction(T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(T)", "truth"], filename="T_TKE_$(test_file)", directory=output_gif_directory)
+
 
 ## Solving the PDEs using the predictions from NN or GP models
 

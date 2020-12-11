@@ -1,4 +1,4 @@
-function animate_gif(xs, y, t, x_str; x_label=["" for i in 1:length(xs)], filename=x_str, directory="Output")
+function animate_gif(xs, y, t, x_str; x_label=["" for i in 1:length(xs)], filename=x_str, header="", directory="Output")
     filepath = pwd() * "/" * directory * "/"
     isdir(dirname(filepath)) || mkpath(filepath)
 
@@ -6,9 +6,9 @@ function animate_gif(xs, y, t, x_str; x_label=["" for i in 1:length(xs)], filena
         x_max = maximum([maximum(x) for x in xs])
         x_min = minimum([minimum(x) for x in xs])
 
-        fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom)
+        fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom, size=(400,400))
         for i in 1:length(xs)
-            plot!(fig, xs[i][:,n], y, label=x_label[i], title="t = $(round(t[n]/86400, digits=2)) days")
+            plot!(fig, xs[i][:,n], y, label=x_label[i], title=header*"t = $(round(t[n]/86400, digits=1)) days", linewidth=3)
         end
 
         xlabel!(fig, "$x_str")

@@ -13,16 +13,17 @@ file_labels = Dict(
     "strong_wind_weak_heating" => "Strong wind, weak heating"
 )
 
-Ts_reconstructed = Dict() # maps file name to 𝒟 struct
+reconstructed = true
+suffix = "reconstructed_$(reconstructed)_without_subgrid"
+
 Ts = Dict()
 for file in files
-    Ts_reconstructed[file] = data(file, reconstruct_fluxes=true) # <: OceananigansData
-    Ts[file] = data(file, reconstruct_fluxes=false) # <: OceananigansData
+    Ts[file] = data(file, reconstruct_fluxes=reconstructed) # <: OceananigansData
 end
 
 x_lims = Dict(
-    "uw" => (-8,1),
-    "vw" => (-1,4.5),
+    "uw" => (-10,2),
+    "vw" => (-4,4.5),
     "wT" => (-1.5,0.7),
     "T" => (19.6,20)
 )
@@ -75,7 +76,7 @@ titles = Dict(
     "T" => "Temperature, T",
 )
 
-function plot_frame_i(name, Ts, i)
+function plot_frame_i(name, i)
     p = plot(xlabel=x_labels[name], xlims = x_lims[name], ylabel="Depth (m)", palette=:Paired_6, legend=legend_placement[name], foreground_color_grid=:white, plot_titlefontsize=20)
     for (file, T) in Ts
         plot!(f[name](T)[:,i].*scaling_factor[name], zs[name](T), title = titles[name], label="$(file)", linewidth=3)
@@ -84,17 +85,17 @@ function plot_frame_i(name, Ts, i)
     p
 end
 
-p1 = plot_frame_i("uw", Ts, 288)
-png(p1, pwd()*"/uw_last_frame.png")
+p1 = plot_frame_i("uw", 288)
+png(p1, pwd()*"/uw_last_frame_$(suffix).png")
 
-p2 = plot_frame_i("vw", Ts, 288)
-png(p2, pwd()*"/vw_last_frame.png")
+p2 = plot_frame_i("vw", 288)
+png(p2, pwd()*"/vw_last_frame_$(suffix).png")
 
-p3 = plot_frame_i("wT", Ts, 288)
-png(p3, pwd()*"/wT_last_frame.png")
+p3 = plot_frame_i("wT", 288)
+png(p3, pwd()*"/wT_last_frame_$(suffix).png")
 
-pT = plot_frame_i("T", Ts, 288)
-png(pT, pwd()*"/T_last_frame.png")
+pT = plot_frame_i("T", 288)
+png(pT, pwd()*"/T_last_frame_$(suffix).png")
 
 p4 = plot(grid=false, showaxis=false, palette=:Paired_6, ticks=nothing)
 for file in files
@@ -105,26 +106,23 @@ png(p4, pwd()*"/legend_last_frame.png")
 
 layout = @layout [a b c d]
 p = plot(p1,p2,p3,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, pwd()*"/all_last_frame_new_suite.png")
+png(p, pwd()*"/all_last_frame_new_suite_$(suffix).png")
 
 layout = @layout [a b c d e]
 p = plot(p1,p2,p3,pT,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, pwd()*"/all_last_frame_new_suite_with_T.png")
+png(p, pwd()*"/all_last_frame_new_suite_with_T_$(suffix).png")
 
 ## ANIMATION
 
 function animate_all(name, Ts)
     anim = @animate for i in 1:288
-        plot_frame_i(name, Ts, i)
+        plot_frame_i(name, i)
     end
     return anim
 end
 
 save_animation(anim, filename) = gif(anim, pwd()*filename, fps=20)
-# save_animation(animate_all("uw", Ts_reconstructed), "/uw_unscaled_reconstructed.gif")
-# save_animation(animate_all("vw", Ts_reconstructed), "/vw_unscaled_reconstructed.gif")
-# save_animation(animate_all("wT", Ts_reconstructed), "/wT_unscaled_reconstructed.gif")
-save_animation(animate_all("uw", Ts), "/uw_unscaled.gif")
-save_animation(animate_all("vw", Ts), "/vw_unscaled.gif")
-save_animation(animate_all("wT", Ts), "/wT_unscaled.gif")
-save_animation(animate_all("T", Ts), "/T_unscaled.gif")
+save_animation(animate_all("uw", Ts), "/uw_$(suffix).gif")
+save_animation(animate_all("vw", Ts), "/vw_$(suffix).gif")
+save_animation(animate_all("wT", Ts), "/wT_$(suffix).gif")
+save_animation(animate_all("T", Ts), "/T_$(suffix).gif")
