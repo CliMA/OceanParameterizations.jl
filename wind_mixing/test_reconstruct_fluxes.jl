@@ -1,11 +1,8 @@
 
 using OceanParameterizations, Plots
 
-𝒟 = data("strong_wind")
-
-𝒟_reconstructed = data("strong_wind_weak_heating", reconstruct_fluxes=true)
-
-𝒟_reconstructed
+𝒟 = data("strong_wind", reconstruct_fluxes=false)
+𝒟_reconstructed = data("strong_wind", reconstruct_fluxes=true)
 z = 𝒟_reconstructed.uw.z
 t = 𝒟_reconstructed.t
 Nt = length(𝒟.t)
