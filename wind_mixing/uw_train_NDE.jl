@@ -59,9 +59,10 @@ animate_prediction(wT_NN, "wT", 𝒟test, test_file; legend_labels=["NN(u,v,T)",
 # * Sweeps over length-scale hyperparameter value in logγ_range
 # * Sweeps over covariance functions
 logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
-uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+# uncomment the next three lines to try this but just for testing the GPR use the basic get_kernel stuff below
+# uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+# vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+# wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
 
 # OR set the kernel manually here (to save a bunch of time):
 uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
