@@ -163,9 +163,9 @@ get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
 μ_vw, σ_vw = get_μ_σ("vw")
 μ_wT, σ_wT = get_μ_σ("wT")
 
-uw_weights, re_uw = Flux.destructure(uw_NN)
-vw_weights, re_vw = Flux.destructure(vw_NN)
-wT_weights, re_wT = Flux.destructure(wT_NN)
+uw_weights, re_uw = Flux.destructure(uw_NN_model)
+vw_weights, re_vw = Flux.destructure(vw_NN_model)
+wT_weights, re_wT = Flux.destructure(wT_NN_model)
 
 p_nondimensional = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
 
@@ -175,9 +175,9 @@ function NDE_nondimensional!(dx, x, p, t)
     uw_weights = p[13:21740]
     vw_weights = p[21741:43468]
     wT_weights = p[43469:end]
-    uw_NN = re_uw(uw_weights)
-    vw_NN = re_vw(vw_weights)
-    wT_NN = re_wT(wT_weights)
+    uw_NN_model = re_uw(uw_weights)
+    vw_NN_model = re_vw(vw_weights)
+    wT_NN_model = re_wT(wT_weights)
     A = - τ / H
     B = f * τ
     D_face = Dᶠ(Nz, 1/Nz)
@@ -185,9 +185,9 @@ function NDE_nondimensional!(dx, x, p, t)
     u = x[1:Nz]
     v = x[Nz+1:2*Nz]
     T = x[2*Nz+1:end]
-    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-    dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* cell_to_cell_derivative(D_face, vw_NN(x)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN(x))
+    dx[1:Nz] .= A .* σ_uw ./ σ_u .* cell_to_cell_derivative(D_face, uw_NN_model(x)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+    dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* cell_to_cell_derivative(D_face, vw_NN_model(x)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * wT_NN_model(x))
 end
 
 t_train, uvT_train = time_window(𝒟test.t, 𝒟test.uvT_scaled, 10)
