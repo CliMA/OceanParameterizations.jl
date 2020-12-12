@@ -12,19 +12,20 @@ function animate_variable(v, v̄; xlabel, filepath, frameskip=1, fps=15)
     z = dims(v, ZDim)
     z̄ = dims(v̄, ZDim)
 
-    xlim = extrema(v)
-    ylim = (minimum(z), 0)
+    xlims = extrema(v)
+    ylims = (minimum(z), 0)
+
+    kwargs = (linewidth=3, linealpha=0.7, xlims=xlims, ylims=ylims, xlabel=xlabel,
+              ylabel="Depth z (meters)", grid=false, legend=:bottomright, framestyle=:box,
+              foreground_color_legend=nothing, background_color_legend=nothing)
 
     anim = @animate for n=1:frameskip:length(times)
         @info "Plotting $(v.name) for $filepath [$n/$(length(times))]..."
 
         time_str = @sprintf("%.2f days", times[n] / days)
 
-        plot(v[Ti=n][:], z[:], linewidth=2, xlim=xlim, ylim=ylim,
-             label="LES (Nz=$(length(z)))", xlabel=xlabel, ylabel="Depth z (meters)",
-             title="Free convection: $time_str", legend=:bottomright)
-
-        plot!(v̄[Ti=n][:], z̄[:], linewidth=2, label="coarse (Nz=$(length(z̄)))")
+        plot(v[Ti=n][:], z[:], label="LES (Nz=$(length(z)))", title="Free convection: $time_str"; kwargs...)
+        plot!(v̄[Ti=n][:], z̄[:], label="coarse (Nz=$(length(z̄)))"; kwargs...)
     end
 
     @info "Saving $filepath..."

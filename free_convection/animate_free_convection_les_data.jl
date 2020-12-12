@@ -2,6 +2,7 @@ using DataDeps
 using GeoData
 using NCDatasets
 using FreeConvection
+using FreeConvection: coarse_grain
 
 for dd in FreeConvection.LESBRARY_DATA_DEPS
     DataDeps.register(dd)
@@ -14,9 +15,10 @@ training_datasets = tds = Dict(
     2 => NCDstack(datadep"lesbrary_free_convection_2/statistics.nc")
 )
 
-coarse_training_datasets = ctds = Dict(id => coarse_grain(ds, Nz) for (id, ds) in tds)
+coarse_training_datasets = ctds =
+    Dict(id => coarse_grain(ds, Nz) for (id, ds) in tds)
 
-for id in keys(td)
+for id in keys(tds)
     T_filepath = "free_convection_T_$id"
     animate_variable(tds[id][:T], ctds[id][:T], xlabel="Temperature T (°C)", filepath=T_filepath, frameskip=5)
 

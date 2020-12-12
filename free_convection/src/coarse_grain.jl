@@ -56,6 +56,6 @@ end
 
 function coarse_grain(ds::AbstractGeoStack, n)
     vars = keys(ds)
-    cg_arrays = [coarse_grain(ds[var], 16) for var in vars]
+    cg_arrays = [coarse_grain(ds[var], n) for var in vars]
     return GeoStack(cg_arrays..., keys=vars, window=window(ds), refdims=refdims(ds), metadata=metadata(ds))
 end

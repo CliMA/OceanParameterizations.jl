@@ -2,6 +2,7 @@ module FreeConvection
 
 export
     zC, zF,
+    coarse_grain, animate_variable,
     FreeConvectionTrainingDataInput, rescale,
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
     solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
