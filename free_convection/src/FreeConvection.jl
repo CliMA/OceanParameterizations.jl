@@ -11,6 +11,7 @@ using Logging
 using Printf
 using Statistics
 using DataDeps
+using DimensionalData
 using GeoData
 using NCDatasets
 using Plots
@@ -20,8 +21,8 @@ using OceanParameterizations
 using GeoData: GeoXDim, GeoYDim, GeoZDim
 using Oceananigans: OceananigansLogger, Cell, Face
 
-@dim zC GeoZDim "z"
-@dim zF GeoZDim "z"
+@dim zC ZDim "z"
+@dim zF ZDim "z"
 
 # Should not have saved constant units as strings...
 nc_constant(attr) = parse(Float64, attr |> split |> first)
