@@ -18,17 +18,12 @@ using Plots
 using Oceananigans.Utils
 using OceanParameterizations
 
-using GeoData: GeoXDim, GeoYDim, GeoZDim
 using Oceananigans: OceananigansLogger, Cell, Face
 
 @dim zC ZDim "z"
 @dim zF ZDim "z"
 
-# Should not have saved constant units as strings...
-nc_constant(attr) = parse(Float64, attr |> split |> first)
-
-location_z(nc_var) = "zC" in dimnames(nc_var) ? Cell : Face
-
+include("coarse_grain.jl")
 include("animations.jl")
 
 """

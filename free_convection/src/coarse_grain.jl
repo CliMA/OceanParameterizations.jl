@@ -1,5 +1,5 @@
 using DimensionalData: basetypeof
-using GeoData: AbstractGeoStack
+using GeoData: AbstractGeoStack, window
 
 function coarse_grain(A::Array, n, ::Cell)
     N = length(A)
@@ -52,4 +52,10 @@ function coarse_grain(A::GeoArray, n)
     z = dims(A, ZDim)
     coarse_grained_dims = (coarse_grain(z, n, loc), otherdims(A, z)...)
     return GeoArray(Ā, dims=coarse_grained_dims, name=GeoData.name(A), refdims=refdims(A), metadata=metadata(A), missingval=missingval(A))
+end
+
+function coarse_grain(ds::AbstractGeoStack, n)
+    vars = keys(ds)
+    cg_arrays = [coarse_grain(ds[var], 16) for var in vars]
+    return GeoStack(cg_arrays..., keys=vars, window=window(ds), refdims=refdims(ds), metadata=metadata(ds))
 end
