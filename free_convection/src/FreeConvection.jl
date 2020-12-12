@@ -2,7 +2,7 @@ module FreeConvection
 
 export
     zC, zF,
-    coarse_grain, animate_variable,
+    coarse_grain, add_surface_fluxes, animate_variable,
     FreeConvectionTrainingDataInput, rescale,
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
     solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
@@ -19,6 +19,8 @@ using Plots
 using Oceananigans.Utils
 using OceanParameterizations
 
+using DimensionalData: basetypeof
+using GeoData: AbstractGeoStack, window
 using Oceananigans: OceananigansLogger, Cell, Face
 
 @dim zC ZDim "z"
@@ -26,6 +28,20 @@ using Oceananigans: OceananigansLogger, Cell, Face
 
 include("coarse_grain.jl")
 include("animations.jl")
+
+function add_surface_heat_fluxes(A)
+    Qθ = A.metadata[:_stack][:heat_flux]
+    A_data = A.data
+    A_data[end, :] .= Qθ
+    return GeoArray(A_data, dims=dims(A), name=GeoData.name(A), refdims=refdims(A), metadata=metadata(A), missingval=missingval(A))
+end
+
+function add_surface_fluxes(ds)
+    Qθ = ds.metadata[:heat_flux]
+    var = keys(ds)
+    layers = [var == :wT ? add_surface_heat_fluxes(ds[var]) : ds[var] for var in vars]
+    return GeoStack(layers..., keys=vars, window=window(ds), refdims=refdims(ds), metadata=metadata(ds))
+end
 
 """
     FreeConvectionTrainingDataInput{Θ, B, T}

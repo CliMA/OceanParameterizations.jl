@@ -15,7 +15,7 @@ function animate_variable(v, v̄; xlabel, filepath, frameskip=1, fps=15)
     xlims = extrema(v)
     ylims = (minimum(z), 0)
 
-    kwargs = (linewidth=3, linealpha=0.7, xlims=xlims, ylims=ylims, xlabel=xlabel,
+    kwargs = (linewidth=3, linealpha=0.8, xlims=xlims, ylims=ylims, xlabel=xlabel,
               ylabel="Depth z (meters)", grid=false, legend=:bottomright, framestyle=:box,
               foreground_color_legend=nothing, background_color_legend=nothing)
 

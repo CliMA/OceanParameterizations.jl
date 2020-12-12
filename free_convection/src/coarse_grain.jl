@@ -1,6 +1,3 @@
-using DimensionalData: basetypeof
-using GeoData: AbstractGeoStack, window
-
 function coarse_grain(A::Array, n, ::Cell)
     N = length(A)
     Δ = Int(N / n)
