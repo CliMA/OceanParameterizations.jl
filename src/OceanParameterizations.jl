@@ -11,7 +11,7 @@ export
     predict, animate_gif,
 
     # GaussianProcesses
-    gp_model, best_kernel, get_kernel, euclidean_distance, derivative_distance, antiderivative_distance,
+    gp_model, best_kernel, get_kernel, euclidean_distance, derivative_distance, antiderivative_distance, error_per_gamma
 
     # NeuralNetworks
     nn_model,

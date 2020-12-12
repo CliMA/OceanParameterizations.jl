@@ -8,7 +8,7 @@ module GaussianProcesses
 
 export
     # Gaussian process kernels
-    Kernel, SquaredExponentialI, RationalQuadraticI, Matern12I, Matern32I, Matern52I, kernel_function,
+    Kernel, SquaredExponentialI, RationalQuadraticI, Matern12I, Matern32I, Matern52I, kernel_function, error_per_gamma
 
     # Distance functions
     euclidean_distance, derivative_distance, antiderivative_distance,
@@ -32,7 +32,7 @@ end
 mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
 
 
-function best_kernel(𝒱; logγ_range=-2.0:0.1:2.0)
+function best_kernel(𝒱; logγ_range=-1.0:0.1:2.0)
     function m(𝒱, kernel)
         𝒢 = GPmodel(𝒱; kernel=kernel)
         f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
@@ -49,6 +49,31 @@ function best_kernel(𝒱; logγ_range=-2.0:0.1:2.0)
         if error < best_mse
             best_kernel = kernel
         end
+    end
+    return best_kernel
+end
+
+"""
+Sweeps over the log-length scale values in `logγ_range` and returns a vector
+with the GP prediction error at the index corresponding to the length scale value.
+
+#Arguments
+- `k`::Integer is the integer corresponding to the kernel function (1 to 5)
+- `𝒱`::FluxData is the object containing the (predictor, target) pairs
+- `logγ_range` is the range of log(γ) hyperparameter values to sweep over
+"""
+function error_per_gamma(𝒱, k; logγ_range=-2.0:0.1:1.0)
+    function m(𝒱, kernel)
+        𝒢 = GPmodel(𝒱; kernel=kernel)
+        f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
+        return f
+    end
+
+    errors = zeros(length(logγ_range))
+    for (i, logγ) in enumerate(logγ_range)
+        kernel = get_kernel(k, logγ, 0.0, euclidean_distance)
+        model = m(𝒱, kernel)
+        errors[i] = mse(predict(𝒱, model))
     end
     return best_kernel
 end
