@@ -12,7 +12,7 @@ end
 rescale(old, T_scaling, wT_scaling) =
     FreeConvectionTrainingDataInput(T_scaling.(old.temperature), wT_scaling(old.bottom_flux), wT_scaling(old.top_flux))
 
-function input_training_data(training_datasets)
+function wrangle_input_training_data(training_datasets)
     data = []
 
     for (id, ds) in training_datasets
@@ -30,7 +30,7 @@ function input_training_data(training_datasets)
     return cat(data..., dims=1)
 end
 
-function output_training_data(training_datasets)
+function wrangle_output_training_data(training_datasets)
     data = []
     for (id, ds) in training_datasets
         push!(data, ds[:wT].data)
