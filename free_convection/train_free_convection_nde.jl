@@ -1,6 +1,5 @@
 using DataDeps
-using GeoData
-using NCDatasets
+using OceanParameterizations
 using FreeConvection
 using FreeConvection: coarse_grain
 
@@ -8,9 +7,9 @@ using FreeConvection: coarse_grain
 
 Nz = 32
 
-NN = Chain(Dense( Nz, 4Nz, relu),
-           Dense(4Nz, 4Nz, relu),
-           Dense(4Nz, Nz-1))
+# NN = Chain(Dense( Nz, 4Nz, relu),
+#            Dense(4Nz, 4Nz, relu),
+#            Dense(4Nz, Nz-1))
 
 ## Register data dependencies
 
@@ -43,3 +42,23 @@ for id in keys(tds)
     wT_filepath = "free_convection_wT_$id"
     animate_variable(tds[id][:wT], ctds[id][:wT], xlabel="Heat flux wT (m/s °C)", filepath=wT_filepath, frameskip=5)
 end
+
+## Pull out input (T) and output (wT) training data
+
+itd = input_training_data(coarse_training_datasets)
+otd = output_training_data(coarse_training_datasets)
+
+## Feature scaling
+
+T_training_data = cat([input.temperature for input in itd]..., dims=2)
+wT_training_data = otd
+
+@assert size(wT_training_data, 1) == size(T_training_data, 1) + 1
+@assert size(wT_training_data, 2) == size(T_training_data, 2)
+
+T_scaling = ZeroMeanUnitVarianceScaling(T_training_data)
+wT_scaling = ZeroMeanUnitVarianceScaling(wT_training_data)
+
+itd = [rescale(i, T_scaling, wT_scaling) for i in itd]
+otd = wT_scaling.(otd)
+

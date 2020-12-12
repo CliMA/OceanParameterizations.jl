@@ -3,7 +3,7 @@ module FreeConvection
 export
     zC, zF,
     coarse_grain, add_surface_fluxes, animate_variable,
-    FreeConvectionTrainingDataInput, rescale,
+    FreeConvectionTrainingDataInput, rescale, input_training_data, output_training_data,
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, initial_condition,
     solve_free_convection_nde, solve_convective_adjustment_nde, free_convection_solution,
     animate_variable, convection_training_data, animate_learned_heat_flux
@@ -27,50 +27,9 @@ using Oceananigans: OceananigansLogger, Cell, Face
 @dim zF ZDim "z"
 
 include("coarse_grain.jl")
+include("add_surface_fluxes.jl")
 include("animations.jl")
-
-function add_surface_heat_fluxes(A)
-    Qθ = A.metadata[:_stack][:heat_flux]
-    A_data = A.data
-    A_data[end, :] .= Qθ
-    return GeoArray(A_data, dims=dims(A), name=GeoData.name(A), refdims=refdims(A), metadata=metadata(A), missingval=missingval(A))
-end
-
-function add_surface_fluxes(ds)
-    Qθ = ds.metadata[:heat_flux]
-    var = keys(ds)
-    layers = [var == :wT ? add_surface_heat_fluxes(ds[var]) : ds[var] for var in vars]
-    return GeoStack(layers..., keys=vars, window=window(ds), refdims=refdims(ds), metadata=metadata(ds))
-end
-
-"""
-    FreeConvectionTrainingDataInput{Θ, B, T}
-
-A container for holding free convection training data inputs.
-"""
-struct FreeConvectionTrainingDataInput{Θ, B, T}
-    temperature :: Θ
-    bottom_flux :: B
-       top_flux :: T
-end
-
-rescale(old, T_scaling, wT_scaling) =
-    FreeConvectionTrainingDataInput(T_scaling.(old.temperature), wT_scaling(old.bottom_flux), wT_scaling(old.top_flux))
-
-"""
-    training_data(ϕ; grid_points)
-
-Return a `Nt × grid_points` array of coarse-grained data from the NetCDF variable `ϕ` where `Nt` is the number of times.
-"""
-function convection_training_data(ϕ; grid_points, iterations=nothing, scaling=identity)
-    Nz, Nt = size(ϕ)
-    loc = location_z(ϕ)
-
-    iterations = isnothing(iterations) ? (1:Nt) : iterations
-    data = cat((coarse_grain(ϕ[:, n], grid_points, loc) for n in iterations)..., dims=2)
-
-    return scaling.(data)
-end
+include("training_data.jl")
 
 function FreeConvectionNDE(NN, ds; grid_points, iterations=nothing)
     weights, reconstruct = Flux.destructure(NN)
