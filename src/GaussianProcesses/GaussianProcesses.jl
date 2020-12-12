@@ -8,7 +8,7 @@ module GaussianProcesses
 
 export
     # Gaussian process kernels
-    Kernel, SquaredExponentialI, RationalQuadraticI, Matern12I, Matern32I, Matern52I, kernel_function, error_per_gamma
+    Kernel, SquaredExponentialI, RationalQuadraticI, Matern12I, Matern32I, Matern52I, kernel_function, error_per_gamma,
 
     # Distance functions
     euclidean_distance, derivative_distance, antiderivative_distance,
