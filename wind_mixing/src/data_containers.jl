@@ -1,14 +1,3 @@
-# # Old
-# directories = Dict(
-#     "free_convection"          => "2daySuite/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu0.0e+00_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
-#     "strong_wind"              => "2daySuite/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh128_Nz128_statistics.jld2",
-#     "strong_wind_no_coriolis"  => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh128_Nz128_statistics.jld2",
-#     "weak_wind_strong_cooling" => "2daySuite/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu2.0e-04_Qb1.0e-07_f1.0e-04_Nh128_Nz128_statistics.jld2",
-#     "strong_wind_weak_cooling" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb5.0e-09_f1.0e-04_Nh128_Nz128_statistics.jld2",
-#     "strong_wind_weak_heating" => "2daySuite/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128/three_layer_constant_fluxes_Qu8.0e-04_Qb-1.0e-08_f1.0e-04_Nh128_Nz128_statistics.jld2",
-# )
-
-# New
 directories = Dict(
     "free_convection"          => "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2",
     "strong_wind"              => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2",
@@ -118,7 +107,8 @@ end
 - override_scalings::Dict  For if you want the testing simulation data to be scaled in the same way as the training data.
                            Set to 𝒟train.scalings to use the scalings from 𝒟train.
 """
-function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output", override_scalings=nothing, reconstruct_fluxes=false)
+function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output",
+                override_scalings=nothing, reconstruct_fluxes=false, subsample_frequency=1)
 
     filenames isa String && (filenames = [filenames])
 
@@ -195,6 +185,8 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
         all_scalings[name] = get_scaling(name, coarse)
     end
 
+    training_set = collect(1:subsample_frequency:length(t))
+
     function get_scaled(name, coarse)
         scaling = get_scaling(name, coarse)
         scaled = all_scalings[name].(coarse)
@@ -209,7 +201,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
 
     function get_FluxData(name, coarse, z)
         scaled, unscale_fn = get_scaled(name, coarse)
-        training_data = [(uvT_scaled[:,i], scaled[:,i]) for i in 1:size(uvT_scaled,2)] # (predictor, target) pairs
+        training_data = [(uvT_scaled[:,i], scaled[:,i]) for i in training_set] # (predictor, target) pairs
         return FluxData(z, coarse, scaled, unscale_fn, training_data)
     end
 
