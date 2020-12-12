@@ -32,49 +32,51 @@ function compute_nde_solution_history(ds, Qs, nn_filepath, nn_history_filepath)
             nde_sol = solve_free_convection_nde(nde, NN, T₀[Q], Tsit5(), nde_params[Q])
             push!(solution_history[Q], nde_sol)
         end
-        e % 20 == 0 && GC.gc() # Mercy if you're running this on a little laptop.
+        e % 50 == 0 && GC.gc() # Mercy if you're running this on a little laptop.
     end
 
     return solution_history
 end
 
-function plot_epoch_loss(Qs, nde_solutions, true_solutions)
+function plot_epoch_loss(Qs_train, Qs_test, nde_solutions, true_solutions; title, filepath)
+    Qs = (Qs_train..., Qs_test...)
     epochs = length(nde_solutions[first(Qs)])
 
     p = plot(dpi=200)
     for Q in Qs
         loss_history = [Flux.mse(true_solutions[Q], nde_solutions[Q][e]) for e in 1:epochs]
-        label = @sprintf("Q=%dW", Q)
-        title = "Free convection NDE"
+        label = @sprintf("Q=%dW (%s)", Q, Q in Qs_train ? "train" : "test")
+        linestyle = Q in Qs_train ? :solid : :dash
         plot!(p, 1:epochs, loss_history, linewidth=2, yaxis=:log, ylims=(1e-3, 10),
               label=label, title=title, xlabel="Epochs", ylabel="Mean squared error",
-              legend = :outertopright)
+              linestyle=linestyle, legend=:outertopright)
     end
 
-    png_filepath = "free_convection_nde_loss_history.png"
-    savefig(png_filepath)
+    savefig(filepath)
 
     return p
 end
 
-function animate_nde_loss(ds, Qs, nde_solutions, true_solutions, fps=15)
+function animate_nde_loss(ds, Qs_train, Qs_test, nde_solutions, true_solutions; title, filepath, fps=15)
+    Qs = (Qs_train..., Qs_test...)
     epochs = length(nde_solutions[first(Qs)])
     times = ds[first(Qs)]["time"] ./ days
 
     anim = @animate for e in 1:epochs
         @info "Plotting NDE loss evolution... epoch $e/$epochs"
-        title = "Training free convection NDE: epoch $e"
+        title_epoch = title * ": epoch $e"
         p = plot(dpi=200)
         for Q in Qs
             nde_loss = Flux.mse(true_solutions[Q], nde_solutions[Q][e], agg=x->mean(x, dims=1))[:]
-            label = @sprintf("Q=%dW", Q)
+            label = @sprintf("Q=%dW (%s)", Q, Q in Qs_train ? "train" : "test")
+            linestyle = Q in Qs_train ? :solid : :dash
             plot!(p, times, nde_loss, linewidth=2, yaxis=:log, ylims=(1e-6, 10),
                   label=label, xlabel="Simulation time (days)", ylabel="Mean squared error",
-                  title=title, legend=:bottomright, dpi=200)
+                  title=title_epoch, linestyle=linestyle, legend=:bottomright, dpi=200)
         end
     end
 
-    mp4(anim, "free_convection_nde_loss_evolution.mp4", fps=fps)
+    mp4(anim, filepath, fps=fps)
 
     return nothing
 end
@@ -216,18 +218,28 @@ ds = Dict(Q => NCDataset("free_convection_horizontal_averages_$(Q)W.nc") for Q i
 
 true_solutions = Dict(Q => convection_training_data(ds[Q]["T"]; grid_points=32, scaling=T_scaling) for Q in Qs)
 
-solution_history = compute_nde_solution_history(ds, Qs, nn_filepath, nn_history_filepath)
-plot_epoch_loss(Qs, solution_history, true_solutions)
-animate_nde_loss(ds, Qs, solution_history, true_solutions)
+nde_solution_history = compute_nde_solution_history(ds, Qs, nn_filepath, nn_history_filepath)
 
-for Q in Qs
-    @info @sprintf("Free convection NDE MSE for Q=%dW: %.4e", Q, nde_mse(ds[Q], nn_filepath))
-    plot_nde_mse_in_time(ds[Q], nn_filepath)
-end
+plot_epoch_loss(Qs_train, Qs_test, nde_solution_history, true_solutions,
+                title="Free convection NDE",
+                filepath="free_convection_nde_loss_history.png")
+
+
+animate_nde_loss(ds, Qs_train, Qs_test, nde_solution_history, true_solutions,
+                 title="Free convection NDE",
+                 filepath="free_convection_nde_loss_evolution.mp4")
+
+# for Q in Qs
+#     @info @sprintf("Free convection NDE MSE for Q=%dW: %.4e", Q, nde_mse(ds[Q], nn_filepath))
+#     plot_nde_mse_in_time(ds[Q], nn_filepath)
+# end
 
 plot_nde_mse_in_time(ds, nn_filepath, Qs)
 
+#=
 for Q in Qs
     filepath = @sprintf("free_convection_nde_les_comparison_%dW.mp4", Q)
     animate_learned_free_convection(ds[75], nn_filepath, grid_points=32, filepath=filepath, iterations=1:10:1000)
 end
+=#
+

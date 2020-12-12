@@ -15,7 +15,7 @@ using FreeConvection
 Nz = 32  # Number of grid points
 
 #####
-##### Neural network architecture
+##### Neural network architecture T (Nz grid points) -> wT (Nz+1 grid points)
 #####
 
 NN = Chain(Dense( Nz, 4Nz, relu),
@@ -25,8 +25,8 @@ NN = Chain(Dense( Nz, 4Nz, relu),
 NN_params = Flux.params(NN)
 
 function free_convection_neural_network(input)
-    ϕ = NN(input.temperature)
-    wT = cat(input.bottom_flux, ϕ, input.top_flux, dims=1)
+    wT_interior = NN(input.temperature)
+    wT = cat(input.bottom_flux, wT_interior, input.top_flux, dims=1)
     return wT
 end
 
