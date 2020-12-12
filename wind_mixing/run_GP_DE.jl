@@ -7,7 +7,7 @@ using Plots
 reconstruct_fluxes = false
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
-subsample_frequency = 8
+subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
 
 file_labels = Dict(
@@ -39,30 +39,38 @@ for i=1:length(files)
                         reconstruct_fluxes=reconstruct_fluxes,
                         subsample_frequency=subsample_frequency)
     les = read_les_output(test_file)
-    println("Test file: $(test_file)")
-    output_gif_directory="GP_test_$(test_file)_reconstruct_$(reconstruct_fluxes)_subsample_$(subsample_frequency)"
-    println("Output will be written to: $(output_gif_directory)")
+
+    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/test_$(test_file)"
+    directory = pwd() * "/$(output_gif_directory)/"
+    isdir(dirname(directory)) || mkpath(directory)
+    file = directory*"output.txt"
+    touch(file)
+    o = open(file, "w")
+
+    write(o, "= = = = = = = = = = = = = = = = = = = = = = = = \n")
+    write(o, "Test file: $(test_file) \n")
+    write(o, "Output will be written to: $(output_gif_directory) \n")
 
     ## Gaussian Process Regression
 
     # A. Find the kernel that minimizes the prediction error on the training data
     # * Sweeps over length-scale hyperparameter value in logγ_range
     # * Sweeps over covariance functions
-    # logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
+    logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
     # uncomment the next three lines to try this but just for testing the GPR use the basic get_kernel stuff below
-    # uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    # vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    # wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
 
     # OR set the kernel manually here (to save a bunch of time):
-    uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    vw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    wT_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+    # uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+    # vw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+    # wT_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
 
     # Report the kernels and their properties
-    println("Kernel for u'w'..... $(uw_kernel)")
-    println("Kernel for v'w'..... $(vw_kernel)")
-    println("Kernel for w'T'..... $(wT_kernel)")
+    write(o, "Kernel for u'w'..... $(uw_kernel) \n")
+    write(o, "Kernel for v'w'..... $(vw_kernel) \n")
+    write(o, "Kernel for w'T'..... $(wT_kernel) \n")
 
     # Trained GP models
     uw_GP_model = gp_model(𝒟train.uw, uw_kernel)
@@ -75,9 +83,9 @@ for i=1:length(files)
     wT_GP = predict(𝒟test.wT, wT_GP_model)
 
     # Report GP prediction error on the fluxes
-    println("GP prediction error on u'w'..... $(mse(uw_GP))")
-    println("GP prediction error on v'w'..... $(mse(vw_GP))")
-    println("GP prediction error on w'T'..... $(mse(wT_GP))")
+    write(o, "GP prediction error on u'w'..... $(mse(uw_GP)) \n")
+    write(o, "GP prediction error on v'w'..... $(mse(vw_GP)) \n")
+    write(o, "GP prediction error on w'T'..... $(mse(wT_GP)) \n")
 
     # Compare GP predictions to truth
     myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
@@ -102,7 +110,7 @@ for i=1:length(files)
         dx[2*Nz+1:end] .= -∂z(wT_GP_model(x))
     end
 
-    prob = ODEProblem(f, uvT₀, (t[1],t[288]), saveat=t)
+    prob = ODEProblem(f, uvT₀, (t[1],t[289]), saveat=t)
     sol = solve(prob, ROCK4())
 
     split_array(uvT) = (uvT[1:Nz,:], uvT[Nz+1:2*Nz,:], uvT[2*Nz+1:end,:])
@@ -118,9 +126,12 @@ for i=1:length(files)
     myanimate(v_pair, "v")
     myanimate(T_pair, "T")
 
-    println("GP prediction error on u........ $(mse(u_pair))")
-    println("GP prediction error on v........ $(mse(v_pair))")
-    println("GP prediction error on T........ $(mse(T_pair))")
+    write(o, "GP prediction error on u........ $(mse(u_pair)) \n")
+    write(o, "GP prediction error on v........ $(mse(v_pair)) \n")
+    write(o, "GP prediction error on T........ $(mse(T_pair)) \n")
+
+    # Close output file
+    close(o)
 end
 
 
