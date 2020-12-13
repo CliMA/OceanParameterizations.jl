@@ -51,15 +51,21 @@ include("convective_adjustment_nde.jl")
 include("training.jl")
 include("testing.jl")
 
-const ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary"
+const ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary/free_convection_training_data/"
 
 const LESBRARY_DATA_DEPS = (
-    DataDep("lesbrary_free_convection_1",
-            "proto-LESbrary.jl free convection statistics (Qb = 5×10⁻⁷ m²/s³)",
-            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb5.0e-07_f1.0e-04_Nh256_Nz128_pilot2", "statistics.nc")),
-    DataDep("lesbrary_free_convection_2",
-            "proto-LESbrary.jl free convection statistics (Qb = 2.5×10⁻⁷ m²/s³)",
-            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb2.5e-07_f1.0e-04_Nh256_Nz128_pilot3", "statistics.nc")),
+    DataDep("free_convection_Qb1e-8",
+            "proto-LESbrary.jl free convection statistics (Qb = 1×10⁻⁸ m²/s³)",
+            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb1.0e-08_f1.0e-04_Nh256_Nz128_free_convection_Qb1e-8", "statistics.nc"),
+            "f935dbc46281c478141053673145b32551c1656921992fd81e25a467cea106ea"),
+    DataDep("free_convection_Qb2e-8",
+            "proto-LESbrary.jl free convection statistics (Qb = 2×10⁻⁸ m²/s³)",
+            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb2.0e-08_f1.0e-04_Nh256_Nz128_free_convection_Qb2e-8", "statistics.nc"),
+            "9bad22e7ceb7f5bb8a562d222869b37ed331771c451af1a03fcafb23360e51ee"),
+    DataDep("free_convection_Qb4e-8",
+            "proto-LESbrary.jl free convection statistics (Qb = 4×10⁻⁸ m²/s³)",
+            joinpath(ENGAGING_LESBRARY_DIR, "three_layer_constant_fluxes_cubic_hr48_Qu0.0e+00_Qb4.0e-08_f1.0e-04_Nh256_Nz128_free_convection_Qb4e-8", "statistics.nc"),
+            "2a7813826a5b1109983b7761971a584b0f78f49fd30fadb3a444c87e252a0bbd")
 )
 
 function __init__()
