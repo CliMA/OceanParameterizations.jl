@@ -33,12 +33,6 @@ docs/site/
 *.gif
 *.png
 
-# Slurm scripts
-*.slurm
-
-# VSCode
-.vscode
-
 # Simulation log
 wind_mixing/simulation_output
 
