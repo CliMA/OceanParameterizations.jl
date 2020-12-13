@@ -11,6 +11,8 @@ using JLD2
 
 using OceanParameterizations
 using FreeConvection
+
+using Oceananigans: OceananigansLogger
 using FreeConvection: coarse_grain
 
 ENV["GKSwstype"] = "100"
@@ -19,7 +21,10 @@ output_dir = joinpath(@__DIR__, "layers3_depth4_relu")
 mkpath(output_dir)
 
 log_filepath = joinpath(output_dir, "layers3_depth4_relu.log")
-TeeLogger(OceananigansLogger(), FileLogger(log_filepath)) |> global_logger
+TeeLogger(
+    OceananigansLogger(),
+    MinLevelLogger(FileLogger(log_filepath), Logging.Info)
+) |> global_logger
 
 ## Neural differential equation parameters
 
