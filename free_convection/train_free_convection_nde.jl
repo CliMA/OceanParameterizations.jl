@@ -131,10 +131,10 @@ end
 
 ## Animate the heat flux the neural network has learned
 
-@info "Animating neural network's heat flux predictions..."
+@info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
-    filepath = joinpath(output_dir, "learned_heat_flux_initial_guess_$id")
-    animate_learned_heat_flux(ds, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
+    filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
 end
 
 ## Save neural network + weights
@@ -205,7 +205,8 @@ animate_nde_loss(coarse_training_datasets, ids_train, ids_test, nde_solution_his
                  title = "Free convection NDE",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
+@info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
-    filepath = joinpath(output_dir, "learned_heat_flux_$id")
-    animate_learned_heat_flux(ds, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
+    filepath = joinpath(output_dir, "learned_free_convection_$id")
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
 end

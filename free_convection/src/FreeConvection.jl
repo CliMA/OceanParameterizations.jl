@@ -8,7 +8,7 @@ export
     coarse_grain, add_surface_fluxes,
 
     # Animations
-    animate_data, animate_learned_heat_flux,
+    animate_data, animate_learned_free_convection,
 
     # Training data
     FreeConvectionTrainingDataInput, rescale, wrangle_input_training_data, wrangle_output_training_data,
