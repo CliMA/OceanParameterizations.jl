@@ -37,8 +37,6 @@ function train_neural_differential_equation!(NN, training_datasets, T_scaling, w
         return Flux.mse(nde_sols, true_sols)
     end
 
-    # @info "Benchmarking loss function..."
-
     function nde_callback()
         mse_loss = nde_loss()
         @info @sprintf("Training free convection NDE... MSE loss = %.12e", mse_loss)

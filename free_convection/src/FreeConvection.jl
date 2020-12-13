@@ -31,6 +31,7 @@ using Plots
 using Flux
 using OrdinaryDiffEq
 using DiffEqSensitivity
+using DiffEqFlux
 using JLD2
 using Oceananigans.Utils
 using OceanParameterizations

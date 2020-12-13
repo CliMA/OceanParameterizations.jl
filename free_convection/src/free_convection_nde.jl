@@ -35,9 +35,11 @@ function FreeConvectionNDE(NN, ds; iterations=nothing)
     tspan = FT.( (0.0, maximum(iterations) / Nt) )
     saveat = range(tspan[1], tspan[2], length=length(iterations))
 
+    # See: https://github.com/SciML/DiffEqFlux.jl/blob/449efcecfc11f1eab65d0e467cf57db9f5a5dbec/src/neural_de.jl#L66-L67
     # We set the initial condition to `nothing`. We set it to some actual
     # initial condition when calling `solve`.
-    return ODEProblem(∂T∂t, nothing, tspan, saveat=saveat)
+    ff = ODEFunction{false}(∂T∂t, tgrad=DiffEqFlux.basic_tgrad)
+    return ODEProblem{false}(ff, nothing, tspan, saveat=saveat)
 end
 
 function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
@@ -56,6 +58,7 @@ end
 
 function solve_free_convection_nde(nde, NN, T₀, alg, nde_params)
     nn_weights, _ = Flux.destructure(NN)
+    # See: https://github.com/SciML/DiffEqFlux.jl/blob/449efcecfc11f1eab65d0e467cf57db9f5a5dbec/src/neural_de.jl#L68
     return solve(nde, alg, reltol=1e-3, u0=T₀, p=[nn_weights; nde_params],
                  sense=InterpolatingAdjoint(autojacvec=ZygoteVJP()))
 end
