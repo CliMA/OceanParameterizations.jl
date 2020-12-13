@@ -24,13 +24,8 @@ include("kernels.jl")
 include("distances.jl")
 include("gaussian_process.jl")
 
-function predict(𝒱, model)
-    unscaled = (𝒱.unscale_fn(model(𝒱.training_data[i][1])) for i in 1:length(𝒱.training_data))
-    return (cat(unscaled...,dims=2), 𝒱.coarse)
-end
-
+include("../predict.jl")
 mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
-
 
 function best_kernel(𝒱; logγ_range=-1.0:0.1:2.0)
     function m(𝒱, kernel)
@@ -62,20 +57,20 @@ with the GP prediction error at the index corresponding to the length scale valu
 - `𝒱`::FluxData is the object containing the (predictor, target) pairs
 - `logγ_range` is the range of log(γ) hyperparameter values to sweep over
 """
-function error_per_gamma(𝒱, k; logγ_range=-2.0:0.1:1.0)
-    function m(𝒱, kernel)
-        𝒢 = GPmodel(𝒱; kernel=kernel)
-        f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
+function error_per_gamma(𝒱train, 𝒱test, k; logγ_range=-2.0:0.1:1.0)
+    # model trained on training data
+    function m(kernel)
+        𝒢 = GPmodel(𝒱train; kernel=kernel)
+        f(x) = model_output(x, GPmodel(𝒱train; kernel=kernel))
         return f
     end
 
     errors = zeros(length(logγ_range))
     for (i, logγ) in enumerate(logγ_range)
-        kernel = get_kernel(k, logγ, 0.0, euclidean_distance)
-        model = m(𝒱, kernel)
-        errors[i] = mse(predict(𝒱, model))
+        model = m(get_kernel(k, logγ, 0.0, euclidean_distance))
+        errors[i] = mse(predict(𝒱test, model))
     end
-    return best_kernel
+    return errors
 end
 
 

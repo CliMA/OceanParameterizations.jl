@@ -8,7 +8,7 @@ file_labels = Dict(
 )
 
 zs = Dict(
-    "u" => 𝒟 -> 𝒟.u.z, "vw" => 𝒟 -> 𝒟.v.z, "T"  => 𝒟 -> 𝒟.T.z,
+    "u" => 𝒟 -> 𝒟.u.z, "v" => 𝒟 -> 𝒟.v.z, "T"  => 𝒟 -> 𝒟.T.z,
     "uw" => 𝒟 -> 𝒟.uw.z, "vw" => 𝒟 -> 𝒟.vw.z, "wT" => 𝒟 -> 𝒟.wT.z
 )
 
@@ -43,7 +43,7 @@ function animate_prediction(xs, name, 𝒟, test_file; filename=name, legend_lab
     filepath = pwd() * "/" * directory * "/"
     isdir(dirname(filepath)) || mkpath(filepath)
 
-    anim = @animate for n in 1:length(𝒟.t)
+    anim = @animate for n in 1:size(xs[1],2)
         x_max = maximum([maximum(x) for x in xs]).*scaling_factor[name]
         x_min = minimum([minimum(x) for x in xs]).*scaling_factor[name]
 

@@ -55,14 +55,14 @@ function reconstruct_flux_profiles(u, v, T, νₑ_∂z_u, νₑ_∂z_v, κₑ_�
         return ans
     end
 
-    duw_dz = -dudt .+ f*v .+ νₑ_∂²z_u
-    dvw_dz = -dvdt .- f*u .+ νₑ_∂²z_v
-    dwT_dz = -dTdt .+ κₑ_∂²z_T
+    # duw_dz = -dudt .+ f*v .+ νₑ_∂²z_u
+    # dvw_dz = -dvdt .- f*u .+ νₑ_∂²z_v
+    # dwT_dz = -dTdt .+ κₑ_∂²z_T
 
     # Without subgrid fluxes:
-    # duw_dz = -dudt .+ f*v
-    # dvw_dz = -dvdt .- f*u
-    # dwT_dz = -dTdt
+    duw_dz = -dudt .+ f*v
+    dvw_dz = -dvdt .- f*u
+    dwT_dz = -dTdt
 
     # u, v, T, uw, vw, wT, t
     return (u, v, T, wϕ(duw_dz), wϕ(dvw_dz), wϕ(dwT_dz), t[1:Nt-1])
@@ -73,7 +73,7 @@ struct FluxData{Z, C, S, U, T} # for each of uw, vw, and wT
            coarse :: C # Nz x Nt array of unscaled profiles
            scaled :: S # Nz x Nt array of scaled profiles
        unscale_fn :: U # function to unscaled profile vectors with
-    training_data :: T # (uvT, scaled) pairs
+    training_data :: T # subsampled (uvT, scaled) pairs
 end
 
 struct uvTData{Z, C, S, U} # for each of u, v, T
