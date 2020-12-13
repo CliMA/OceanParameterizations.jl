@@ -70,11 +70,8 @@ coarse_training_datasets = ctds =
 
 @info "Animating training data..."
 for id in keys(tds)
-    T_filepath = joinpath(output_dir, "free_convection_T_$id")
-    animate_variable(tds[id][:T], ctds[id][:T], xlabel="Temperature T (°C)", filepath=T_filepath, frameskip=5)
-
-    wT_filepath = joinpath(output_dir, "free_convection_wT_$id")
-    animate_variable(tds[id][:wT], ctds[id][:wT], xlabel="Heat flux wT (m/s °C)", filepath=wT_filepath, frameskip=5)
+    filepath = joinpath(output_dir, "free_convection_data_$id")
+    animate_data(tds[id], ctds[id]; filepath, frameskip=5)
 end
 
 ## Pull out input (T) and output (wT) training data
