@@ -56,6 +56,6 @@ end
 
 function solve_free_convection_nde(nde, NN, T₀, alg, nde_params)
     nn_weights, _ = Flux.destructure(NN)
-    return solve(nde, alg, u0=T₀, p=[nn_weights; nde_params],
+    return solve(nde, alg, reltol=1e-3, u0=T₀, p=[nn_weights; nde_params],
                  sense=InterpolatingAdjoint(autojacvec=ZygoteVJP()))
 end

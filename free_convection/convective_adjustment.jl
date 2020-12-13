@@ -150,5 +150,5 @@ anim = @animate for n in 1:time_steps
          xlabel="Temperature (°C)", ylabel="Depth z (meters)",
          title="Convective adjustment: $time_str", legend=:bottomright, show=false)
 end
- 
+
 mp4(anim, "convective_adjustment_implicit.mp4", fps=30)

@@ -24,7 +24,7 @@ ENV["GKSwstype"] = "100"
 function convective_adjustment!(model, Δt, K)
     Nz, Δz = model.grid.Nz, model.grid.Δz
     T = model.tracers.T
-    
+
     ∂T∂z = ComputedField(@at (Cell, Cell, Cell) ∂z(T))
     compute!(∂T∂z)
 
@@ -43,7 +43,7 @@ function convective_adjustment!(model, Δt, K)
     d[Nz] = 1 + Δt/Δz^2 * κ[Nz]
 
     𝓛 = Tridiagonal(ld, d, ud)
-    
+
     T′ = 𝓛 \ interior(T)[:]
     set!(model, T=reshape(T′, (1, 1, Nz)))
 
@@ -144,7 +144,7 @@ anim = @animate for n in 1:Nt
     T_CA = interior(model_convective_adjustment.tracers.T)[:]
     T_NN = interior(model_neural_network.tracers.T)[:]
     z = znodes(Cell, grid)
-    
+
     plot(ds["T"][:, n], ds["zC"][:], linewidth=2, xlim=(19, 20), ylim=(-100, 0),
          label="Oceananigans 3D", xlabel="Temperature (°C)", ylabel="Depth z (meters)",
          title="Free convection: $time_str", legend=:bottomright, show=false)
