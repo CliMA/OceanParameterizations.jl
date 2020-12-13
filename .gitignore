@@ -25,6 +25,7 @@ docs/site/
 *.jld2
 
 # Other output
+*.log
 *.bson
 *.backup
 

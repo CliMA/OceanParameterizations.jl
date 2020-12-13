@@ -51,7 +51,6 @@ const LESBRARY_DATA_DEPS = (
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
-    return nothing
 end
 
 end # module
