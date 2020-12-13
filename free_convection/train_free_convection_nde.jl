@@ -187,3 +187,28 @@ jldopen(final_nn_filepath, "w") do file
     file["T_scaling"] = T_scaling
     file["wT_scaling"] = wT_scaling
 end
+
+## Analyze NDE accuracy
+
+true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_training_datasets)
+nde_solution_history = compute_nde_solution_history(coarse_training_datasets, final_nn_filepath, nn_history_filepath)
+
+ids_train = keys(coarse_training_datasets) |> Tuple
+ids_test = ()
+
+for id in (ids_train..., ids_test...)
+    @info @sprintf("MDE loss (id=%s): %.12e", id, Flux.mse(true_solutions[id], nde_solution_history[id][end]))
+end
+
+plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,
+                title = "Free convection NDE",
+                filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
+
+animate_nde_loss(coarse_training_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
+                 title = "Free convection NDE",
+                 filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
+
+for (id, ds) in coarse_training_datasets
+    filepath = joinpath(output_dir, "learned_heat_flux_$id")
+    animate_learned_heat_flux(ds, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
+end

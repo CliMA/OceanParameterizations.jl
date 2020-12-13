@@ -1,11 +1,23 @@
 module FreeConvection
 
 export
+    # DimensionalData.jl dimensions
     zC, zF,
+
+    # Utils
     coarse_grain, add_surface_fluxes,
+
+    # Animations
     animate_variable, animate_learned_heat_flux,
+
+    # Training data
     FreeConvectionTrainingDataInput, rescale, wrangle_input_training_data, wrangle_output_training_data,
-    FreeConvectionNDE, FreeConvectionNDEParameters, train_neural_differential_equation!
+
+    # Neural differential equations
+    FreeConvectionNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
+
+    # Testing
+    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss
 
 using Logging
 using Printf
@@ -37,6 +49,7 @@ include("training_data.jl")
 include("free_convection_nde.jl")
 include("convective_adjustment_nde.jl")
 include("training.jl")
+include("testing.jl")
 
 const ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary"
 
