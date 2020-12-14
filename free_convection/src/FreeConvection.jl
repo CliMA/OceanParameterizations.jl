@@ -14,7 +14,7 @@ export
     FreeConvectionTrainingDataInput, rescale, wrangle_input_training_data, wrangle_output_training_data,
 
     # Neural differential equations
-    FreeConvectionNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
+    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
 
     # Testing
     compute_nde_solution_history, plot_epoch_loss, animate_nde_loss

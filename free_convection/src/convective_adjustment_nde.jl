@@ -1,17 +1,20 @@
-function ConvectiveAdjustmentNDE(NN, ds; grid_points, iterations=nothing)
+function ConvectiveAdjustmentNDE(NN, ds; iterations=nothing)
     weights, reconstruct = Flux.destructure(NN)
 
-    H = abs(ds["zF"][1]) # Domain height
-    τ = ds["time"][end]  # Simulation length
-    zC = coarse_grain(ds["zC"], grid_points, Cell)
-    Δẑ = diff(zC)[1] / H  # Non-dimensional grid spacing
+    zc = dims(ds[:T], ZDim)
+    zf = dims(ds[:wT], ZDim)
+    times = dims(ds[:wT], Ti)
+    Nz, Nt = length(zc), length(times)
 
-    # Differentiation matrix operators
-    Dzᶠ = Dᶠ(grid_points, Δẑ)
-    Dzᶜ = Dᶜ(grid_points, Δẑ)
+    H = abs(zf[1]) # Domain height
+    τ = times[end]  # Simulation length
+
+    Δẑ = diff(zc[:])[1] / H  # Non-dimensional grid spacing
+    Dzᶜ = Dᶜ(Nz, Δẑ) # Differentiation matrix operator
+    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
 
     if isnothing(iterations)
-        iterations = 1:length(ds["time"])
+        iterations = 1:length(times)
     end
 
     """
@@ -29,26 +32,22 @@ function ConvectiveAdjustmentNDE(NN, ds; grid_points, iterations=nothing)
         NN = reconstruct(weights)
         wT_interior = NN(T)
         wT = [bottom_flux; wT_interior; top_flux]
-        ∂z_wT = Dzᶠ * wT
+        ∂z_wT = Dzᶜ * wT
 
         # Convective adjustment
-        ∂T∂z = Dzᶜ * T
-        ∂z_K∂T∂z = Dzᶠ * min.(0, 100 * ∂T∂z)
+        ∂T∂z = Dzᶠ * T
+        ∂z_K∂T∂z = Dzᶜ * min.(0, 10 * ∂T∂z)
 
         return σ_wT/σ_T * τ/H * (- ∂z_wT .+ ∂z_K∂T∂z)
     end
 
-    Nt = length(ds["time"])
-    tspan = (0.0, maximum(iterations) / Nt)
-    saveat = range(tspan[1], tspan[2], length = length(iterations))
+    FT = eltype(ds[:wT])
+    tspan = FT.( (0.0, maximum(iterations) / Nt) )
+    saveat = range(tspan[1], tspan[2], length=length(iterations))
 
+    # See: https://github.com/SciML/DiffEqFlux.jl/blob/449efcecfc11f1eab65d0e467cf57db9f5a5dbec/src/neural_de.jl#L66-L67
     # We set the initial condition to `nothing`. We set it to some actual
     # initial condition when calling `solve`.
-    return ODEProblem(∂T∂t, nothing, tspan, saveat=saveat)
-end
-
-function solve_convective_adjustment_nde(nde, NN, T₀, alg, nde_params)
-    nn_weights, _ = Flux.destructure(NN)
-    return solve(nde, alg, reltol=1e-3, u0=T₀, p=[nn_weights; nde_params],
-                 sense=InterpolatingAdjoint(autojacvec=ZygoteVJP()))
+    ff = ODEFunction{false}(∂T∂t, tgrad=DiffEqFlux.basic_tgrad)
+    return ODEProblem{false}(ff, nothing, tspan, saveat=saveat)
 end

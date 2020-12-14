@@ -3,6 +3,7 @@ using Statistics
 using Printf
 using Logging
 
+using ArgParse
 using LoggingExtras
 using DataDeps
 using GeoData
@@ -17,18 +18,55 @@ using FreeConvection: coarse_grain
 
 ENV["GKSwstype"] = "100"
 
-output_dir = joinpath(@__DIR__, "layers3_depth4_relu")
+function parse_command_line_arguments()
+    settings = ArgParseSettings()
+
+    @add_arg_table! settings begin
+        "--grid-points"
+            help = "Number of vertical grid points in the trained neural differential equation (LES data will be coarse-grained to this resolution)."
+            default = 32
+            arg_type = Int
+
+        "--nde"
+            help = "Type of neural differential equation (NDE) to train. Options: free_convection, convective_adjustment"
+            default = "free_convection"
+            arg_type = AbstractString
+
+        "--name"
+            help = "Experiment name (also determines name of output directory)."
+            default = "layers3_depth4_relu"
+            arg_type = AbstractString
+    end
+
+    return parse_args(settings)
+end
+
+## Parse command line arguments
+
+@info "Parsing command line arguments..."
+args = parse_command_line_arguments()
+
+experiment_name = args["name"]
+
+output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
 
-log_filepath = joinpath(output_dir, "layers3_depth4_relu.log")
+log_filepath = joinpath(output_dir, "$experiment_name.log")
 TeeLogger(
     OceananigansLogger(),
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
 ) |> global_logger
 
-## Neural differential equation parameters
+nde_type = Dict(
+    "free_convection" => FreeConvectionNDE,
+    "convective_adjustment" => ConvectiveAdjustmentNDE
+)
 
-Nz = 32  # Number of grid points (to coarse grain to)
+NDEType = nde_type[args["nde"]]
+
+## Neural network architecture
+
+Nz = args["grid-points"]
 
 NN = Chain(Dense( Nz, 4Nz, relu),
            Dense(4Nz, 4Nz, relu),
@@ -51,8 +89,7 @@ end
 
 @info "Loading training data..."
 training_datasets = tds = Dict{Int,Any}(
-    1 => NCDstack(datadep"lesbrary_free_convection_1/statistics.nc"),
-    2 => NCDstack(datadep"lesbrary_free_convection_2/statistics.nc")
+    1 => NCDstack(datadep"free_convection_Qb1e-8/statistics.nc")
 )
 
 ## Add surface fluxes to data
@@ -134,7 +171,7 @@ end
 @info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
     filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, T_scaling, wT_scaling, filepath=filepath)
 end
 
 ## Save neural network + weights
@@ -152,13 +189,13 @@ end
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
-training_iterations = (1:20, 1:2:101, 1:4:201)
+training_iterations = (1:20, 1:5:101, 1:10:201)
 training_epochs     = (20,   20,      20)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
     @info "Training free convection NDE with iterations=$iterations for $epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, coarse_training_datasets, T_scaling, wT_scaling, iterations, opt,
+    train_neural_differential_equation!(NN, NDEType, coarse_training_datasets, T_scaling, wT_scaling, iterations, opt,
                                         epochs, history_filepath=nn_history_filepath)
 end
 
@@ -170,7 +207,7 @@ optimizers = [ADAM(1e-3), ADAM(1e-4)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, coarse_training_datasets, T_scaling, wT_scaling, burn_in_iterations, opt,
+    train_neural_differential_equation!(NN, NDEType, coarse_training_datasets, T_scaling, wT_scaling, burn_in_iterations, opt,
                                         burn_in_epochs, history_filepath=nn_history_filepath)
 end
 
@@ -208,5 +245,5 @@ animate_nde_loss(coarse_training_datasets, ids_train, ids_test, nde_solution_his
 @info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
     filepath = joinpath(output_dir, "learned_free_convection_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, T_scaling, wT_scaling, filepath=filepath)
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, T_scaling, wT_scaling, filepath=filepath)
 end
