@@ -89,7 +89,10 @@ end
 
 @info "Loading training data..."
 training_datasets = tds = Dict{Int,Any}(
-    1 => NCDstack(datadep"free_convection_Qb1e-8/statistics.nc")
+    1 => NCDstack(datadep"free_convection_Qb1e-8/statistics.nc"),
+    2 => NCDstack(datadep"free_convection_Qb2e-8/statistics.nc"),
+    3 => NCDstack(datadep"free_convection_Qb4e-8/statistics.nc"),
+    4 => NCDstack(datadep"free_convection_Qb6e-8/statistics.nc")
 )
 
 ## Add surface fluxes to data
@@ -190,7 +193,7 @@ end
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
 training_iterations = (1:20, 1:5:101, 1:10:201)
-training_epochs     = (20,   20,      20)
+training_epochs     = (25,   25,      25)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
@@ -201,12 +204,12 @@ end
 
 ## Train on entire solution while decreasing the learning rate
 
-burn_in_iterations = 1:4:289
+burn_in_iterations = 1:9:289
 burn_in_epochs = 50
 optimizers = [ADAM(1e-3), ADAM(1e-4)]
 
 for opt in optimizers
-    @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
+    @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
     train_neural_differential_equation!(NN, NDEType, coarse_training_datasets, T_scaling, wT_scaling, burn_in_iterations, opt,
                                         burn_in_epochs, history_filepath=nn_history_filepath)
 end
