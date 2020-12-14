@@ -39,17 +39,20 @@ function plot_epoch_loss(ids_train, ids_test, nde_solutions, true_solutions; tit
 
     p = plot(dpi=200)
 
-    kwargs = (linewidth=2, linealpha=0.8, yaxis=:log, ylims=(1, 1e4), ylabel="Mean squared error",
+    ylims = (1, 1)
+    kwargs = (linewidth=2, linealpha=0.8, yaxis=:log, ylabel="Mean squared error",
               xlabel="Epochs", title=title, grid=false, legend=:outertopright, framestyle=:box,
               foreground_color_legend=nothing, background_color_legend=nothing)
 
     for id in ids
         loss_history = [Flux.mse(true_solutions[id], nde_solutions[id][e]) for e in 1:epochs]
 
+        min_loss, max_loss = extrema(loss_history)
+        ylims = (min(ylims[1], 10^floor(log10(min_loss))), max(ylims[2], 10^ceil(log10(max_loss))))
         label = @sprintf("id=%d (%s)", id, id in ids_train ? "train" : "test")
         linestyle = id in ids_train ? :solid : :dash
 
-        plot!(p, 1:epochs, loss_history, label=label, linestyle=linestyle; kwargs...)
+        plot!(p, 1:epochs, loss_history, label=label, linestyle=linestyle, ylims=ylims; kwargs...)
     end
 
     savefig(filepath)
@@ -62,7 +65,8 @@ function animate_nde_loss(datasets, ids_train, ids_test, nde_solutions, true_sol
     epochs = length(nde_solutions[first(ids)])
     times = dims(datasets[first(ids)][:T], Ti)[:] ./ days
 
-    kwargs = (linewidth=2, linealpha=0.8, yaxis=:log, ylims=(1e-1, 1e4), xlabel="Simulation time (days)",
+    ylims=(1, 1)
+    kwargs = (linewidth=2, linealpha=0.8, yaxis=:log, xlabel="Simulation time (days)",
               ylabel="Mean squared error", grid=false, legend=:outertopright, framestyle=:box,
               foreground_color_legend=nothing, background_color_legend=nothing)
 
@@ -75,10 +79,13 @@ function animate_nde_loss(datasets, ids_train, ids_test, nde_solutions, true_sol
         for id in ids
             nde_loss = Flux.mse(true_solutions[id], nde_solutions[id][e], agg=x->mean(x, dims=1))[:]
 
+            min_loss, max_loss = extrema(filter(!iszero, nde_loss))
+            ylims = (min(ylims[1], 10^floor(log10(min_loss))), max(ylims[2], 10^ceil(log10(max_loss))))
+
             label = @sprintf("id=%d (%s)", id, id in ids_train ? "train" : "test")
             linestyle = id in ids_train ? :solid : :dash
 
-            plot!(p, times, nde_loss, label=label, title=title_epoch, linestyle=linestyle; kwargs...)
+            plot!(p, times, nde_loss, label=label, title=title_epoch, linestyle=linestyle, ylims=ylims; kwargs...)
         end
     end
 
