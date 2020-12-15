@@ -10,7 +10,8 @@ output_gif_directory = "Output1"
 
 ##
 
-train_files = ["strong_wind", "free_convection"]
+# train_files = ["strong_wind", "free_convection"]
+train_files = "strong_wind"
 test_file = "strong_wind"
 
 ##

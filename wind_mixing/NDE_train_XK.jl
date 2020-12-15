@@ -5,7 +5,7 @@ using Flux
 using NCDatasets
 using Plots
 using DiffEqSensitivity
-
+using JLD2
 using Oceananigans.Grids
 using OceanParameterizations
 # ENV["CUDA_VISIBLE_DEVICES"]="0"
@@ -70,9 +70,9 @@ function face_to_cell(input)
 end
 
 # splicing data to train the NN
-function time_window(t, uvT, stopindex)
+function time_window(t, uvT; startindex=1, stopindex)
     if stopindex < length(t)
-        return (t[1:stopindex], uvT[:,1:stopindex])
+        return (t[startindex:stopindex], uvT[:,startindex:stopindex])
     else
         @info "stop index larger than length of t"
     end
@@ -152,18 +152,21 @@ function NDE_nondimensional_flux!(dx, x, p, t)
 end
 
 
-t_train, uvT_train = time_window(t, uvT_scaled, 8)
-t_train = Float32.(t_train ./ τ)
+start=100
+stop=150
+t_train, uvT_train = time_window(t, uvT_scaled,startindex=start, stopindex=stop)
+t_train = Float32.((t_train .- t[start]) ./ τ)
 # t_train, uvT_train = time_window(t, uvT_scaled, 100)
-prob = ODEProblem(NDE_nondimensional!, uvT₀, (t_train[1], t_train[end]), p_nondimensional, saveat=t_train) # divide τ needs to be changed
-@info "t_train size = $(size(t_train)), uvT size = $(size(uvT_train))"
+uvT₀ = uvT_scaled[:,start]
+prob = ODEProblem(NDE_nondimensional!, uvT₀, (0f0, t_train[end] - t_train[1]), p_nondimensional, saveat=t_train) # divide τ needs to be changed
 
-# tpoint = 1000
-sol = solve(prob)
-# plot(sol[:,tpoint][33:64], zC_coarse)
-# plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
 
-opt = ROCK4()
+tpoint = 150
+sol = Array(solve(prob, ROCK4()))
+plot(sol[:,tpoint-start+1][33:64], zC_coarse)
+plot!(uvT_scaled[:,tpoint][33:64], zC_coarse)
+
+opt = Tsit5()
 
 function loss_NDE_NN()
     p = Float32.(cat(f, τ, H, Nz, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_weights, vw_weights, wT_weights, dims=1))
@@ -182,14 +185,18 @@ function cb()
     return _sol
 end
 
-Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 50), ADAM(0.01), cb=Flux.throttle(cb, 2))
+Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 100), ADAM(0.01), cb=Flux.throttle(cb, 2))
 
+@info uvT₀
 
-tpoint = 100
+tpoint = 55
 _sol = cb()
-plot(_sol[:,tpoint][33:64], zC_coarse, label="NDE")
+plot(_sol[:,tpoint-start+1][33:64], zC_coarse, label="NDE")
 plot!(uvT_scaled[:,tpoint][33:64], zC_coarse, label="truth")
-plot(_sol[:,tpoint][1:32], zC_coarse, label="NDE")
+plot(_sol[:,tpoint-start+1][1:32], zC_coarse, label="NDE", legend=:bottomright)
 plot!(uvT_scaled[:,tpoint][1:32], zC_coarse, label="truth")
-plot(_sol[:,tpoint][65:end], zC_coarse, label="NDE", legend=:topleft)
+xlabel!("uw")
+ylabel!("z")
+# savefig("Output/uw_zigzag.png")
+plot(_sol[:,tpoint-start+1][65:end], zC_coarse, label="NDE", legend=:topleft)
 plot!(uvT_scaled[:,tpoint][65:end], zC_coarse, label="truth")
