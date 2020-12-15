@@ -10,6 +10,7 @@ function FreeConvectionNDE(NN, ds; iterations=nothing)
 
     Δẑ = diff(zc[:])[1] / H  # Non-dimensional grid spacing
     Dzᶜ = Dᶜ(Nz, Δẑ) # Differentiation matrix operator
+    Dzᶜ = convert(Array{eltype(ds[:T])}, Dzᶜ)
 
     if isnothing(iterations)
         iterations = 1:length(times)
