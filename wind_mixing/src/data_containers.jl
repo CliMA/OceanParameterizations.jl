@@ -26,7 +26,7 @@ function reconstruct_flux_profiles(u, v, T, νₑ_∂z_u, νₑ_∂z_v, κₑ_�
     Δz = diff(zF)
     Δt = diff(t, dims=1)'
 
-    Nz,Nt = size(T)
+    Nz, Nt = size(T)
 
     ∂t(A) = (A[:,2:Nt] .- A[:,1:Nt-1]) ./ Δt
     dudt = ∂t(u) # Nz x (Nt-1) array of approximate dUdt values

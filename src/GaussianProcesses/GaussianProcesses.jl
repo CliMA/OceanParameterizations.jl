@@ -30,7 +30,7 @@ mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
 function best_kernel(𝒱; logγ_range=-1.0:0.1:2.0)
     function m(𝒱, kernel)
         𝒢 = GPmodel(𝒱; kernel=kernel)
-        f(x) = model_output(x, GPmodel(𝒱; kernel=kernel))
+        f(x) = model_output(x, 𝒢)
         return f
     end
 
@@ -61,7 +61,7 @@ function error_per_gamma(𝒱train, 𝒱test, k; logγ_range=-2.0:0.1:1.0)
     # model trained on training data
     function m(kernel)
         𝒢 = GPmodel(𝒱train; kernel=kernel)
-        f(x) = model_output(x, GPmodel(𝒱train; kernel=kernel))
+        f(x) = model_output(x, 𝒢)
         return f
     end
 
