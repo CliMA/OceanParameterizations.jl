@@ -73,8 +73,8 @@ NN = Chain(Dense( Nz, 4Nz, relu),
            Dense(4Nz, Nz-1))
 
 function free_convection_neural_network(input)
-    ϕ = NN(input.temperature)
-    wT = cat(input.bottom_flux, ϕ, input.top_flux, dims=1)
+    wT_interior = NN(input.temperature)
+    wT = cat(input.bottom_flux, wT_interior, input.top_flux, dims=1)
     return wT
 end
 
