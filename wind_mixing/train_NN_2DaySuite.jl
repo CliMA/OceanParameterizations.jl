@@ -107,28 +107,50 @@ loss_uw(x, y) = Flux.Losses.mse(predict(uw_NN_model, x, y), y)
 loss_vw(x, y) = Flux.Losses.mse(predict(vw_NN_model, x, y), y)
 loss_wT(x, y) = Flux.Losses.mse(predict(wT_NN_model, x, y), y)
 
-function train_NN(NN, loss, data, opts)
+# function train_NN(NN, loss, data, opts)
+#     function cb()
+#         @info "loss = $(mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))"
+#     end
+#    for opt in opts
+#         Flux.train!(loss, params(NN), data, opt, cb=Flux.throttle(cb, 2))
+#     end 
+# end
+uw_loss = []
+vw_loss = []
+wT_loss = []
+
+function train_NN_learning_curve(NN, loss, data, opts, loss_list)
     function cb()
-        @info "loss = $(mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))"
+        push!(loss_list, mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))
     end
    for opt in opts
-        Flux.train!(loss, params(NN), data, opt, cb=Flux.throttle(cb, 2))
+        @info "$opt"
+        Flux.train!(loss, params(NN), data, opt, cb=cb)
     end 
 end
 
 # optimizers = [ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), 
 # Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent()]
-# optimizers = [ADAM(), ADAM(), ADAM(), Descent(), Descent(), Descent()]
-optimizers = [Descent()]
+optimizers = [ADAM(0.01), ADAM(0.01), ADAM(0.01), Descent(), Descent(), Descent()]
+# optimizers = [ADAM(0.01)]
 
 
-train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
-train_NN(vw_NN_model, loss_vw, vw_train, optimizers)
-train_NN(wT_NN_model, loss_wT, wT_train, optimizers)
+# train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
+# train_NN(vw_NN_model, loss_vw, vw_train, optimizers)
+# train_NN(wT_NN_model, loss_wT, wT_train, optimizers)
+
+train_NN_learning_curve(uw_NN_model, loss_uw, uw_train, optimizers, uw_loss)
+train_NN_learning_curve(vw_NN_model, loss_vw, vw_train, optimizers, vw_loss)
+train_NN_learning_curve(wT_NN_model, loss_wT, wT_train, optimizers, wT_loss)
 
 @info "loss = $(mean([loss_uw(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)]))"
 @info "loss = $(mean([loss_vw(vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train)]))"
 @info "loss = $(mean([loss_wT(wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train)]))"
+
+plot(1:length(uw_loss), uw_loss, yscale=:log10)
+plot(1:length(vw_loss), vw_loss, yscale=:log10)
+plot(1:length(wT_loss), wT_loss, yscale=:log10)
+
 
 uw_NN_params = Dict(
     :neural_network => uw_NN_model)
