@@ -20,9 +20,9 @@ PATH = pwd()
                     animate=false,
                     animate_dir="$(output_gif_directory)/Training")
 
-uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite.bson"))[:neural_network]
-vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite.bson"))[:neural_network]
-wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite.bson"))[:neural_network]
+uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite_large.bson"))[:neural_network]
+vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite_large.bson"))[:neural_network]
+wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite_large.bson"))[:neural_network]
 
 function predict_NDE(NN, x, top, bottom)
     interior = NN(x)
@@ -138,23 +138,23 @@ function train_NDE(epochs)
         Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(), cb=Flux.throttle(cb_NDE,5))
         if i % 5 == 0
             uw_NN_params = Dict(:weights => uw_weights)
-            bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"), uw_NN_params)
+            bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_large.bson"), uw_NN_params)
 
             vw_NN_params = Dict(:weights => vw_weights)
-            bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"), vw_NN_params)
+            bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_large.bson"), vw_NN_params)
 
             wT_NN_params = Dict(:weights => wT_weights)
-            bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"), wT_NN_params)
+            bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_large.bson"), wT_NN_params)
         end
     end
     uw_NN_params = Dict(:weights => uw_weights)
-    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"), uw_NN_params)
+    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_large.bson"), uw_NN_params)
 
     vw_NN_params = Dict(:weights => vw_weights)
-    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"), vw_NN_params)
+    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_large.bson"), vw_NN_params)
 
     wT_NN_params = Dict(:weights => wT_weights)
-    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"), wT_NN_params)
+    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_large.bson"), wT_NN_params)
 end
 
 train_NDE(2000)
