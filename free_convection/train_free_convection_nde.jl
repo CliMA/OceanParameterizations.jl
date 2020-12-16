@@ -16,6 +16,7 @@ using FreeConvection
 using Oceananigans: OceananigansLogger
 using FreeConvection: coarse_grain
 
+ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
 
 function parse_command_line_arguments()
