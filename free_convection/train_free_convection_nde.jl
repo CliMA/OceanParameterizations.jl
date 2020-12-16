@@ -30,7 +30,7 @@ function parse_command_line_arguments()
 
         "--nde"
             help = "Type of neural differential equation (NDE) to train. Options: free_convection, convective_adjustment"
-            default = "free_convection"
+            default = "convective_adjustment"
             arg_type = AbstractString
 
         "--name"
@@ -86,33 +86,47 @@ for dd in FreeConvection.LESBRARY_DATA_DEPS
     DataDeps.register(dd)
 end
 
-## Load training data
+## Load data
 
-@info "Loading training data..."
-training_datasets = tds = Dict{Int,Any}(
+@info "Loading data..."
+datasets = Dict{Int,Any}(
     1 => NCDstack(datadep"free_convection_Qb1e-8/statistics.nc"),
     2 => NCDstack(datadep"free_convection_Qb2e-8/statistics.nc"),
-    3 => NCDstack(datadep"free_convection_Qb4e-8/statistics.nc"),
-    4 => NCDstack(datadep"free_convection_Qb6e-8/statistics.nc")
+    3 => NCDstack(datadep"free_convection_Qb3e-8/statistics.nc"),
+    4 => NCDstack(datadep"free_convection_Qb4e-8/statistics.nc"),
+    5 => NCDstack(datadep"free_convection_Qb5e-8/statistics.nc"),
+    6 => NCDstack(datadep"free_convection_Qb6e-8/statistics.nc")
 )
 
 ## Add surface fluxes to data
 
 @info "Inserting surface fluxes..."
-training_datasets = tds = Dict{Int,Any}(id => add_surface_fluxes(ds) for (id, ds) in tds)
+datasets = Dict{Int,Any}(id => add_surface_fluxes(ds) for (id, ds) in datasets)
 
 ## Coarse grain training data
 
-@info "Coarse graining training data..."
-coarse_training_datasets = ctds =
-    Dict{Int,Any}(id => coarse_grain(ds, Nz) for (id, ds) in tds)
+@info "Coarse graining data..."
+coarse_datasets = Dict{Int,Any}(id => coarse_grain(ds, Nz) for (id, ds) in datasets)
+
+## Split into training and testing data
+
+@info "Partitioning data into training and testing datasets..."
+
+ids_train = [1, 2, 4, 6]
+ids_test = [3, 5]
+
+training_datasets = Dict(id => datasets[id] for id in ids_train)
+testing_datasets = Dict(id => datasets[id] for id in ids_test)
+
+coarse_training_datasets = Dict(id => coarse_datasets[id] for id in ids_train)
+coarse_testing_datasets = Dict(id => coarse_datasets[id] for id in ids_test)
 
 ## Create animations for T(z,t) and wT(z,t)
 
 @info "Animating training data..."
-for id in keys(tds)
+for id in keys(training_datasets)
     filepath = joinpath(output_dir, "free_convection_data_$id")
-    animate_data(tds[id], ctds[id]; filepath, frameskip=5)
+    animate_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
 end
 
 ## Pull out input (T) and output (wT) training data
@@ -228,11 +242,8 @@ end
 
 ## Analyze NDE accuracy
 
-true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_training_datasets)
-nde_solution_history = compute_nde_solution_history(coarse_training_datasets, final_nn_filepath, nn_history_filepath)
-
-ids_train = keys(coarse_training_datasets) |> Tuple
-ids_test = ()
+true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_datasets)
+nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, nn_history_filepath)
 
 for id in (ids_train..., ids_test...)
     @info @sprintf("MDE loss (id=%s): %.12e", id, Flux.mse(true_solutions[id], nde_solution_history[id][end]))
@@ -242,12 +253,12 @@ plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,
                 title = "Free convection NDE",
                 filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
 
-animate_nde_loss(coarse_training_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
+animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
                  title = "Free convection NDE",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
 @info "Animating what the neural network has learned..."
-for (id, ds) in coarse_training_datasets
+for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "learned_free_convection_$id")
     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, T_scaling, wT_scaling, filepath=filepath)
 end
