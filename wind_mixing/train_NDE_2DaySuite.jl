@@ -59,6 +59,11 @@ wT_bottom = Float32(𝒟train.wT.scaled[end,1])
 size_uw_NN = length(uw_weights)
 size_vw_NN = length(vw_weights)
 size_wT_NN = length(wT_weights)
+
+uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
+vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
+wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
+
 p_nondimensional = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
 
 D_cell = Float32.(Dᶜ(Nz, 1/Nz))
@@ -91,7 +96,7 @@ function time_window(t, uvT, trange)
 end
 
 start_index = 1
-end_index = 100
+end_index = 200
 
 timesteps = start_index:5:end_index
 uvT₀ = Float32.(𝒟train.uvT_scaled[:,start_index])
@@ -115,7 +120,7 @@ function loss_NDE_NN()
     # _sol = Array(solve(prob, opt_NDE, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
     # _sol = Array(solve(prob, opt_NDE, reltol=1f-3, sensealg=sensealg=TrackerAdjoint()))
     
-    _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-3, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
     # print(length(solve(prob, opt_NDE, p=p, reltol=1f-3, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())).t))
     # println(size(_sol))
     loss = Flux.mse(_sol, uvT_train)
@@ -132,32 +137,30 @@ function cb_NDE()
     return _sol
 end
 
+function save_NDE_weights()
+    uw_NN_params = Dict(:weights => uw_weights)
+    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_200.bson"), uw_NN_params)
+
+    vw_NN_params = Dict(:weights => vw_weights)
+    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_200.bson"), vw_NN_params)
+
+    wT_NN_params = Dict(:weights => wT_weights)
+    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_200.bson"), wT_NN_params)
+end
+
+
 function train_NDE(epochs)
     for i in 1:epochs
         @info "epoch $i/$epochs"
-        Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(), cb=Flux.throttle(cb_NDE,5))
+        Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(0.01), cb=Flux.throttle(cb_NDE,5))
         if i % 5 == 0
-            uw_NN_params = Dict(:weights => uw_weights)
-            bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"), uw_NN_params)
-
-            vw_NN_params = Dict(:weights => vw_weights)
-            bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"), vw_NN_params)
-
-            wT_NN_params = Dict(:weights => wT_weights)
-            bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"), wT_NN_params)
+            save_NDE_weights()
         end
     end
-    uw_NN_params = Dict(:weights => uw_weights)
-    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"), uw_NN_params)
-
-    vw_NN_params = Dict(:weights => vw_weights)
-    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"), vw_NN_params)
-
-    wT_NN_params = Dict(:weights => wT_weights)
-    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"), wT_NN_params)
+    save_NDE_weights()
 end
 
-train_NDE(2000)
+train_NDE(4000)
 
 # @time Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(), cb=Flux.throttle(cb_NDE,2))
 
