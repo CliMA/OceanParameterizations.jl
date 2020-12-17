@@ -6,6 +6,8 @@ using OceanParameterizations
 using Oceananigans.Grids
 using BSON
 using OrdinaryDiffEq, DiffEqSensitivity
+using LaTeXStrings
+
 include("lesbrary_data.jl")
 include("data_containers.jl")
 include("animate_prediction.jl")
@@ -131,8 +133,8 @@ end
 
 # optimizers = [ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), 
 # Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent()]
-optimizers = [ADAM(0.01), ADAM(0.01), ADAM(0.01), Descent(), Descent(), Descent()]
-# optimizers = [ADAM(0.01)]
+optimizers = [ADAM(0.01), Descent(), Descent(), Descent(), Descent()]
+# optimizers = [Descent(0.01)]
 
 
 # train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
@@ -147,10 +149,20 @@ train_NN_learning_curve(wT_NN_model, loss_wT, wT_train, optimizers, wT_loss)
 @info "loss = $(mean([loss_vw(vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train)]))"
 @info "loss = $(mean([loss_wT(wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train)]))"
 
-plot(1:length(uw_loss), uw_loss, yscale=:log10)
-plot(1:length(vw_loss), vw_loss, yscale=:log10)
-plot(1:length(wT_loss), wT_loss, yscale=:log10)
+plot(1:length(uw_loss), uw_loss, yscale=:log10, label=nothing)
+xlabel!(L"Iterations")
+ylabel!(L"$Loss(\mathbb{NN}_1, \overline{U'W'})$")
+savefig("Output/uw_loss.pdf")
 
+plot(1:length(vw_loss), vw_loss, yscale=:log10)
+xlabel!(L"Iterations")
+ylabel!(L"$Loss(\mathbb{NN}_2, \overline{V'W'})$")
+savefig("Output/vw_loss.pdf")
+
+plot(1:length(wT_loss), wT_loss, yscale=:log10, label=nothing)
+xlabel!(L"Iterations")
+ylabel!(L"$Loss(\mathbb{NN}_3, \overline{W'T'})$")
+savefig("Output/wT_loss.pdf")
 
 uw_NN_params = Dict(
     :neural_network => uw_NN_model)
@@ -168,214 +180,37 @@ wT_NN_params = Dict(
 
 bson("wT_NN_params_2DaySuite.bson", wT_NN_params)
 
-
 NN_prediction_uw = cat((predict(uw_NN_model, uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train))..., dims=2)
 truth_uw = cat((uw_train[i][2] for i in 1:length(uw_train))..., dims=2)
 uw_plots = (NN_prediction_uw, truth_uw)
+index = 5
+plot(uw_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_1 (U, V, T)", legend=:bottomleft)
+plot!(uw_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
+ylabel!(L"z/m")
+xlabel!(L"\overline{U'W'}")
+savefig("Output/uw_NN_truth_$index.pdf")
 
 NN_prediction_vw = cat((predict(vw_NN_model, vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train))..., dims=2)
 truth_vw = cat((vw_train[i][2] for i in 1:length(vw_train))..., dims=2)
 vw_plots = (NN_prediction_vw, truth_vw)
-
+index = 280
+plot(vw_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_2 (U, V, T)", legend=:bottomright)
+plot!(vw_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
+ylabel!(L"z/m")
+xlabel!(L"\overline{V'W'}")
+savefig("Output/vw_NN_truth_$index.pdf")
 
 NN_prediction_wT = cat((predict(wT_NN_model, wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train))..., dims=2)
 truth_wT = cat((wT_train[i][2] for i in 1:length(wT_train))..., dims=2)
 wT_plots = (NN_prediction_wT, truth_wT)
+index = 280
+plot(wT_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_3 (U, V, T)", legend=:bottomright)
+plot!(wT_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
+ylabel!(L"z/m")
+xlabel!(L"\overline{W'T'}")
+savefig("Output/wT_NN_truth_$index.pdf")
+
 
 animate_NN(uw_plots, 𝒟train.uw.z, 𝒟train.t[:,1], "uw", ["NN", "truth"], "uw_strong_wind_bounds1")
 animate_NN(vw_plots, 𝒟train.vw.z, 𝒟train.t[:,1], "vw", ["NN", "truth"], "vw_strong_wind_bounds1")
 animate_NN(wT_plots, 𝒟train.wT.z, 𝒟train.t[:,1], "wT", ["NN", "truth"], "wT_strong_wind_bounds")
-
-𝒟train.uvT_scaled
-𝒟train.uw.scaled
-
-function predict_NDE(NN, x, top, bottom)
-    interior = NN(x)
-    return [top; interior; bottom]
-end
-
-f = 1f-4
-H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
-τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
-Nz = 32
-u_scaling = 𝒟train.scalings["u"]
-v_scaling = 𝒟train.scalings["v"]
-T_scaling = 𝒟train.scalings["T"]
-uw_scaling = 𝒟train.scalings["uw"]
-vw_scaling = 𝒟train.scalings["vw"]
-wT_scaling = 𝒟train.scalings["wT"]
-μ_u = Float32(u_scaling.μ)
-μ_v = Float32(v_scaling.μ)
-σ_u = Float32(u_scaling.σ)
-σ_v = Float32(v_scaling.σ)
-σ_T = Float32(T_scaling.σ)
-σ_uw = Float32(uw_scaling.σ)
-σ_vw = Float32(vw_scaling.σ)
-σ_wT = Float32(wT_scaling.σ)
-uw_weights, re_uw = Flux.destructure(uw_NN_model)
-vw_weights, re_vw = Flux.destructure(vw_NN_model)
-wT_weights, re_wT = Flux.destructure(wT_NN_model)
-uw_top = Float32(𝒟train.uw.scaled[1,1])
-uw_bottom = Float32(uw_scaling(-1e-3))
-vw_top = Float32(𝒟train.vw.scaled[1,1])
-vw_bottom = Float32(𝒟train.vw.scaled[end,1])
-wT_top = Float32(𝒟train.wT.scaled[1,1])
-wT_bottom = Float32(𝒟train.wT.scaled[end,1])
-size_uw_NN = length(uw_weights)
-size_vw_NN = length(vw_weights)
-size_wT_NN = length(wT_weights)
-p_nondimensional = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-
-D_cell = Float32.(Dᶜ(Nz, 1/Nz))
-
-function NDE_nondimensional_flux!(dx, x, p, t)
-    f, τ, H, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[1:17]
-    Nz = 32
-    uw_weights = p[18:18+size_uw_NN-1]
-    vw_weights = p[18+size_uw_NN:18+size_uw_NN+size_vw_NN-1]
-    wT_weights = p[18+size_uw_NN+size_vw_NN:end]
-    uw_NN = re_uw(uw_weights)
-    vw_NN = re_vw(vw_weights)
-    wT_NN = re_wT(wT_weights)
-    A = - τ / H
-    B = f * τ
-    u = x[1:Nz]
-    v = x[Nz+1:2*Nz]
-    T = x[2*Nz+1:end]
-    dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-    dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-    dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom)
-end
-
-function time_window(t, uvT; startindex=1, stopindex)
-    if stopindex < length(t)
-        return (Float32.(t[startindex:stopindex]), Float32.(uvT[:,startindex:stopindex]))
-    else
-        @info "stop index larger than length of t"
-    end
-end
-
-start_index = 1
-end_index = 10
-uvT₀ = Float32.(𝒟train.uvT_scaled[:,start_index])
-tspan_train = (0f0, Float32.((𝒟train.t[end_index] - 𝒟train.t[start_index])/τ))
-
-t_train, uvT_train = time_window(𝒟train.t, 𝒟train.uvT_scaled, startindex=start_index, stopindex=end_index)
-t_train = Float32.(t_train ./ τ)
-
-opt_NDE = ROCK4()
-prob = ODEProblem(NDE_nondimensional_flux!, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
-sol = solve(prob, opt_NDE)
-
-function loss_NDE_NN()
-    p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-    _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-3, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-    loss = Flux.mse(_sol, uvT_train)
-    return loss
-end
-
-loss_NDE_NN()
-
-function cb_NDE()
-    p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-    _sol = Array(solve(prob, opt_NDE, p=p, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-    loss = Flux.mse(_sol, uvT_train)
-    @info loss
-    return _sol
-end
-
-Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(0.01), cb=Flux.throttle(cb_NDE,2))
-cb_NDE()
-
-function train_NDE(𝒟train, uw_NN_model, vw_NN_model, wT_NN_model, epochs=2, opt_NDE=ROCK4())
-    f = 1f-4
-    H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
-    τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
-    Nz = 32
-    u_scaling = 𝒟train.scalings["u"]
-    v_scaling = 𝒟train.scalings["v"]
-    T_scaling = 𝒟train.scalings["T"]
-    uw_scaling = 𝒟train.scalings["uw"]
-    vw_scaling = 𝒟train.scalings["vw"]
-    wT_scaling = 𝒟train.scalings["wT"]
-    μ_u = Float32(u_scaling.μ)
-    μ_v = Float32(v_scaling.μ)
-    σ_u = Float32(u_scaling.σ)
-    σ_v = Float32(v_scaling.σ)
-    σ_T = Float32(T_scaling.σ)
-    σ_uw = Float32(uw_scaling.σ)
-    σ_vw = Float32(vw_scaling.σ)
-    σ_wT = Float32(wT_scaling.σ)
-    uw_weights, re_uw = Flux.destructure(uw_NN_model)
-    vw_weights, re_vw = Flux.destructure(vw_NN_model)
-    wT_weights, re_wT = Flux.destructure(wT_NN_model)
-    uw_top = Float32(𝒟train.uw.scaled[1,1])
-    uw_bottom = Float32(uw_scaling(-1f-3))
-    vw_top = Float32(𝒟train.vw.scaled[1,1])
-    vw_bottom = Float32(𝒟train.vw.scaled[end,1])
-    wT_top = Float32(𝒟train.wT.scaled[1,1])
-    wT_bottom = Float32(𝒟train.wT.scaled[end,1])
-    size_uw_NN = length(uw_weights)
-    size_vw_NN = length(vw_weights)
-    size_wT_NN = length(wT_weights)
-    p_nondimensional = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-    D_cell = Float32.(Dᶜ(Nz, 1/Nz))
-
-    start_index = 1
-    end_index = 10
-    uvT₀ = Float32.(𝒟train.uvT_scaled[:,start_index])
-    tspan_train = (0f0, Float32.((𝒟train.t[end_index] - 𝒟train.t[start_index])/τ))
-
-    t_train, uvT_train = time_window(𝒟train.t, 𝒟train.uvT_scaled, startindex=start_index, stopindex=end_index)
-    t_train ./= τ
-
-    function predict_NDE(NN, x, top, bottom)
-        interior = NN(x)
-        return [top; interior; bottom]
-    end
-
-
-    function NDE_nondimensional_flux!(dx, x, p, t)
-        f, τ, H, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[1:17]
-        Nz = 32
-        uw_weights = p[18:18+size_uw_NN-1]
-        vw_weights = p[18+size_uw_NN:18+size_uw_NN+size_vw_NN-1]
-        wT_weights = p[18+size_uw_NN+size_vw_NN:end]
-        uw_NN = re_uw(uw_weights)
-        vw_NN = re_vw(vw_weights)
-        wT_NN = re_wT(wT_weights)
-        A = - τ / H
-        B = f * τ
-        u = x[1:Nz]
-        v = x[Nz+1:2*Nz]
-        T = x[2*Nz+1:end]
-        dx[1:Nz] .= A .* σ_uw ./ σ_u .* (D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom)) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-        dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* (D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom)) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-        dx[2*Nz+1:end] .= A .* σ_wT ./ σ_T .* (D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom))
-    end
-
-    prob = ODEProblem(NDE_nondimensional_flux!, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
-
-    function loss_NDE_NN()
-        p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-        _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-3, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-        loss = Flux.mse(_sol, uvT_train)
-        return loss
-    end
-
-    function cb_NDE()
-        p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-        _sol = Array(solve(prob, opt_NDE, p=p, sense=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-        loss = Flux.mse(_sol, uvT_train)
-        @info loss
-        return _sol
-    end
-
-    Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), epochs), ADAM(0.01), cb=Flux.throttle(cb_NDE,2))
-
-    return uw_weights, vw_weights, wT_weights    
-end
-
-
-
-train_NDE(𝒟train, uw_NN_model, vw_NN_model, wT_NN_model)

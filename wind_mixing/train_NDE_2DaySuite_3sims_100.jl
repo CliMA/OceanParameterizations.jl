@@ -10,7 +10,7 @@ include("lesbrary_data.jl")
 include("data_containers.jl")
 include("animate_prediction.jl")
 
-train_files = ["strong_wind"]
+train_files = ["strong_wind", "strong_wind_weak_heating", "free_convection"]
 output_gif_directory = "Output"
 
 PATH = pwd()
@@ -20,13 +20,9 @@ PATH = pwd()
                     animate=false,
                     animate_dir="$(output_gif_directory)/Training")
 
-# uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite.bson"))[:neural_network]
-# vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite.bson"))[:neural_network]
-# wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite.bson"))[:neural_network]
-
-uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"))[:neural_network]
-vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"))[:neural_network]
-wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_network]
+uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite.bson"))[:neural_network]
+vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite.bson"))[:neural_network]
+wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite.bson"))[:neural_network]
 
 function predict_NDE(NN, x, top, bottom)
     interior = NN(x)
@@ -55,11 +51,14 @@ uw_weights, re_uw = Flux.destructure(uw_NN_model)
 vw_weights, re_vw = Flux.destructure(vw_NN_model)
 wT_weights, re_wT = Flux.destructure(wT_NN_model)
 uw_top = Float32(𝒟train.uw.scaled[1,1])
-uw_bottom = Float32(uw_scaling(-1e-3))
+uw_bottom₁ = Float32(uw_scaling(-1e-3))
+uw_bottom₂ = Float32(𝒟train.uw.scaled[end,1])
 vw_top = Float32(𝒟train.vw.scaled[1,1])
 vw_bottom = Float32(𝒟train.vw.scaled[end,1])
 wT_top = Float32(𝒟train.wT.scaled[1,1])
-wT_bottom = Float32(𝒟train.wT.scaled[end,1])
+wT_bottom₁ = Float32(𝒟train.wT.scaled[end,1])
+wT_bottom₂ = Float32(wT_scaling(-4e-8))
+wT_bottom₃ = Float32(wT_scaling(1.2e-7))
 size_uw_NN = length(uw_weights)
 size_vw_NN = length(vw_weights)
 size_wT_NN = length(wT_weights)
@@ -68,7 +67,7 @@ uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson")
 vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
 wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
 
-p_nondimensional = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
+p₁ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₁; vw_top; vw_bottom; wT_top; wT_bottom₁; uw_weights; vw_weights; wT_weights]
 
 D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
@@ -86,9 +85,6 @@ function NDE_nondimensional_flux(x, p, t)
     u = x[1:Nz]
     v = x[Nz+1:2*Nz]
     T = x[2*Nz+1:96]
-    # dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-    # dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-    # dx[2*Nz+1:96] .= A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom)
     dx₁ = A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
     dx₂ = A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
     dx₃ = A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom)
@@ -100,56 +96,69 @@ function time_window(t, uvT, trange)
 end
 
 start_index = 1
-end_index = 200
+end_index = 100
 
-timesteps = start_index:1:end_index
-uvT₀ = Float32.(𝒟train.uvT_scaled[:,start_index])
+timesteps = start_index:5:end_index
+uvT₁ = Float32.(𝒟train.uvT_scaled[:,start_index])
+uvT₂ = Float32.(𝒟train.uvT_scaled[:,289 + start_index])
+uvT₃ = Float32.(𝒟train.uvT_scaled[:,578 + start_index])
 
-t_train, uvT_train = time_window(𝒟train.t, 𝒟train.uvT_scaled, timesteps)
+
+t_train, uvT_train₁ = time_window(𝒟train.t, 𝒟train.uvT_scaled, timesteps)
+_, uvT_train₂ = time_window(𝒟train.t, 𝒟train.uvT_scaled[:, 290:end], timesteps)
+_, uvT_train₃ = time_window(𝒟train.t, 𝒟train.uvT_scaled[:, 579:end], timesteps)
 t_train = Float32.(t_train ./ τ)
 tspan_train = (t_train[1], t_train[end])
 
+opt_NDE = Tsit5()
 
-uvT_train
-opt_NDE = ROCK4()
-# prob = ODEProblem(NDE_nondimensional_flux!, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
-prob = ODEProblem(NDE_nondimensional_flux, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
-sol = solve(prob, opt_NDE)
+prob₁ = ODEProblem(NDE_nondimensional_flux, uvT₁, tspan_train, p₁, saveat=t_train)
+prob₂ = ODEProblem(NDE_nondimensional_flux, uvT₂, tspan_train, p₁, saveat=t_train)
+prob₃ = ODEProblem(NDE_nondimensional_flux, uvT₃, tspan_train, p₁, saveat=t_train)
+
+# sol₁ = solve(prob₁, opt_NDE)
+# sol₂ = solve(prob₂, opt_NDE)
 
 # Array(sol.t)
 
 function loss_NDE_NN()
-    p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-    # prob = ODEProblem(NDE_nondimensional_flux!, uvT₀, tspan_train, p, saveat=t_train)
-    # _sol = Array(solve(prob, opt_NDE, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-    # _sol = Array(solve(prob, opt_NDE, reltol=1f-3, sensealg=sensealg=TrackerAdjoint()))
+    p₁ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₁; vw_top; vw_bottom; wT_top; wT_bottom₁; uw_weights; vw_weights; wT_weights]
+    p₂ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₁; vw_top; vw_bottom; wT_top; wT_bottom₂; uw_weights; vw_weights; wT_weights]
+    p₃ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₂; vw_top; vw_bottom; wT_top; wT_bottom₃; uw_weights; vw_weights; wT_weights]
     
-    _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-    # print(length(solve(prob, opt_NDE, p=p, reltol=1f-3, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())).t))
-    # println(size(_sol))
-    loss = Flux.mse(_sol, uvT_train)
+    _sol₁ = Array(solve(prob₁, opt_NDE, p=p₁, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol₂ = Array(solve(prob₂, opt_NDE, p=p₂, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol₃ = Array(solve(prob₃, opt_NDE, p=p₃, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+
+    loss = mean(Flux.mse(_sol₁, uvT_train₁) + Flux.mse(_sol₂, uvT_train₂)+ Flux.mse(_sol₃, uvT_train₃))
     return loss
 end
 
-loss_NDE_NN()
+# loss_NDE_NN()
 
 function cb_NDE()
-    p=[f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
-    _sol = Array(solve(prob, opt_NDE, p=p, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
-    loss = Flux.mse(_sol, uvT_train)
+    p₁ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₁; vw_top; vw_bottom; wT_top; wT_bottom₁; uw_weights; vw_weights; wT_weights]
+    p₂ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₁; vw_top; vw_bottom; wT_top; wT_bottom₂; uw_weights; vw_weights; wT_weights]
+    p₃ = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom₂; vw_top; vw_bottom; wT_top; wT_bottom₃; uw_weights; vw_weights; wT_weights]
+    
+    _sol₁ = Array(solve(prob₁, opt_NDE, p=p₁, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol₂ = Array(solve(prob₂, opt_NDE, p=p₂, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+    _sol₃ = Array(solve(prob₃, opt_NDE, p=p₃, reltol=1f-5, saveat=t_train, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP())))
+
+    loss = mean(Flux.mse(_sol₁, uvT_train₁) + Flux.mse(_sol₂, uvT_train₂)+ Flux.mse(_sol₃, uvT_train₃))
     @info loss
-    return _sol
+    return (_sol₁, _sol₂, _sol₃)
 end
 
 function save_NDE_weights()
     uw_NN_params = Dict(:weights => uw_weights)
-    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_200.bson"), uw_NN_params)
+    bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_3Sims_$end_index.bson"), uw_NN_params)
 
     vw_NN_params = Dict(:weights => vw_weights)
-    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_200.bson"), vw_NN_params)
+    bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_3Sims_$end_index.bson"), vw_NN_params)
 
     wT_NN_params = Dict(:weights => wT_weights)
-    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_200.bson"), wT_NN_params)
+    bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_3Sims_$end_index.bson"), wT_NN_params)
 end
 
 
