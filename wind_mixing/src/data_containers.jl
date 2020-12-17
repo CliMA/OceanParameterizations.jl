@@ -109,7 +109,7 @@ end
                            Set to 𝒟train.scalings to use the scalings from 𝒟train.
 """
 function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="Output",
-                override_scalings=nothing, reconstruct_fluxes=false, subsample_frequency=1)
+                override_scalings=nothing, reconstruct_fluxes=false, subsample_frequency=1,enforce_surface_fluxes=false)
 
     filenames isa String && (filenames = [filenames])
 
@@ -122,9 +122,6 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
 
     get_array(f) = cat((f(les) for (file, les) in all_les)..., dims=2)
 
-    uw = get_array(les -> les.wu)
-    vw = get_array(les -> les.wv)
-    wT = get_array(les -> les.wT)
     u  = get_array(les -> les.U)
     v  = get_array(les -> les.V)
     T  = get_array(les -> les.T)
@@ -132,6 +129,20 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     νₑ_∂z_v = get_array(les -> les.νₑ_∂z_v)
     κₑ_∂z_T = get_array(les -> les.κₑ_∂z_T)
     t  = cat((les.t for (file, les) in all_les)..., dims=1)
+
+    function enforce_top_surface_flux!(A, flux)
+        A[end,:] .= flux
+        return A
+    end
+
+    vw = get_array(les -> les.wv)
+    if enforce_surface_fluxes
+        uw = get_array(les -> enforce_top_surface_flux!(les.wu, les.u_top))
+        wT = get_array(les -> enforce_top_surface_flux!(les.wT, les.θ_top))
+    else
+        uw = get_array(les -> les.wu)
+        wT = get_array(les -> les.wT)
+    end
 
     first = all_les[filenames[1]]
     zC = first.zC
@@ -156,13 +167,17 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
             cols = x:x+Nt-1 # time indices corresponding to the current simulation
             # @. u[:,cols], v[:,cols], T[:,cols], uw[:,cols], vw[:,cols], wT[:,cols], t[cols] = reconstruct_flux_profiles(les.U, les.V, les.T, les.νₑ_∂z_u, les.νₑ_∂z_v, les.κₑ_∂z_T, zF, les.t, les.f⁰)
             a = reconstruct_flux_profiles(les.U, les.V, les.T, les.νₑ_∂z_u, les.νₑ_∂z_v, les.κₑ_∂z_T, zF, les.t, les.f⁰)
-            u[:,cols] .= a[1]
-            v[:,cols] .= a[2]
-            T[:,cols] .= a[3]
+            u[:,cols]  .= a[1]
+            v[:,cols]  .= a[2]
+            T[:,cols]  .= a[3]
             uw[:,cols] .= a[4]
             vw[:,cols] .= a[5]
             wT[:,cols] .= a[6]
-            t[cols] .= a[7]
+            t[cols]    .= a[7]
+            if enforce_surface_fluxes
+                uw[end,cols] .= les.u_top
+                wT[end,cols] .= les.θ_top
+            end
             x += Nt
         end
     end
@@ -226,7 +241,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     function get_FluxData(name, coarse, z)
         scaled, unscale_fn = get_scaled(name, coarse)
         training_data = [(uvT_scaled[:,i], scaled[:,i]) for i in training_set] # (predictor, target) pairs
-        return FluxData(z, coarse, scaled, unscale_fn, training_data)
+        return FluxData(z, coarse, scaled, unscale_fn, uvT_scaled, training_data)
     end
 
     u = get_uvTData("u", u_coarse, zC_coarse)

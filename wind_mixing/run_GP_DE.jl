@@ -7,6 +7,9 @@ using Plots
 reconstruct_fluxes = false
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
+enforce_surface_fluxes = true
+println("Enforce surface fluxes? $(enforce_surface_fluxes)")
+
 subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
 
@@ -31,18 +34,21 @@ for i=1:length(files)
     𝒟train = data(train_files,
                         scale_type=ZeroMeanUnitVarianceScaling,
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
     # Test on file i
     test_file = files[i]
     𝒟test = data(test_file,
                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
     les = read_les_output(test_file)
 
-    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/test_$(test_file)"
+    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/test_$(test_file)"
     directory = pwd() * "/$(output_gif_directory)/"
-    isdir(dirname(directory)) || mkpath(directory)
+    # isdir(dirname(directory)) || 
+    mkpath(directory)
     file = directory*"output.txt"
     touch(file)
     o = open(file, "w")

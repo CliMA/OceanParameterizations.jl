@@ -17,6 +17,6 @@ function predict(𝒱, model; subsampled_only=false)
         return (cat(predictions...,dims=2), cat(targets...,dims=2))
     end
 
-    predictions = (𝒱.unscale_fn(model(𝒱.uvT_unscaled[:,t])) for t in 1:size(𝒱.uvT_unscaled,2))
+    predictions = (𝒱.unscale_fn(model(𝒱.uvT_scaled[:,t])) for t in 1:size(𝒱.uvT_scaled,2))
     return (cat(predictions...,dims=2),  𝒱.coarse)
 end

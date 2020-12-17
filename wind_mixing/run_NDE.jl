@@ -5,19 +5,34 @@ using OrdinaryDiffEq
 
 ## Pick training and test simulations
 
-output_gif_directory = "Output1"
+reconstruct_fluxes = false
+println("Reconstruct fluxes? $(reconstruct_fluxes)")
+
+enforce_surface_fluxes = true
+println("Enforce surface fluxes? $(enforce_surface_fluxes)")
+
+subsample_frequency = 32
+println("Subsample frequency for training... $(subsample_frequency)")
 
 train_files = ["strong_wind", "free_convection"]
 test_file = "strong_wind"
 
+output_gif_directory = "NDE/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/test_$(test_file)"
+
 𝒟train = data(train_files,
                     scale_type=ZeroMeanUnitVarianceScaling,
                     animate=false,
-                    animate_dir="$(output_gif_directory)/Training")
+                    animate_dir="$(output_gif_directory)/Training",
+                    reconstruct_fluxes=reconstruct_fluxes,
+                    subsample_frequency=subsample_frequency,
+                    enforce_surface_fluxes=enforce_surface_fluxes)
 𝒟test = data(test_file,
                     override_scalings=𝒟train.scalings, # use the scalings from the training data
                     animate=false,
-                    animate_dir="$(output_gif_directory)/Testing")
+                    animate_dir="$(output_gif_directory)/Testing",
+                    reconstruct_fluxes=reconstruct_fluxes,
+                    subsample_frequency=subsample_frequency,
+                    enforce_surface_fluxes=enforce_surface_fluxes)
 les = read_les_output(test_file)
 
 ## Neural Networks

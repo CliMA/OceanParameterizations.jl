@@ -2,8 +2,11 @@ using OceanParameterizations
 using WindMixing
 using Plots
 
-reconstruct_fluxes = false
+reconstruct_fluxes = true
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
+
+enforce_surface_fluxes = true
+println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
 subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
@@ -31,8 +34,9 @@ errors_wT = zeros(4,n)
 
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
-output_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)"
-isdir(dirname(output_directory)) || mkpath(output_directory)
+output_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)"
+# isdir(dirname(output_directory)) ||
+mkpath(output_directory)
 
 for i=1:length(files)
     # Train on all except file i
@@ -40,13 +44,15 @@ for i=1:length(files)
     𝒟train = data(train_files,
                         scale_type=ZeroMeanUnitVarianceScaling,
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
     # Test on file i
     test_file = files[i]
     𝒟test = data(test_file,
                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
 
     for k=1:4
         errors_uw[k,:] .+= error_per_gamma(𝒟train.uw, 𝒟test.uw, k; logγ_range=logγ_range)
@@ -92,15 +98,19 @@ println(wT_kernel)
 
 i=1
 train_files = files[1:end .!= i]
+
+subsample_frequency
 𝒟train = data(train_files,
                     scale_type=ZeroMeanUnitVarianceScaling,
                     reconstruct_fluxes=reconstruct_fluxes,
-                    subsample_frequency=subsample_frequency)
+                    subsample_frequency=subsample_frequency,
+                    enforce_surface_fluxes=enforce_surface_fluxes)
 test_file = files[i]
 𝒟test = data(test_file,
                     override_scalings=𝒟train.scalings, # use the scalings from the training data
                     reconstruct_fluxes=reconstruct_fluxes,
-                    subsample_frequency=subsample_frequency)
+                    subsample_frequency=subsample_frequency,
+                    enforce_surface_fluxes=enforce_surface_fluxes)
 
 # Trained GP models
 uw_GP_model = gp_model(𝒟train.uw, uw_kernel)
