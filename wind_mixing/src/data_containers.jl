@@ -73,6 +73,7 @@ struct FluxData{Z, C, S, U, T} # for each of uw, vw, and wT
            coarse :: C # Nz x Nt array of unscaled profiles
            scaled :: S # Nz x Nt array of scaled profiles
        unscale_fn :: U # function to unscaled profile vectors with
+       uvT_scaled :: S # unsubsampled uvT profiles
     training_data :: T # subsampled (uvT, scaled) pairs
 end
 
@@ -127,14 +128,44 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     u  = get_array(les -> les.U)
     v  = get_array(les -> les.V)
     T  = get_array(les -> les.T)
-    t  = get_array(les -> les.t)
     νₑ_∂z_u = get_array(les -> les.νₑ_∂z_u)
     νₑ_∂z_v = get_array(les -> les.νₑ_∂z_v)
     κₑ_∂z_T = get_array(les -> les.κₑ_∂z_T)
+    t  = cat((les.t for (file, les) in all_les)..., dims=1)
 
     first = all_les[filenames[1]]
     zC = first.zC
     zF = first.zF
+
+    NzC = length(zC)
+    NzF = length(zF)
+    Nt = sum([length(les.t) for (file, les) in all_les])
+
+    if reconstruct_fluxes
+        Nt -= length(all_les)
+        u = zeros(NzC, Nt)
+        v = zeros(NzC, Nt)
+        T = zeros(NzC, Nt)
+        uw = zeros(NzF, Nt)
+        vw = zeros(NzF, Nt)
+        wT = zeros(NzF, Nt)
+        t = zeros(Nt)
+        x=1
+        for (file,les) in all_les
+            Nt = length(les.t)-1
+            cols = x:x+Nt-1 # time indices corresponding to the current simulation
+            # @. u[:,cols], v[:,cols], T[:,cols], uw[:,cols], vw[:,cols], wT[:,cols], t[cols] = reconstruct_flux_profiles(les.U, les.V, les.T, les.νₑ_∂z_u, les.νₑ_∂z_v, les.κₑ_∂z_T, zF, les.t, les.f⁰)
+            a = reconstruct_flux_profiles(les.U, les.V, les.T, les.νₑ_∂z_u, les.νₑ_∂z_v, les.κₑ_∂z_T, zF, les.t, les.f⁰)
+            u[:,cols] .= a[1]
+            v[:,cols] .= a[2]
+            T[:,cols] .= a[3]
+            uw[:,cols] .= a[4]
+            vw[:,cols] .= a[5]
+            wT[:,cols] .= a[6]
+            t[cols] .= a[7]
+            x += Nt
+        end
+    end
 
     if animate
         animate_gif([uw], zF, t, "uw", directory=animate_dir)
@@ -160,13 +191,6 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
 
     zC_coarse = coarse_grain(zC, 32, Cell)
     zF_coarse = coarse_grain(zF, 33, Face)
-
-    f = 1e-4 # for now
-
-    if reconstruct_fluxes
-        u_coarse, v_coarse, T_coarse, uw_coarse, vw_coarse, wT_coarse, t =
-            reconstruct_flux_profiles(u_coarse, v_coarse, T_coarse, νₑ_∂z_u, νₑ_∂z_v, κₑ_∂z_T, zF_coarse, t, f)
-    end
 
     function get_scaling(name, coarse)
         if isnothing(override_scalings)
