@@ -90,12 +90,12 @@ end
 
 @info "Loading data..."
 datasets = Dict{Int,Any}(
-    1 => NCDstack(datadep"free_convection_Qb1e-8/statistics.nc"),
-    2 => NCDstack(datadep"free_convection_Qb2e-8/statistics.nc"),
-    3 => NCDstack(datadep"free_convection_Qb3e-8/statistics.nc"),
-    4 => NCDstack(datadep"free_convection_Qb4e-8/statistics.nc"),
-    5 => NCDstack(datadep"free_convection_Qb5e-8/statistics.nc"),
-    6 => NCDstack(datadep"free_convection_Qb6e-8/statistics.nc")
+    1 => NCDstack(datadep"free_convection_8days_Qb1e-8/statistics.nc"),
+    2 => NCDstack(datadep"free_convection_8days_Qb2e-8/statistics.nc"),
+    3 => NCDstack(datadep"free_convection_8days_Qb3e-8/statistics.nc"),
+    4 => NCDstack(datadep"free_convection_8days_Qb4e-8/statistics.nc"),
+    5 => NCDstack(datadep"free_convection_8days_Qb5e-8/statistics.nc"),
+    6 => NCDstack(datadep"free_convection_8days_Qb6e-8/statistics.nc")
 )
 
 ## Add surface fluxes to data
@@ -176,7 +176,7 @@ function nn_callback()
     return μ_loss
 end
 
-epochs = 2
+epochs = 5
 optimizers = [ADAM(1e-3), Descent(1e-4)]
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
@@ -207,8 +207,8 @@ end
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
-training_iterations = (1:20, 1:5:101, 1:10:201)
-training_epochs     = (25,   25,      25)
+training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
+training_epochs     = (20,   20,      20,       20,       20)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
@@ -219,9 +219,9 @@ end
 
 ## Train on entire solution while decreasing the learning rate
 
-burn_in_iterations = 1:9:289
-burn_in_epochs = 50
-optimizers = [ADAM(1e-3), ADAM(1e-4)]
+burn_in_iterations = 1:32:1153
+burn_in_epochs = 200
+optimizers = [ADAM(1e-3)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
