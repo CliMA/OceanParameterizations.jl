@@ -1,6 +1,15 @@
 using Plots
 using OceanParameterizations
 
+reconstruct_fluxes = true
+println("Reconstruct fluxes? $(reconstruct_fluxes)")
+
+enforce_surface_fluxes = true
+println("Enforce surface fluxes? $(enforce_surface_fluxes)")
+
+output_directory=pwd()*"/ProfileVisuals/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)"
+mkpath(output_directory)
+
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis", "weak_wind_strong_cooling",
           "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
@@ -13,12 +22,10 @@ file_labels = Dict(
     "strong_wind_weak_heating" => "Strong wind, weak heating"
 )
 
-reconstructed = true
-suffix = "reconstructed_$(reconstructed)_without_subgrid"
-
 Ts = Dict()
 for file in files
-    Ts[file] = data(file, reconstruct_fluxes=reconstructed) # <: OceananigansData
+    Ts[file] = data(file, reconstruct_fluxes=reconstruct_fluxes,
+                    enforce_surface_fluxes=enforce_surface_fluxes) # <: OceananigansData
 end
 
 x_lims = Dict(
@@ -77,7 +84,8 @@ titles = Dict(
 )
 
 function plot_frame_i(name, i)
-    p = plot(xlabel=x_labels[name], xlims = x_lims[name], ylabel="Depth (m)", palette=:Paired_6, legend=legend_placement[name], foreground_color_grid=:white, plot_titlefontsize=20)
+    p = plot(xlabel=x_labels[name], ylabel="Depth (m)", palette=:Paired_6, legend=legend_placement[name], foreground_color_grid=:white, plot_titlefontsize=20)
+    # p = plot(xlabel=x_labels[name], xlims = x_lims[name], ylabel="Depth (m)", palette=:Paired_6, legend=legend_placement[name], foreground_color_grid=:white, plot_titlefontsize=20)
     for (file, T) in Ts
         plot!(f[name](T)[:,i].*scaling_factor[name], zs[name](T), title = titles[name], label="$(file)", linewidth=3)
     end
@@ -86,33 +94,43 @@ function plot_frame_i(name, i)
 end
 
 p1 = plot_frame_i("uw", 288)
-png(p1, pwd()*"/uw_last_frame_$(suffix).png")
+png(p1, output_directory*"/uw_last_frame.png")
 
 p2 = plot_frame_i("vw", 288)
-png(p2, pwd()*"/vw_last_frame_$(suffix).png")
+png(p2, output_directory*"/vw_last_frame.png")
 
 p3 = plot_frame_i("wT", 288)
-png(p3, pwd()*"/wT_last_frame_$(suffix).png")
+png(p3, output_directory*"/wT_last_frame.png")
 
 pT = plot_frame_i("T", 288)
-png(pT, pwd()*"/T_last_frame_$(suffix).png")
+png(pT, output_directory*"/T_last_frame.png")
 
 p4 = plot(grid=false, showaxis=false, palette=:Paired_6, ticks=nothing)
-for file in files
+for (file, T) in Ts
     plot!(1, label=file_labels[file], legend=:left, size=(200,600))
 end
 p4
-png(p4, pwd()*"/legend_last_frame.png")
+png(p4, output_directory*"/legend_last_frame.png")
 
 layout = @layout [a b c d]
 p = plot(p1,p2,p3,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, pwd()*"/all_last_frame_new_suite_$(suffix).png")
+png(p, output_directory*"/all_last_frame_new_suite.png")
 
 layout = @layout [a b c d e]
 p = plot(p1,p2,p3,pT,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, pwd()*"/all_last_frame_new_suite_with_T_$(suffix).png")
+png(p, output_directory*"/all_last_frame_new_suite_with_T.png")
 
 ## ANIMATION
+
+# add x_lims for animations
+function plot_frame_i(name, i)
+    p = plot(xlabel=x_labels[name], xlims = x_lims[name], ylabel="Depth (m)", palette=:Paired_6, legend=legend_placement[name], foreground_color_grid=:white, plot_titlefontsize=20)
+    for (file, T) in Ts
+        plot!(f[name](T)[:,i].*scaling_factor[name], zs[name](T), title = titles[name], label="$(file)", linewidth=3)
+    end
+    plot!(size=(400,500))
+    p
+end
 
 function animate_all(name, Ts)
     anim = @animate for i in 1:288
@@ -121,8 +139,8 @@ function animate_all(name, Ts)
     return anim
 end
 
-save_animation(anim, filename) = gif(anim, pwd()*filename, fps=20)
-save_animation(animate_all("uw", Ts), "/uw_$(suffix).gif")
-save_animation(animate_all("vw", Ts), "/vw_$(suffix).gif")
-save_animation(animate_all("wT", Ts), "/wT_$(suffix).gif")
-save_animation(animate_all("T", Ts), "/T_$(suffix).gif")
+save_animation(anim, filename) = gif(anim, filename, fps=20)
+save_animation(animate_all("uw", Ts), output_directory*"/uw.gif")
+save_animation(animate_all("vw", Ts), output_directory*"/vw.gif")
+save_animation(animate_all("wT", Ts), output_directory*"/wT.gif")
+save_animation(animate_all("T", Ts), output_directory*"/T.gif")

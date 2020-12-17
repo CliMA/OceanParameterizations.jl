@@ -47,9 +47,8 @@ for i=1:length(files)
 
     output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/test_$(test_file)"
     directory = pwd() * "/$(output_gif_directory)/"
-    # isdir(dirname(directory)) || 
     mkpath(directory)
-    file = directory*"output.txt"
+    file = directory*"_output.txt"
     touch(file)
     o = open(file, "w")
 
