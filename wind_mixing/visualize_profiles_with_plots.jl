@@ -94,31 +94,31 @@ function plot_frame_i(name, i)
 end
 
 p1 = plot_frame_i("uw", 288)
-png(p1, output_directory*"/uw_last_frame.png")
+savefig(p1, output_directory*"/uw_last_frame.pdf")
 
 p2 = plot_frame_i("vw", 288)
-png(p2, output_directory*"/vw_last_frame.png")
+savefig(p2, output_directory*"/vw_last_frame.pdf")
 
 p3 = plot_frame_i("wT", 288)
-png(p3, output_directory*"/wT_last_frame.png")
+savefig(p3, output_directory*"/wT_last_frame.pdf")
 
 pT = plot_frame_i("T", 288)
-png(pT, output_directory*"/T_last_frame.png")
+savefig(pT, output_directory*"/T_last_frame.pdf")
 
 p4 = plot(grid=false, showaxis=false, palette=:Paired_6, ticks=nothing)
 for (file, T) in Ts
     plot!(1, label=file_labels[file], legend=:left, size=(200,600))
 end
 p4
-png(p4, output_directory*"/legend_last_frame.png")
+savefig(p4, output_directory*"/legend_last_frame.pdf")
 
 layout = @layout [a b c d]
 p = plot(p1,p2,p3,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, output_directory*"/all_last_frame_new_suite.png")
+savefig(p, output_directory*"/all_last_frame_new_suite.pdf")
 
 layout = @layout [a b c d e]
 p = plot(p1,p2,p3,pT,p4,layout=layout, size=(1600,400), tickfontsize=12)
-png(p, output_directory*"/all_last_frame_new_suite_with_T.png")
+savefig(p, output_directory*"/all_last_frame_new_suite_with_T.pdf")
 
 ## ANIMATION
 

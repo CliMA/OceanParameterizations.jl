@@ -70,16 +70,17 @@ for i=1:length(files)
     # A. Find the kernel that minimizes the prediction error on the training data
     # * Sweeps over length-scale hyperparameter value in logγ_range
     # * Sweeps over covariance functions
-    logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
+    # logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
     # uncomment the next three lines to try this but just for testing the GPR use the basic get_kernel stuff below
-    uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    # uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    # vw_kernel = best_kernel(𝒟train.vw, logγ_range=logγ_range)
+    # wT_kernel = best_kernel(𝒟train.wT, logγ_range=logγ_range)
 
     # OR set the kernel manually here (to save a bunch of time):
-    # uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    # vw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    # wT_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+    # Result of the hyperparameter search
+    uw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
+    vw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
+    wT_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
 
     # Report the kernels and their properties
     write(o, "Kernel for u'w'..... $(uw_kernel) \n")
@@ -119,9 +120,9 @@ for i=1:length(files)
     function f(dx, x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        dx[1:Nz] .= -∂z(uw_GP_model(x)) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(vw_GP_model(x)) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(wT_GP_model(x))
+        dx[1:Nz] .= -∂z(𝒟test.uw.unscale_fn(uw_GP_model(x))) .+ f⁰ .* v
+        dx[Nz+1:2*Nz] .= -∂z(𝒟test.vw.unscale_fn(vw_GP_model(x))) .- f⁰ .* u
+        dx[2*Nz+1:end] .= -∂z(𝒟test.wT.unscale_fn(wT_GP_model(x)))
     end
 
     prob = ODEProblem(f, uvT₀, (t[1],t[289]), saveat=t)
