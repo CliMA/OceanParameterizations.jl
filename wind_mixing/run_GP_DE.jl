@@ -13,6 +13,9 @@ println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
 
+train_test_same = true
+println("Train and test on the same file? $(train_test_same)")
+
 file_labels = Dict(
     "free_convection" => "Free convection",
     "strong_wind" => "Strong wind",
@@ -29,8 +32,14 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
 
 for i=1:length(files)
 
-    # Train on all except file i
-    train_files = files[1:end .!= i]
+    if train_test_same
+        # Train on only file i
+        train_files=files[i]
+    else
+        # Train on all except file i
+        train_files = files[1:end .!= i]
+    end
+
     𝒟train = WindMixing.data(train_files,
                         scale_type=ZeroMeanUnitVarianceScaling,
                         reconstruct_fluxes=reconstruct_fluxes,
@@ -45,7 +54,7 @@ for i=1:length(files)
                         enforce_surface_fluxes=enforce_surface_fluxes)
     les = read_les_output(test_file)
 
-    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/test_$(test_file)"
+    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/train_test_same_$(train_test_same)/test_$(test_file)"
     directory = pwd() * "/$(output_gif_directory)/"
     mkpath(directory)
     file = directory*"_output.txt"
