@@ -63,7 +63,6 @@ file_labels = Dict(
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
-files = files[1:2]
 for i=1:length(files)
 
     if train_test_same
@@ -144,11 +143,11 @@ for i=1:length(files)
     write(o, "GP prediction error on w'T'..... $(mse(wT_GP)) \n")
 
     # Compare GP predictions to truth
-    # myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
-    #                         legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
-    # myanimate(uw_GP, "uw")
-    # myanimate(vw_GP, "vw")
-    # myanimate(wT_GP, "wT")
+    myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
+                            legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
+    myanimate(uw_GP, "uw")
+    myanimate(vw_GP, "vw")
+    myanimate(wT_GP, "wT")
 
     t  = 𝒟test.t
     Nz = 32
@@ -216,8 +215,6 @@ for i=1:length(files)
     # Close output file
     close(o)
 end
-
-
 
 # tpoint = 100
 # split_vector(uvT) = (uvT[1:Nz], uvT[Nz+1:2*Nz], uvT[2*Nz+1:end])
