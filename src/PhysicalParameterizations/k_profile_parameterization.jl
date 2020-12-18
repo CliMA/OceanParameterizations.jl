@@ -1,3 +1,35 @@
+# @Base.kwdef struct Parameters{T<:AbstractFloat} <: AbstractParameters
+#     CSL   :: T  = 0.1   # Surface layer fraction
+#     Cτ    :: T  = 0.4   # Von Karman constant
+#     CNL   :: T  = 6.33  # Non-local flux proportionality constant
+#
+#     Cstab :: T  = 2.0   # Stable buoyancy flux parameter for wind-driven turbulence
+#     Cunst :: T  = 6.4   # Unstable buoyancy flux parameter for wind-driven turbulence
+#
+#        Cn :: T  = 1.0   # Exponent for effect of stable buoyancy forcing on wind mixing
+#     Cmτ_U :: T  = 0.25  # Exponent for effect of unstable buoyancy forcing on wind mixing of U
+#     Cmτ_T :: T  = 0.5   # Exponent for effect of unstable buoyancy forcing on wind mixing of T
+#     Cmb_U :: T  = 1/3   # Exponent for the effect of wind on convective mixing of U
+#     Cmb_T :: T  = 1/3   # Exponent for effect of wind on convective mixing of T
+#
+#     Cd_U  :: T  = 0.5   # Wind mixing regime threshold for momentum
+#     Cd_T  :: T  = 2.5   # Wind mixing regime threshold for tracers
+#
+#     Cb_U  :: T  = 0.599 # Buoyancy flux parameter for convective turbulence
+#     Cb_T  :: T  = 1.36  # Buoyancy flux parameter for convective turbulence
+#     Cτb_U :: T  = (Cτ / Cb_U)^(1/Cmb_U) * (1 + Cunst*Cd_U)^(Cmτ_U/Cmb_U) - Cd_U  # Wind stress parameter for convective turbulence
+#     Cτb_T :: T  = (Cτ / Cb_T)^(1/Cmb_T) * (1 + Cunst*Cd_T)^(Cmτ_T/Cmb_T) - Cd_T  # Wind stress parameter for convective turbulence
+#
+#     CRi   :: T  = 0.3   # Critical bulk Richardson number
+#     CKE   :: T  = 4.32  # Unresolved turbulence parameter
+#     CKE₀  :: T  = 1e-11 # Minimum unresolved turbulence kinetic energy
+#
+#     KU₀   :: T  = 1e-6  # Interior viscosity for velocity
+#     KT₀   :: T  = 1e-7  # Interior diffusivity for temperature
+#     KS₀   :: T  = 1e-9  # Interior diffusivity for salinity
+# end
+
+
 """
 Adapted from
 https://github.com/sandreza/OceanConvectionUQSupplementaryMaterials/blob/master/src/ForwardMap/fm.jl

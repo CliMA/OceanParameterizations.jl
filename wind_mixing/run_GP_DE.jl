@@ -31,14 +31,14 @@ for i=1:length(files)
 
     # Train on all except file i
     train_files = files[1:end .!= i]
-    𝒟train = data(train_files,
+    𝒟train = WindMixing.data(train_files,
                         scale_type=ZeroMeanUnitVarianceScaling,
                         reconstruct_fluxes=reconstruct_fluxes,
                         subsample_frequency=subsample_frequency,
                         enforce_surface_fluxes=enforce_surface_fluxes)
     # Test on file i
     test_file = files[i]
-    𝒟test = data(test_file,
+    𝒟test = WindMixing.data(test_file,
                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                         reconstruct_fluxes=reconstruct_fluxes,
                         subsample_frequency=subsample_frequency,
