@@ -10,7 +10,7 @@ println("Reconstruct fluxes? $(reconstruct_fluxes)")
 enforce_surface_fluxes = true
 println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
-subsample_frequency = 32
+subsample_frequency = 1
 println("Subsample frequency for training... $(subsample_frequency)")
 
 train_test_same = true
@@ -30,6 +30,7 @@ file_labels = Dict(
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
+files = files[1:2]
 for i=1:length(files)
 
     if train_test_same
@@ -77,10 +78,16 @@ for i=1:length(files)
     # wT_kernel = best_kernel(𝒟train.wT, logγ_range=logγ_range)
 
     # OR set the kernel manually here (to save a bunch of time):
-    # Result of the hyperparameter search
-    uw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
-    vw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
-    wT_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
+    # Result of the hyperparameter search - optimize_GP_kernels.jl
+    if reconstruct_fluxes
+        uw_kernel = get_kernel(2,0.4,0.0,euclidean_distance)
+        vw_kernel = get_kernel(2,0.5,0.0,euclidean_distance)
+        wT_kernel = get_kernel(2,1.3,0.0,euclidean_distance)
+    else
+        uw_kernel = get_kernel(2,0.4,0.0,euclidean_distance)
+        vw_kernel = get_kernel(2,0.4,0.0,euclidean_distance)
+        wT_kernel = get_kernel(2,1.2,0.0,euclidean_distance)
+    end
 
     # Report the kernels and their properties
     write(o, "Kernel for u'w'..... $(uw_kernel) \n")
@@ -109,23 +116,45 @@ for i=1:length(files)
     myanimate(vw_GP, "vw")
     myanimate(wT_GP, "wT")
 
-    uvT₀      = 𝒟test.uvT_scaled[:,1]
+    uvT₀      = 𝒟test.uvT_unscaled[:,1]
     zF_coarse = 𝒟test.uw.z
     zC_coarse = 𝒟test.u.z
     t         = 𝒟test.t
     f⁰        = les.f⁰
     Nz        = 32
 
+    uw_unscale = 𝒟test.uw.unscale_fn # unscale function
+    vw_unscale = 𝒟test.vw.unscale_fn # unscale function
+    wT_unscale = 𝒟test.wT.unscale_fn # unscale function
+    # uw_scale = 𝒟test.scalings["uw"] # scale function
+    # uw_unscale = Base.inv(uw_scale) # unscale function
+    # vw_scale = 𝒟test.scalings["vw"] # scale function
+    # vw_unscale = Base.inv(vw_scale) # unscale function
+    # wT_scale = 𝒟test.scalings["wT"] # scale function
+    # wT_unscale = Base.inv(wT_scale) # unscale function
+
+    u_scale = 𝒟test.scalings["u"] # scale function
+    v_scale = 𝒟test.scalings["v"] # scale function
+    T_scale = 𝒟test.scalings["T"] # scale function
+
+    function scale_uvT(uvT)
+        uvT[1:32] .= u_scale(uvT[1:32])
+        uvT[33:64] .= v_scale(uvT[33:64])
+        uvT[65:96] .= T_scale(uvT[65:96])
+        return uvT
+    end
+
     ∂z(vec) = (vec[1:Nz] .- vec[2:Nz+1]) ./ diff(zF_coarse)
     function f(dx, x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        dx[1:Nz] .= -∂z(𝒟test.uw.unscale_fn(uw_GP_model(x))) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(𝒟test.vw.unscale_fn(vw_GP_model(x))) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(𝒟test.wT.unscale_fn(wT_GP_model(x)))
+        y = scale_uvT(x)
+        dx[1:Nz] .= -∂z(uw_unscale(uw_GP_model(y))) .+ f⁰ .* v
+        dx[Nz+1:2*Nz] .= -∂z(vw_unscale(vw_GP_model(y))) .- f⁰ .* u
+        dx[2*Nz+1:end] .= -∂z(wT_unscale(wT_GP_model(y)))
     end
 
-    prob = ODEProblem(f, uvT₀, (t[1],t[289]), saveat=t)
+    prob = ODEProblem(f, uvT₀, (t[1],t[end]), saveat=t)
     sol = solve(prob, ROCK4())
 
     split_array(uvT) = (uvT[1:Nz,:], uvT[Nz+1:2*Nz,:], uvT[2*Nz+1:end,:])
@@ -148,6 +177,7 @@ for i=1:length(files)
     # Close output file
     close(o)
 end
+
 
 
 # tpoint = 100
