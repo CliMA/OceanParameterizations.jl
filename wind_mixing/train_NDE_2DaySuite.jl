@@ -64,9 +64,9 @@ size_uw_NN = length(uw_weights)
 size_vw_NN = length(vw_weights)
 size_wT_NN = length(wT_weights)
 
-uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
-vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
-wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
+# uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
+# vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
+# wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
 
 p_nondimensional = [f; τ; H; μ_u; μ_v; σ_u; σ_v; σ_T; σ_uw; σ_vw; σ_wT; uw_top; uw_bottom; vw_top; vw_bottom; wT_top; wT_bottom; uw_weights; vw_weights; wT_weights]
 
@@ -102,7 +102,7 @@ end
 start_index = 1
 end_index = 200
 
-timesteps = start_index:1:end_index
+timesteps = start_index:5:end_index
 uvT₀ = Float32.(𝒟train.uvT_scaled[:,start_index])
 
 t_train, uvT_train = time_window(𝒟train.t, 𝒟train.uvT_scaled, timesteps)
@@ -111,7 +111,7 @@ tspan_train = (t_train[1], t_train[end])
 
 
 uvT_train
-opt_NDE = ROCK4()
+opt_NDE = Tsit5()
 # prob = ODEProblem(NDE_nondimensional_flux!, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
 prob = ODEProblem(NDE_nondimensional_flux, uvT₀, tspan_train, p_nondimensional, saveat=t_train)
 sol = solve(prob, opt_NDE)
@@ -164,7 +164,7 @@ function train_NDE(epochs)
     save_NDE_weights()
 end
 
-train_NDE(4000)
+train_NDE(2000)
 
 # @time Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(), cb=Flux.throttle(cb_NDE,2))
 
