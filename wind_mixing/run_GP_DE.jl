@@ -7,8 +7,14 @@ using Plots
 reconstruct_fluxes = false
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
+enforce_surface_fluxes = true
+println("Enforce surface fluxes? $(enforce_surface_fluxes)")
+
 subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
+
+train_test_same = true
+println("Train and test on the same file? $(train_test_same)")
 
 file_labels = Dict(
     "free_convection" => "Free convection",
@@ -26,24 +32,32 @@ files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
 
 for i=1:length(files)
 
-    # Train on all except file i
-    train_files = files[1:end .!= i]
-    𝒟train = data(train_files,
+    if train_test_same
+        # Train on only file i
+        train_files=files[i]
+    else
+        # Train on all except file i
+        train_files = files[1:end .!= i]
+    end
+
+    𝒟train = WindMixing.data(train_files,
                         scale_type=ZeroMeanUnitVarianceScaling,
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
     # Test on file i
     test_file = files[i]
-    𝒟test = data(test_file,
+    𝒟test = WindMixing.data(test_file,
                         override_scalings=𝒟train.scalings, # use the scalings from the training data
                         reconstruct_fluxes=reconstruct_fluxes,
-                        subsample_frequency=subsample_frequency)
+                        subsample_frequency=subsample_frequency,
+                        enforce_surface_fluxes=enforce_surface_fluxes)
     les = read_les_output(test_file)
 
-    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/test_$(test_file)"
+    output_gif_directory="GP/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)/train_test_same_$(train_test_same)/test_$(test_file)"
     directory = pwd() * "/$(output_gif_directory)/"
-    isdir(dirname(directory)) || mkpath(directory)
-    file = directory*"output.txt"
+    mkpath(directory)
+    file = directory*"_output.txt"
     touch(file)
     o = open(file, "w")
 
@@ -56,16 +70,17 @@ for i=1:length(files)
     # A. Find the kernel that minimizes the prediction error on the training data
     # * Sweeps over length-scale hyperparameter value in logγ_range
     # * Sweeps over covariance functions
-    logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
+    # logγ_range=-1.0:0.5:1.0 # sweep over length-scale hyperparameter
     # uncomment the next three lines to try this but just for testing the GPR use the basic get_kernel stuff below
-    uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    vw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
-    wT_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    # uw_kernel = best_kernel(𝒟train.uw, logγ_range=logγ_range)
+    # vw_kernel = best_kernel(𝒟train.vw, logγ_range=logγ_range)
+    # wT_kernel = best_kernel(𝒟train.wT, logγ_range=logγ_range)
 
     # OR set the kernel manually here (to save a bunch of time):
-    # uw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    # vw_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
-    # wT_kernel = get_kernel(1,0.1,0.0,euclidean_distance)
+    # Result of the hyperparameter search
+    uw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
+    vw_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
+    wT_kernel = get_kernel(2,0.7,0.0,euclidean_distance)
 
     # Report the kernels and their properties
     write(o, "Kernel for u'w'..... $(uw_kernel) \n")
@@ -105,9 +120,9 @@ for i=1:length(files)
     function f(dx, x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        dx[1:Nz] .= -∂z(uw_GP_model(x)) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(vw_GP_model(x)) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(wT_GP_model(x))
+        dx[1:Nz] .= -∂z(𝒟test.uw.unscale_fn(uw_GP_model(x))) .+ f⁰ .* v
+        dx[Nz+1:2*Nz] .= -∂z(𝒟test.vw.unscale_fn(vw_GP_model(x))) .- f⁰ .* u
+        dx[2*Nz+1:end] .= -∂z(𝒟test.wT.unscale_fn(wT_GP_model(x)))
     end
 
     prob = ODEProblem(f, uvT₀, (t[1],t[289]), saveat=t)
