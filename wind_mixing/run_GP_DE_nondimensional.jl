@@ -187,7 +187,7 @@ for i=1:length(files)
         return (Float32.(t[trange]), Float32.(uvT[:,trange]))
     end
 
-    timesteps = 1:1:288 #1:5:100
+    timesteps = 1:1:length(t) #1:5:100
     uvT₀ = Float32.(𝒟test.uvT_scaled[:,1])
 
     t_train, uvT_train = time_window(t, 𝒟test.uvT_scaled, timesteps)
