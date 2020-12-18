@@ -109,14 +109,14 @@ loss_uw(x, y) = Flux.Losses.mse(predict(uw_NN_model, x, y), y)
 loss_vw(x, y) = Flux.Losses.mse(predict(vw_NN_model, x, y), y)
 loss_wT(x, y) = Flux.Losses.mse(predict(wT_NN_model, x, y), y)
 
-# function train_NN(NN, loss, data, opts)
-#     function cb()
-#         @info "loss = $(mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))"
-#     end
-#    for opt in opts
-#         Flux.train!(loss, params(NN), data, opt, cb=Flux.throttle(cb, 2))
-#     end 
-# end
+function train_NN(NN, loss, data, opts)
+    function cb()
+        @info "loss = $(mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))"
+    end
+   for opt in opts
+        Flux.train!(loss, params(NN), data, opt, cb=Flux.throttle(cb, 2))
+    end 
+end
 uw_loss = []
 vw_loss = []
 wT_loss = []
@@ -134,20 +134,21 @@ end
 # optimizers = [ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), 
 # Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent()]
 optimizers = [ADAM(0.01), Descent(), Descent(), Descent(), Descent()]
-# optimizers = [Descent(0.01)]
+optimizers = [Descent(0.01)]
 
 
-# train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
-# train_NN(vw_NN_model, loss_vw, vw_train, optimizers)
-# train_NN(wT_NN_model, loss_wT, wT_train, optimizers)
+train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
+train_NN(vw_NN_model, loss_vw, vw_train, optimizers)
+train_NN(wT_NN_model, loss_wT, wT_train, optimizers)
 
-train_NN_learning_curve(uw_NN_model, loss_uw, uw_train, optimizers, uw_loss)
-train_NN_learning_curve(vw_NN_model, loss_vw, vw_train, optimizers, vw_loss)
-train_NN_learning_curve(wT_NN_model, loss_wT, wT_train, optimizers, wT_loss)
+# train_NN_learning_curve(uw_NN_model, loss_uw, uw_train, optimizers, uw_loss)
+# train_NN_learning_curve(vw_NN_model, loss_vw, vw_train, optimizers, vw_loss)
+# train_NN_learning_curve(wT_NN_model, loss_wT, wT_train, optimizers, wT_loss)
 
 @info "loss = $(mean([loss_uw(uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train)]))"
 @info "loss = $(mean([loss_vw(vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train)]))"
 @info "loss = $(mean([loss_wT(wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train)]))"
+
 
 plot(1:length(uw_loss), uw_loss, yscale=:log10, label=nothing)
 xlabel!(L"Iterations")
@@ -180,36 +181,59 @@ wT_NN_params = Dict(
 
 bson("wT_NN_params_2DaySuite.bson", wT_NN_params)
 
+
 NN_prediction_uw = cat((predict(uw_NN_model, uw_train[i][1], uw_train[i][2]) for i in 1:length(uw_train))..., dims=2)
 truth_uw = cat((uw_train[i][2] for i in 1:length(uw_train))..., dims=2)
 uw_plots = (NN_prediction_uw, truth_uw)
-index = 5
-plot(uw_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_1 (U, V, T)", legend=:bottomleft)
-plot!(uw_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
-ylabel!(L"z/m")
-xlabel!(L"\overline{U'W'}")
-savefig("Output/uw_NN_truth_$index.pdf")
+index₁ = 5
+index₂ = 280
+
+l = @layout [a b]
+p1 = plot(uw_plots[1][:,index₁], 𝒟train.uw.z, label=L"\mathbb{NN}_1 (U, V, T)", legend=:bottomleft)
+plot!(p1, uw_plots[2][:,index₁], 𝒟train.uw.z, label=L"Truth")
+title!(p1, "Timestep $index₁")
+p2 = plot(uw_plots[1][:,index₂], 𝒟train.uw.z, label=L"\mathbb{NN}_1 (U, V, T)", legend=:bottomleft)
+plot!(p2, uw_plots[2][:,index₂], 𝒟train.uw.z, label=L"Truth")
+title!(p2, "Timestep $index₂")
+fig = plot(p1, p2, layout=l)
+ylabel!(fig, L"z/m")
+xlabel!(fig, L"\overline{U'W'}")
+display(fig)
+savefig(fig, "Output/uw_NN_truth.pdf")
 
 NN_prediction_vw = cat((predict(vw_NN_model, vw_train[i][1], vw_train[i][2]) for i in 1:length(vw_train))..., dims=2)
 truth_vw = cat((vw_train[i][2] for i in 1:length(vw_train))..., dims=2)
 vw_plots = (NN_prediction_vw, truth_vw)
-index = 280
-plot(vw_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_2 (U, V, T)", legend=:bottomright)
-plot!(vw_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
-ylabel!(L"z/m")
-xlabel!(L"\overline{V'W'}")
-savefig("Output/vw_NN_truth_$index.pdf")
+
+l = @layout [a b]
+p1 = plot(vw_plots[1][:,index₁], 𝒟train.uw.z, label=L"\mathbb{NN}_2 (U, V, T)", legend=:bottomleft)
+plot!(p1, vw_plots[2][:,index₁], 𝒟train.uw.z, label=L"Truth")
+title!(p1, "Timestep $index₁")
+p2 = plot(vw_plots[1][:,index₂], 𝒟train.uw.z, label=L"\mathbb{NN}_2 (U, V, T)", legend=:bottomleft)
+plot!(p2, vw_plots[2][:,index₂], 𝒟train.uw.z, label=L"Truth")
+title!(p2, "Timestep $index₂")
+fig = plot(p1, p2, layout=l)
+ylabel!(fig, L"z/m")
+xlabel!(fig, L"\overline{V'W'}")
+display(fig)
+savefig("Output/vw_NN_truth.pdf")
 
 NN_prediction_wT = cat((predict(wT_NN_model, wT_train[i][1], wT_train[i][2]) for i in 1:length(wT_train))..., dims=2)
 truth_wT = cat((wT_train[i][2] for i in 1:length(wT_train))..., dims=2)
 wT_plots = (NN_prediction_wT, truth_wT)
-index = 280
-plot(wT_plots[1][:,index], 𝒟train.uw.z, label=L"\mathbb{NN}_3 (U, V, T)", legend=:bottomright)
-plot!(wT_plots[2][:,index], 𝒟train.uw.z, label=L"Truth")
-ylabel!(L"z/m")
-xlabel!(L"\overline{W'T'}")
-savefig("Output/wT_NN_truth_$index.pdf")
 
+l = @layout [a b]
+p1 = plot(wT_plots[1][:,index₁], 𝒟train.uw.z, label=L"\mathbb{NN}_3 (U, V, T)", legend=:bottomleft)
+plot!(p1, wT_plots[2][:,index₁], 𝒟train.uw.z, label=L"Truth")
+title!(p1, "Timestep $index₁")
+p2 = plot(wT_plots[1][:,index₂], 𝒟train.uw.z, label=L"\mathbb{NN}_3 (U, V, T)", legend=:bottomleft)
+plot!(p2, wT_plots[2][:,index₂], 𝒟train.uw.z, label=L"Truth")
+title!(p2, "Timestep $index₂")
+fig = plot(p1, p2, layout=l)
+ylabel!(fig, L"z/m")
+xlabel!(fig, L"\overline{W'T'}")
+display(fig)
+savefig(fig, "Output/wT_NN_truth.pdf")
 
 animate_NN(uw_plots, 𝒟train.uw.z, 𝒟train.t[:,1], "uw", ["NN", "truth"], "uw_strong_wind_bounds1")
 animate_NN(vw_plots, 𝒟train.vw.z, 𝒟train.t[:,1], "vw", ["NN", "truth"], "vw_strong_wind_bounds1")

@@ -54,22 +54,22 @@ wT_bottom = Float32(𝒟train.wT.scaled[end,1])
 # uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite.bson"))[:neural_network]
 # vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite.bson"))[:neural_network]
 # wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite.bson"))[:neural_network]
+##
+uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_200.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_200.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_200.bson"))[:neural_network]
 
-uw_NN_model = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite_large.bson"))[:neural_network]
-vw_NN_model = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite_large.bson"))[:neural_network]
-wT_NN_model = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite_large.bson"))[:neural_network]
-
-uw_weights, re_uw = Flux.destructure(uw_NN_model)
-vw_weights, re_vw = Flux.destructure(vw_NN_model)
-wT_weights, re_wT = Flux.destructure(wT_NN_model)
+uw_weights, re_uw = Flux.destructure(uw_NDE)
+vw_weights, re_vw = Flux.destructure(vw_NDE)
+wT_weights, re_wT = Flux.destructure(wT_NDE)
 
 # uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
 # vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
 # wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
 
-uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_large.bson"))[:weights]
-vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_large.bson"))[:weights]
-wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_large.bson"))[:weights]
+# uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
+# vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
+# wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
 
 size_uw_NN = length(uw_weights)
 size_vw_NN = length(vw_weights)
@@ -94,9 +94,6 @@ function NDE_nondimensional_flux(x, p, t)
     u = x[1:Nz]
     v = x[Nz+1:2*Nz]
     T = x[2*Nz+1:96]
-    # dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-    # dx[Nz+1:2*Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-    # dx[2*Nz+1:96] .= A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom)
     dx₁ = A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
     dx₂ = A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
     dx₃ = A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NN, x, wT_top, wT_bottom)
@@ -128,6 +125,7 @@ u_plots = (Array(sol)[1:32, :], uvT_train[1:32, :])
 v_plots = (Array(sol)[33:64, :], uvT_train[33:64, :])
 T_plots = (Array(sol)[65:96, :], uvT_train[65:96, :])
 
+##
 function animate_NDE(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=x_str)
     PATH = joinpath(pwd(), "Output")
     anim = @animate for n in 1:size(xs[1],2)
