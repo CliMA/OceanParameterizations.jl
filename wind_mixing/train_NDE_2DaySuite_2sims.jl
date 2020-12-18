@@ -169,7 +169,7 @@ function train_NDE(epochs)
     save_NDE_weights()
 end
 
-train_NDE(4000)
+train_NDE(2000)
 
 # @time Flux.train!(loss_NDE_NN, Flux.params(uw_weights, vw_weights, wT_weights), Iterators.repeated((), 2), ADAM(), cb=Flux.throttle(cb_NDE,2))
 
