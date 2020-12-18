@@ -86,6 +86,7 @@ end
 
 struct ProfileData{Σ, U, V, Θ, UW, VW, WT, T, D}
     grid_points :: Int
+   uvT_unscaled :: Σ  # 3Nz x Nt array
      uvT_scaled :: Σ  # 3Nz x Nt array
               u :: U
               v :: V
@@ -247,11 +248,12 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     u = get_uvTData("u", u_coarse, zC_coarse)
     v = get_uvTData("v", v_coarse, zC_coarse)
     T = get_uvTData("T", T_coarse, zC_coarse)
+    uvT_unscaled = cat(u.coarse, v.coarse, T.coarse, dims=1)
     uvT_scaled = cat(u.scaled, v.scaled, T.scaled, dims=1)
 
     uw = get_FluxData("uw", uw_coarse, zF_coarse)
     vw = get_FluxData("vw", vw_coarse, zF_coarse)
     wT = get_FluxData("wT", wT_coarse, zF_coarse)
 
-    return ProfileData(33, uvT_scaled, u, v, T, uw, vw, wT, t, all_scalings)
+    return ProfileData(33, uvT_unscaled, uvT_scaled, u, v, T, uw, vw, wT, t, all_scalings)
 end
