@@ -3,17 +3,51 @@ using WindMixing
 using Flux
 using OrdinaryDiffEq
 using Plots
+using ArgParse
 
-reconstruct_fluxes = true
+"Returns a dictionary of command line arguments."
+function parse_command_line_arguments()
+    settings = ArgParseSettings()
+
+    @add_arg_table! settings begin
+        "--reconstruct_fluxes"
+            help = "The number of grid points in x, y, and z."
+            nargs = 3
+            default = false
+            arg_type = Bool
+
+        "--enforce_surface_fluxes"
+            help = "Plot some turbulence statistics after the simulation is complete."
+            default = true
+            arg_type = Bool
+
+        "--train_test_same"
+            help = ""
+            default = false
+            arg_type = Bool
+
+        "--subsample_frequency"
+            help = ""
+            default = 1
+            arg_type = Int
+    end
+
+    return parse_args(settings)
+end
+
+@info "Parsing command line arguments..."
+args = parse_command_line_arguments()
+
+reconstruct_fluxes = args["reconstruct_fluxes"]
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
-enforce_surface_fluxes = true
+enforce_surface_fluxes = args["enforce_surface_fluxes"]
 println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
-subsample_frequency = 1
+subsample_frequency = args["subsample_frequency"]
 println("Subsample frequency for training... $(subsample_frequency)")
 
-train_test_same = true
+train_test_same = args["train_test_same"]
 println("Train and test on the same file? $(train_test_same)")
 
 file_labels = Dict(
