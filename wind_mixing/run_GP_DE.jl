@@ -64,7 +64,6 @@ file_labels = Dict(
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
-files = files[1:2]
 for i=1:length(files)
 
     if train_test_same
