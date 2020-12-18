@@ -169,6 +169,19 @@ for i=1:length(files)
     μ_wT, σ_wT = get_μ_σ("wT")
     D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
+<<<<<<< Updated upstream
+=======
+    top_bottom(x) = (Float32(x[1,1]), Float32(x[end,1]))
+    uw_top, uw_bottom = top_bottom(𝒟test.uw.scaled)
+    vw_top, vw_bottom = top_bottom(𝒟test.vw.scaled)
+    wT_top, wT_bottom = top_bottom(𝒟test.wT.scaled)
+
+    # enforce surface fluxes in the predictions
+    function predict_and_enforce_fluxes(model, x, top, bottom)
+        return [top; model(x); bottom]
+    end
+
+>>>>>>> Stashed changes
     A = - τ / H
     B = f * τ
 
