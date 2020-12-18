@@ -33,16 +33,16 @@ wT_NDE = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_net
 # wT_NDE = Dict(:neural_network => wT_NN_1sim_100)
 # bson(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"), wT_NDE)
 
-uw_weights, re_uw = Flux.destructure(uw_NDE)
-vw_weights, re_vw = Flux.destructure(vw_NDE)
-wT_weights, re_wT = Flux.destructure(wT_NDE)
+# uw_weights, re_uw = Flux.destructure(uw_NDE)
+# vw_weights, re_vw = Flux.destructure(vw_NDE)
+# wT_weights, re_wT = Flux.destructure(wT_NDE)
 
-uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
-vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
-wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
-uw_NDE = re_uw(uw_weights)
-vw_NDE = re_vw(vw_weights)
-wT_NDE = re_wT(wT_weights)
+# uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
+# vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
+# wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
+# uw_NDE = re_uw(uw_weights)
+# vw_NDE = re_vw(vw_weights)
+# wT_NDE = re_wT(wT_weights)
 
 
 function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
@@ -143,12 +143,13 @@ end
 train_files = ["strong_wind"]
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
 
-output_interpolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:100)
-output_extrapolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
+output_interpolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
+# output_extrapolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 100:1:289)
 
-test_datasets = ["Strong Wind", "Strong Wind, Weak Heating", "Strong Wind, Weak Cooling", "Strong Wind, No Coriolis", "Free Convection", "Weak Wind, Strong Cooling"]
+test_datasets = ["SW, NH", "SW, WH", "SW, WC", "SW, NR", "FC", "WW, SC"]
 
-scatter(1:length(output_interpolation), output_interpolation, yscale=:log10, label="Interpolation")
-scatter!(1:length(output_extrapolation), output_extrapolation, label="Extrapolation")
+scatter([test_datasets[1]], [output_interpolation[1]], yscale=:log10, label="Extrapolation")
+scatter!(test_datasets[2:end], output_extrapolation[2:end], label="Prediction")
 xlabel!("Datasets")
-ylabel!("Loss")
+ylabel!("L2 Loss")
+savefig("Output/loss_SWNH_comparison.pdf")

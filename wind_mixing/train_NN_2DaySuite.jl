@@ -133,8 +133,8 @@ end
 
 # optimizers = [ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), ADAM(), 
 # Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent(), Descent()]
-optimizers = [ADAM(0.01), Descent(), Descent(), Descent(), Descent()]
-optimizers = [Descent(0.01)]
+# optimizers = [ADAM(0.01), ADAM(0.01), ADAM(0.01), Descent(), Descent(), Descent(), Descent()]
+optimizers = [Descent()]
 
 
 train_NN(uw_NN_model, loss_uw, uw_train, optimizers)
@@ -155,10 +155,10 @@ xlabel!(L"Iterations")
 ylabel!(L"$Loss(\mathbb{NN}_1, \overline{U'W'})$")
 savefig("Output/uw_loss.pdf")
 
-plot(1:length(vw_loss), vw_loss, yscale=:log10)
+plot(1:length(vw_loss), vw_loss, yscale=:log10, label=nothing)
 xlabel!(L"Iterations")
 ylabel!(L"$Loss(\mathbb{NN}_2, \overline{V'W'})$")
-savefig("Output/vw_loss.pdf")
+savefig("Output/vw_learning_curve.pdf")
 
 plot(1:length(wT_loss), wT_loss, yscale=:log10, label=nothing)
 xlabel!(L"Iterations")

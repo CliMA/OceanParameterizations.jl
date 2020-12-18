@@ -114,9 +114,13 @@ function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange, loss=true)
         return [[predict_NDE(probs[i]) for i in 1:length(𝒟tests)], [uvT_tests[i] for i in 1:length(𝒟tests)]]
     end
 end
-
+##
 train_files = ["strong_wind"]
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
+
+uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
 
 output_interpolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:100)
 output_extrapolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
@@ -129,24 +133,24 @@ xlabel!("Datasets")
 ylabel!("Loss")
 
 ##
-train_files = ["strong_wind", "strong_wind_weak_heating"]
-uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
-vw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
-wT_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
+train_files = ["strong_wind"]
+uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_network]
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
 output = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289, false)
-
-u₁_NDE = output[1][1][1:32, :]
-v₁_NDE = output[1][1][33:64, :]
-T₁_NDE = output[1][1][65:96, :]
-u₁_truth = output[2][1][1:32, :]
-v₁_truth = output[2][1][33:64, :]
-T₁_truth = output[2][1][65:96, :]
+##
+u₁_NDE = output[1][3][1:32, :]
+v₁_NDE = output[1][3][33:64, :]
+T₁_NDE = output[1][3][65:96, :]
+u₁_truth = output[2][3][1:32, :]
+v₁_truth = output[2][3][33:64, :]
+T₁_truth = output[2][3][65:96, :]
 
 ##
 index₁ = 10
-index₂ = 90
-index₃ = 110
+index₂ = 50
+index₃ = 100
 index₄ = 200
 l = @layout [a b; c d]
 p1 = plot(u₁_NDE[:, index₁], 𝒟train.u.z, label="NDE", legend=:bottomright)
@@ -165,6 +169,15 @@ fig = plot(p1, p2, p3, p4, layout=l)
 xlabel!(fig, "U")
 ylabel!(fig, "z /m")
 display(fig)
+
+t_10 = Dict(:NDE => u₁_NDE[:, 10], :truth => u₁_truth[:, 10])
+t_50 = Dict(:NDE => u₁_NDE[:, 50], :truth => u₁_truth[:, 50])
+t_100 = Dict(:NDE => u₁_NDE[:, 100], :truth => u₁_truth[:, 100])
+t_200 = Dict(:NDE => u₁_NDE[:, 200], :truth => u₁_truth[:, 200])
+
+SWWC = Dict(10 => t_10, 50 => t_50, 100 => t_100, 200 => t_200)
+
+bson("Output/SWWC_test.bson", SWWC)
 ##
 index₁ = 10
 index₂ = 90
