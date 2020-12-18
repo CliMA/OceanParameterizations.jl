@@ -160,6 +160,7 @@ for i=1:length(files)
     uw_scaling = 𝒟test.scalings["uw"]
     vw_scaling = 𝒟test.scalings["vw"]
     wT_scaling = 𝒟test.scalings["wT"]
+    
     get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
     μ_u, σ_u = get_μ_σ("u")
     μ_v, σ_v = get_μ_σ("v")
@@ -169,8 +170,6 @@ for i=1:length(files)
     μ_wT, σ_wT = get_μ_σ("wT")
     D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
-<<<<<<< Updated upstream
-=======
     top_bottom(x) = (Float32(x[1,1]), Float32(x[end,1]))
     uw_top, uw_bottom = top_bottom(𝒟test.uw.scaled)
     vw_top, vw_bottom = top_bottom(𝒟test.vw.scaled)
@@ -181,7 +180,6 @@ for i=1:length(files)
         return [top; model(x); bottom]
     end
 
->>>>>>> Stashed changes
     A = - τ / H
     B = f * τ
 
