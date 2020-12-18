@@ -122,13 +122,13 @@ end
 function save_NDE_weights()
     uw_NN_params = Dict(:weights => uw_weights)
     bson(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite_FC_100.bson"), uw_NN_params)
-SWWH_
+
     vw_NN_params = Dict(:weights => vw_weights)SWWH_
     bson(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite_FC_100.bson"), vw_NN_params)
-SWWH_
+
     wT_NN_params = Dict(:weights => wT_weights)SWWH_
     bson(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite_FC_100.bson"), wT_NN_params)
-endSWWH_
+end
 
 
 function train_NDE(epochs)
