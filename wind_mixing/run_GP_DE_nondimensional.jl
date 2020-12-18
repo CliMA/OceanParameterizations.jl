@@ -10,7 +10,7 @@ println("Reconstruct fluxes? $(reconstruct_fluxes)")
 enforce_surface_fluxes = true
 println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
-subsample_frequency = 1
+subsample_frequency = 8
 println("Subsample frequency for training... $(subsample_frequency)")
 
 train_test_same = true
@@ -110,52 +110,57 @@ for i=1:length(files)
     write(o, "GP prediction error on w'T'..... $(mse(wT_GP)) \n")
 
     # Compare GP predictions to truth
-    myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
-                            legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
-    myanimate(uw_GP, "uw")
-    myanimate(vw_GP, "vw")
-    myanimate(wT_GP, "wT")
+    # myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
+    #                         legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
+    # myanimate(uw_GP, "uw")
+    # myanimate(vw_GP, "vw")
+    # myanimate(wT_GP, "wT")
 
-    uvT₀      = 𝒟test.uvT_unscaled[:,1]
-    zF_coarse = 𝒟test.uw.z
-    zC_coarse = 𝒟test.u.z
-    t         = 𝒟test.t
-    f⁰        = les.f⁰
-    Nz        = 32
+    t  = 𝒟test.t
+    Nz = 32
+    f  = les.f⁰
+    H  = Float32(abs(𝒟test.uw.z[end] - 𝒟test.uw.z[1]))
+    τ  = Float32(abs(t[:,1][end] - t[:,1][1]))
+    u_scaling = 𝒟test.scalings["u"]
+    v_scaling = 𝒟test.scalings["v"]
+    T_scaling = 𝒟test.scalings["T"]
+    uw_scaling = 𝒟test.scalings["uw"]
+    vw_scaling = 𝒟test.scalings["vw"]
+    wT_scaling = 𝒟test.scalings["wT"]
+    get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
+    μ_u, σ_u = get_μ_σ("u")
+    μ_v, σ_v = get_μ_σ("v")
+    μ_T, σ_T = get_μ_σ("T")
+    μ_uw, σ_uw = get_μ_σ("uw")
+    μ_vw, σ_vw = get_μ_σ("vw")
+    μ_wT, σ_wT = get_μ_σ("wT")
+    D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
-    uw_unscale = 𝒟test.uw.unscale_fn # unscale function
-    vw_unscale = 𝒟test.vw.unscale_fn # unscale function
-    wT_unscale = 𝒟test.wT.unscale_fn # unscale function
-    # uw_scale = 𝒟test.scalings["uw"] # scale function
-    # uw_unscale = Base.inv(uw_scale) # unscale function
-    # vw_scale = 𝒟test.scalings["vw"] # scale function
-    # vw_unscale = Base.inv(vw_scale) # unscale function
-    # wT_scale = 𝒟test.scalings["wT"] # scale function
-    # wT_unscale = Base.inv(wT_scale) # unscale function
+    A = - τ / H
+    B = f * τ
 
-    u_scale = 𝒟test.scalings["u"] # scale function
-    v_scale = 𝒟test.scalings["v"] # scale function
-    T_scale = 𝒟test.scalings["T"] # scale function
-
-    function scale_uvT(uvT)
-        uvT[1:32] .= u_scale(uvT[1:32])
-        uvT[33:64] .= v_scale(uvT[33:64])
-        uvT[65:96] .= T_scale(uvT[65:96])
-        return uvT
-    end
-
-    ∂z(vec) = (vec[1:Nz] .- vec[2:Nz+1]) ./ diff(zF_coarse)
-    function f(dx, x, p, t)
+    function NDE_nondimensional_flux(x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        y = scale_uvT(x)
-        dx[1:Nz] .= -∂z(uw_unscale(uw_GP_model(y))) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(vw_unscale(vw_GP_model(y))) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(wT_unscale(wT_GP_model(y)))
+        T = x[2*Nz+1:96]
+        dx₁ = A .* σ_uw ./ σ_u .* D_cell * uw_GP_model(x) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+        dx₂ = A .* σ_vw ./ σ_v .* D_cell * vw_GP_model(x) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+        dx₃ = A .* σ_wT ./ σ_T .* D_cell * wT_GP_model(x)
+        return [dx₁; dx₂; dx₃]
     end
 
-    prob = ODEProblem(f, uvT₀, (t[1],t[end]), saveat=t)
-    sol = solve(prob, ROCK4())
+    function time_window(t, uvT, trange)
+        return (Float32.(t[trange]), Float32.(uvT[:,trange]))
+    end
+
+    timesteps = 1:1:288 #1:5:100
+    uvT₀ = Float32.(𝒟test.uvT_scaled[:,1])
+
+    t_train, uvT_train = time_window(t, 𝒟test.uvT_scaled, timesteps)
+    t_train = Float32.(t_train ./ τ)
+
+    prob = ODEProblem(NDE_nondimensional_flux, uvT₀, (t_train[1], t_train[end]), saveat=t_train)
+    sol = solve(prob, Tsit5())
 
     split_array(uvT) = (uvT[1:Nz,:], uvT[Nz+1:2*Nz,:], uvT[2*Nz+1:end,:])
     u_pred, v_pred, T_pred = split_array(sol)

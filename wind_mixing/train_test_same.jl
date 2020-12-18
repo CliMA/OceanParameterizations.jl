@@ -4,7 +4,7 @@ using Flux
 using OrdinaryDiffEq
 using Plots
 
-reconstruct_fluxes = true
+reconstruct_fluxes = false
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
 enforce_surface_fluxes = true
@@ -30,7 +30,6 @@ file_labels = Dict(
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
-files = files[1:2]
 for i=1:length(files)
 
     if train_test_same
@@ -137,24 +136,22 @@ for i=1:length(files)
     v_scale = 𝒟test.scalings["v"] # scale function
     T_scale = 𝒟test.scalings["T"] # scale function
 
-    function scale_uvT(uvT)
+    function scale_uvT!(uvT)
         uvT[1:32] .= u_scale(uvT[1:32])
         uvT[33:64] .= v_scale(uvT[33:64])
         uvT[65:96] .= T_scale(uvT[65:96])
-        return uvT
     end
 
     ∂z(vec) = (vec[1:Nz] .- vec[2:Nz+1]) ./ diff(zF_coarse)
     function f(dx, x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        y = scale_uvT(x)
-        dx[1:Nz] .= -∂z(uw_unscale(uw_GP_model(y))) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(vw_unscale(vw_GP_model(y))) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(wT_unscale(wT_GP_model(y)))
+        dx[1:Nz] .= -∂z(uw_unscale(uw_GP_model(scale_uvT!(x)))) .+ f⁰ .* v
+        dx[Nz+1:2*Nz] .= -∂z(vw_unscale(vw_GP_model(scale_uvT!(x)))) .- f⁰ .* u
+        dx[2*Nz+1:end] .= -∂z(wT_unscale(wT_GP_model(scale_uvT!(x))))
     end
 
-    prob = ODEProblem(f, uvT₀, (t[1],t[end]), saveat=t)
+    prob = ODEProblem(f, uvT₀, (t[1],t[289]), saveat=t)
     sol = solve(prob, ROCK4())
 
     split_array(uvT) = (uvT[1:Nz,:], uvT[Nz+1:2*Nz,:], uvT[2*Nz+1:end,:])
@@ -177,8 +174,6 @@ for i=1:length(files)
     # Close output file
     close(o)
 end
-
-
 
 # tpoint = 100
 # split_vector(uvT) = (uvT[1:Nz], uvT[Nz+1:2*Nz], uvT[2*Nz+1:end])
