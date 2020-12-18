@@ -95,7 +95,6 @@ for i=1:length(files)
     o = open(file, "w")
 
     write(o, "= = = = = = = = = = = = = = = = = = = = = = = = \n")
-    println("Test file 1 ($(test_file))")
     write(o, "Test file: $(test_file) \n")
     write(o, "Output will be written to: $(output_gif_directory) \n")
 
@@ -137,6 +136,10 @@ for i=1:length(files)
     vw_GP = predict(𝒟test.vw, vw_GP_model)
     wT_GP = predict(𝒟test.wT, wT_GP_model)
 
+    uw_GP = predict(𝒟test.uw, uw_GP_model; scaled = true)
+    vw_GP = predict(𝒟test.vw, vw_GP_model; scaled = true)
+    wT_GP = predict(𝒟test.wT, wT_GP_model; scaled = true)
+
     # Report GP prediction error on the fluxes
     write(o, "GP prediction error on u'w'..... $(mse(uw_GP)) \n")
     write(o, "GP prediction error on v'w'..... $(mse(vw_GP)) \n")
@@ -160,7 +163,7 @@ for i=1:length(files)
     uw_scaling = 𝒟test.scalings["uw"]
     vw_scaling = 𝒟test.scalings["vw"]
     wT_scaling = 𝒟test.scalings["wT"]
-    
+
     get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
     μ_u, σ_u = get_μ_σ("u")
     μ_v, σ_v = get_μ_σ("v")

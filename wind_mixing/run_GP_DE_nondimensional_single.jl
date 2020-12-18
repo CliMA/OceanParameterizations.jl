@@ -79,7 +79,7 @@ println("Reconstruct fluxes? $(reconstruct_fluxes)")
 enforce_surface_fluxes = true
 println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
-subsample_frequency = 1
+subsample_frequency = 32
 println("Subsample frequency for training... $(subsample_frequency)")
 
 file_labels = Dict(
@@ -116,7 +116,6 @@ touch(file)
 o = open(file, "w")
 
 write(o, "= = = = = = = = = = = = = = = = = = = = = = = = \n")
-println("Test file 1 ($(test_file))")
 write(o, "Test file: $(test_file) \n")
 write(o, "Output will be written to: $(output_gif_directory) \n")
 
@@ -154,9 +153,9 @@ vw_GP_model = gp_model(𝒟train.vw, vw_kernel)
 wT_GP_model = gp_model(𝒟train.wT, wT_kernel)
 
 # GP predictions on test data
-uw_GP = predict(𝒟test.uw, uw_GP_model)
-vw_GP = predict(𝒟test.vw, vw_GP_model)
-wT_GP = predict(𝒟test.wT, wT_GP_model)
+uw_GP = predict(𝒟test.uw, uw_GP_model; scaled=true)
+vw_GP = predict(𝒟test.vw, vw_GP_model; scaled=true)
+wT_GP = predict(𝒟test.wT, wT_GP_model; scaled=true)
 
 # Report GP prediction error on the fluxes
 write(o, "GP prediction error on u'w'..... $(mse(uw_GP)) \n")
