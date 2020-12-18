@@ -8,7 +8,7 @@ println("Reconstruct fluxes? $(reconstruct_fluxes)")
 enforce_surface_fluxes = true
 println("Enforce surface fluxes? $(enforce_surface_fluxes)")
 
-subsample_frequency = 32
+subsample_frequency = 4
 println("Subsample frequency for training... $(subsample_frequency)")
 
 file_labels = Dict(
@@ -20,7 +20,7 @@ file_labels = Dict(
     "strong_wind_weak_heating" => "Strong wind, weak heating"
 )
 
-logγ_range = collect(-1:0.05:1.5)
+logγ_range = collect(-1.0:0.05:1.5)
 n = length(logγ_range)
 
 # Rows correspond to kernel functions, cols correspond to logγ values
@@ -79,10 +79,10 @@ p2 = hyperparameter_landscapes(errors_vw)
 p3 = hyperparameter_landscapes(errors_wT)
 layout = @layout [a b c]
 p = plot(p1, p2, p3, layout=layout)
-png(output_directory*"/hyperparameter_landscapes_uw_vw_wT.png")
+savefig(p, output_directory*"/hyperparameter_landscapes_uw_vw_wT.pdf")
 
 # Extract the optimal kernel function and log(γ) value from error matrix
-k_logγ(errors) = (argmin(errors_uw)[1], logγ_range[argmin(errors_uw)[2]])
+k_logγ(errors) = (argmin(errors)[1], logγ_range[argmin(errors)[2]])
 k_uw, logγ_uw = k_logγ(errors_uw)
 k_vw, logγ_vw = k_logγ(errors_vw)
 k_wT, logγ_wT = k_logγ(errors_wT)
@@ -94,7 +94,6 @@ wT_kernel = get_kernel(k_wT, logγ_wT, 0.0, euclidean_distance)
 println(uw_kernel)
 println(vw_kernel)
 println(wT_kernel)
-
 
 i=1
 train_files = files[1:end .!= i]
