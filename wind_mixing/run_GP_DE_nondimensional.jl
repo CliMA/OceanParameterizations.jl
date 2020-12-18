@@ -160,7 +160,6 @@ for i=1:length(files)
     uw_scaling = 𝒟test.scalings["uw"]
     vw_scaling = 𝒟test.scalings["vw"]
     wT_scaling = 𝒟test.scalings["wT"]
-
     get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
     μ_u, σ_u = get_μ_σ("u")
     μ_v, σ_v = get_μ_σ("v")
@@ -170,16 +169,6 @@ for i=1:length(files)
     μ_wT, σ_wT = get_μ_σ("wT")
     D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
-    top_bottom(x) = (Float32(x[1,1]), Float32(x[1,1]))
-    uw_top, uw_bottom = top_bottom(𝒟test.uw.scaled)
-    vw_top, vw_bottom = top_bottom(𝒟test.vw.scaled)
-    wT_top, wT_bottom = top_bottom(𝒟test.wT.scaled)
-
-    # enforce surface fluxes in the predictions
-    function predict_and_enforce_fluxes(model, x, top, bottom)
-        return [top; model(x); bottom]
-    end
-
     A = - τ / H
     B = f * τ
 
@@ -187,9 +176,9 @@ for i=1:length(files)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
         T = x[2*Nz+1:96]
-        dx₁ = A .* σ_uw ./ σ_u .* D_cell * predict_and_enforce_fluxes(uw_GP_model, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
-        dx₂ = A .* σ_vw ./ σ_v .* D_cell * predict_and_enforce_fluxes(vw_GP_model, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-        dx₃ = A .* σ_wT ./ σ_T .* D_cell * predict_and_enforce_fluxes(wT_GP_model, x, wT_top, wT_bottom)
+        dx₁ = A .* σ_uw ./ σ_u .* D_cell * uw_GP_model(x) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+        dx₂ = A .* σ_vw ./ σ_v .* D_cell * vw_GP_model(x) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+        dx₃ = A .* σ_wT ./ σ_T .* D_cell * wT_GP_model(x)
         return [dx₁; dx₂; dx₃]
     end
 
