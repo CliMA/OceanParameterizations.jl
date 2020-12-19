@@ -1,17 +1,12 @@
 using BSON
 using Flux
 
-function export_NN(weights_str, NN_str, small_NDE=true)
+# Export the Neural Network given their weights
+function export_NN(weights_str, NN_str)
     PATH = pwd()
-    if small_NDE == true
-        uw_NN = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"))[:neural_network]
-        vw_NN = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"))[:neural_network]
-        wT_NN = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_network]
-    else
-        uw_NN = BSON.load(joinpath(PATH, "Output", "uw_NN_params_2DaySuite_large.bson"))[:neural_network]
-        vw_NN = BSON.load(joinpath(PATH, "Output", "vw_NN_params_2DaySuite_large.bson"))[:neural_network]
-        wT_NN = BSON.load(joinpath(PATH, "Output", "wT_NN_params_2DaySuite_large.bson"))[:neural_network]
-    end
+    uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_SWNH_100.bson"))[:neural_network]
+    vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_SWNH_100.bson"))[:neural_network]
+    wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_SWNH_100.bson"))[:neural_network]
 
     _, re_uw = Flux.destructure(uw_NN)
     _, re_vw = Flux.destructure(vw_NN)
@@ -25,12 +20,15 @@ function export_NN(weights_str, NN_str, small_NDE=true)
     vw_NN = re_vw(vw_weights)
     wT_NN = re_wT(wT_weights)
 
-    bson(joinpath(PATH, "Output", "$(NN_str[1]).bson"), Dict(:neural_network => uw_NN))
-    bson(joinpath(PATH, "Output", "$(NN_str[2]).bson"), Dict(:neural_network => vw_NN))
-    bson(joinpath(PATH, "Output", "$(NN_str[3]).bson"), Dict(:neural_network => wT_NN))
+    bson(joinpath(PATH, "NDEs", "$(NN_str[1]).bson"), Dict(:neural_network => uw_NN))
+    bson(joinpath(PATH, "NDEs", "$(NN_str[2]).bson"), Dict(:neural_network => vw_NN))
+    bson(joinpath(PATH, "NDEs", "$(NN_str[3]).bson"), Dict(:neural_network => wT_NN))
 end
 
+# File name of the weights
 weights_str = ["uw_NDE_weights_2DaySuite_2Sims", "vw_NDE_weights_2DaySuite_2Sims", "wT_NDE_weights_2DaySuite_2Sims"]
-NN_str = ["uw_NDE_2sim_100", "vw_NDE_2sim_100", "wT_NDE_2sim_100"]
 
-export_NN(weights_str, NN_str, true)
+# Names of the output files
+NN_str = ["uw_NDE_2sims_100", "vw_NDE_2sims_100", "wT_NDE_2sims_100"]
+
+export_NN(weights_str, NN_str)

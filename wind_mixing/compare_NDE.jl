@@ -6,45 +6,22 @@ using OceanParameterizations
 using Oceananigans.Grids
 using BSON
 using OrdinaryDiffEq, DiffEqSensitivity
+using StatsPlots
 include("lesbrary_data.jl")
 include("data_containers.jl")
 include("animate_prediction.jl")
 
-# train_files = ["strong_wind", "strong_wind_weak_heating"]
 PATH = pwd()
 
-uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"))[:neural_network]
-vw_NDE = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"))[:neural_network]
-wT_NDE = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_network]
+uw_NDE = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_SWNH_100.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_SWNH_100.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_SWNH_100.bson"))[:neural_network]
 
-# uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
-# vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
-# wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
+uw_NDE_2sim = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_2sims_100.bson"))[:neural_network]
+vw_NDE_2sim = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_2sims_100.bson"))[:neural_network]
+wT_NDE_2sim = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_2sims_100.bson"))[:neural_network]
 
-
-# uw_NN_1sim_100 = re_uw(uw_weights)
-# vw_NN_1sim_100 = re_vw(vw_weights)
-# wT_NN_1sim_100 = re_wT(wT_weights)
-
-# uw_NDE = Dict(:neural_network => uw_NN_1sim_100)
-# bson(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"), uw_NDE)
-# vw_NDE = Dict(:neural_network => vw_NN_1sim_100)
-# bson(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"), vw_NDE)
-# wT_NDE = Dict(:neural_network => wT_NN_1sim_100)
-# bson(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"), wT_NDE)
-
-# uw_weights, re_uw = Flux.destructure(uw_NDE)
-# vw_weights, re_vw = Flux.destructure(vw_NDE)
-# wT_weights, re_wT = Flux.destructure(wT_NDE)
-
-# uw_weights = BSON.load(joinpath(PATH, "Output", "uw_NDE_weights_2DaySuite.bson"))[:weights]
-# vw_weights = BSON.load(joinpath(PATH, "Output", "vw_NDE_weights_2DaySuite.bson"))[:weights]
-# wT_weights = BSON.load(joinpath(PATH, "Output", "wT_NDE_weights_2DaySuite.bson"))[:weights]
-# uw_NDE = re_uw(uw_weights)
-# vw_NDE = re_vw(vw_weights)
-# wT_NDE = re_wT(wT_weights)
-
-
+# Calculates the loss between the NDEs and the simulation data in the U, V and T profiles as well as the total averaged loss
 function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
     test_files = ["strong_wind", "strong_wind_weak_heating", "strong_wind_weak_cooling", "strong_wind_no_coriolis", "free_convection", "weak_wind_strong_cooling"]
     output_gif_directory = "Output"
@@ -133,23 +110,43 @@ function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
 
     function loss_NDE(prob, uvT_test)
         sol = Array(solve(prob, opt_NDE, saveat=t_test))
-        loss = Flux.mse(sol, uvT_test)
-        return loss
+        u_loss = Flux.mse(sol[1:32,:], uvT_test[1:32,:])
+        v_loss = Flux.mse(sol[33:64,:], uvT_test[33:64,:])
+        T_loss = Flux.mse(sol[65:96,:], uvT_test[65:96,:])
+        loss = mean([u_loss, v_loss, T_loss])
+        return [u_loss, v_loss, T_loss, loss]
     end
 
     output = [loss_NDE(probs[i], uvT_tests[i]) for i in 1:length(𝒟tests)]
 end
 
+# training data for NDEs trained on 1 dataset
 train_files = ["strong_wind"]
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
 
-output_interpolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
-# output_extrapolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 100:1:289)
+# training data for NDEs trained on 2 datasets
+train_files_2sim = ["strong_wind", "strong_wind_weak_heating"]
+𝒟train_2sim = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
+
+output = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
+output_2sim = test_NDE(𝒟train_2sim, uw_NDE_2sim, vw_NDE_2sim, wT_NDE_2sim, 1:1:289)
+
+total_loss = [output[i][4] for i in 1:length(output)]
+total_loss_2sim = [output_2sim[i][4] for i in 1:length(output_2sim)]
 
 test_datasets = ["SW, NH", "SW, WH", "SW, WC", "SW, NR", "FC", "WW, SC"]
+ymax = 1.5maximum([maximum(total_loss), maximum(total_loss_2sim)])
+ymin = 0.1minimum([minimum(total_loss), minimum(total_loss_2sim)])
 
-scatter([test_datasets[1]], [output_interpolation[1]], yscale=:log10, label="Extrapolation")
-scatter!(test_datasets[2:end], output_extrapolation[2:end], label="Prediction")
-xlabel!("Datasets")
-ylabel!("L2 Loss")
-savefig("Output/loss_SWNH_comparison.pdf")
+# Plotting the comparison of loss function across 2 sets of NDEs
+l = @layout [a b]
+p1 = bar([test_datasets[1]], [total_loss[1]], yscale=:log10, label="Extrapolation", ylim=(ymin, ymax), legend=:topleft)
+bar!(p1, test_datasets[2:end], total_loss[2:end], label="Prediction", yscale=:log10)
+title!(p1, "Trained on 1 Dataset")
+p2 = bar(test_datasets[1:2], total_loss_2sim[1:2], label="Extrapolation", yscale=:log10, ylim=(ymin, ymax), legend=:topleft)
+bar!(p2, test_datasets[3:end], total_loss_2sim[3:end], label="Prediction", yscale=:log10)
+title!(p2, "Trained on 2 Datasets")
+fig = plot(p1, p2, layout=l, size=(1000, 500))
+xlabel!(fig, "Datasets")
+ylabel!(fig, "L2 Loss")
+display(fig)

@@ -10,15 +10,14 @@ include("lesbrary_data.jl")
 include("data_containers.jl")
 include("animate_prediction.jl")
 
-# train_files = ["strong_wind", "strong_wind_weak_heating"]
 PATH = pwd()
 
+# Used to calculate the timeseries of the neural differential equations or the loss between the NDEs and the simulation data
 function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange, loss=true)
     test_files = ["strong_wind", "strong_wind_weak_heating", "strong_wind_weak_cooling", "strong_wind_no_coriolis", "free_convection", "weak_wind_strong_cooling"]
     output_gif_directory = "Output"
     PATH = pwd()
 
-    # 𝒟 = data(test_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
     𝒟tests = [data(test_file, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training") for test_file in test_files]
 
     tsteps = size(𝒟train.t[:,1], 1)
@@ -75,21 +74,21 @@ function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange, loss=true)
 
     ps = [[fs[i], uw_tops[i], uw_bottoms[i], vw_tops[i], vw_bottoms[i], wT_tops[i], wT_bottoms[i]] for i in 1:length(𝒟tests)]
 
-    D_cell = Float32.(Dᶜ(Nz, 1/Nz))
+    D_cell = Float32.(Dᶜ(Nz, 1 / Nz))
 
     function NDE_nondimensional!(dx, x, p, t)
         f, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p
         A = - τ / H
         B = f * τ
         u = x[1:Nz]
-        v = x[Nz+1:2Nz]
-        T = x[2Nz+1:3Nz]
+        v = x[Nz + 1:2Nz]
+        T = x[2Nz + 1:3Nz]
         dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NDE, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v)
-        dx[Nz+1:2Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NDE, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-        dx[2Nz+1:3Nz] .= A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NDE, x, wT_top, wT_bottom)
+        dx[Nz + 1:2Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NDE, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+        dx[2Nz + 1:3Nz] .= A .* σ_wT ./ σ_T .* D_cell * predict_NDE(wT_NDE, x, wT_top, wT_bottom)
     end
 
-    t_test = Float32.(𝒟train.t[:,1][trange]./τ)
+    t_test = Float32.(𝒟train.t[:,1][trange] ./ τ)
     tspan_test = (t_test[1], t_test[end])
 
     uvT₀s = [𝒟test.uvT_scaled[:, trange[1]] for 𝒟test in 𝒟tests]
@@ -114,40 +113,23 @@ function test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange, loss=true)
         return [[predict_NDE(probs[i]) for i in 1:length(𝒟tests)], [uvT_tests[i] for i in 1:length(𝒟tests)]]
     end
 end
-##
+
 train_files = ["strong_wind"]
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
-
-uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
-vw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
-wT_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_2sim_100.bson"))[:neural_network]
-
-output_interpolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:100)
-output_extrapolation = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289)
-
-test_datasets = ["Strong Wind", "Strong Wind, Weak Heating", "Strong Wind, Weak Cooling", "Strong Wind, No Coriolis", "Free Convection", "Weak Wind, Strong Cooling"]
-
-scatter(1:length(output_interpolation), output_interpolation, yscale=:log10, label="Interpolation")
-scatter!(1:length(output_extrapolation), output_extrapolation, label="Extrapolation")
-xlabel!("Datasets")
-ylabel!("Loss")
-
-##
-train_files = ["strong_wind"]
-uw_NDE = BSON.load(joinpath(PATH, "Output", "uw_NDE_1sim_100.bson"))[:neural_network]
-vw_NDE = BSON.load(joinpath(PATH, "Output", "vw_NDE_1sim_100.bson"))[:neural_network]
-wT_NDE = BSON.load(joinpath(PATH, "Output", "wT_NDE_1sim_100.bson"))[:neural_network]
+uw_NDE = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_SWNH_100.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_SWNH_100.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_SWNH_100.bson"))[:neural_network]
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
 output = test_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, 1:1:289, false)
-##
+
+# Choosing the Strong Wind Weak Cooling Scenario
 u₁_NDE = output[1][3][1:32, :]
 v₁_NDE = output[1][3][33:64, :]
 T₁_NDE = output[1][3][65:96, :]
 u₁_truth = output[2][3][1:32, :]
 v₁_truth = output[2][3][33:64, :]
 T₁_truth = output[2][3][65:96, :]
-
 ##
+# Plotting U profile
 index₁ = 10
 index₂ = 50
 index₃ = 100
@@ -170,15 +152,8 @@ xlabel!(fig, "U")
 ylabel!(fig, "z /m")
 display(fig)
 
-t_10 = Dict(:NDE => u₁_NDE[:, 10], :truth => u₁_truth[:, 10])
-t_50 = Dict(:NDE => u₁_NDE[:, 50], :truth => u₁_truth[:, 50])
-t_100 = Dict(:NDE => u₁_NDE[:, 100], :truth => u₁_truth[:, 100])
-t_200 = Dict(:NDE => u₁_NDE[:, 200], :truth => u₁_truth[:, 200])
-
-SWWC = Dict(10 => t_10, 50 => t_50, 100 => t_100, 200 => t_200)
-
-bson("Output/SWWC_test.bson", SWWC)
 ##
+# Plotting V profile
 index₁ = 10
 index₂ = 90
 index₃ = 110
@@ -201,6 +176,7 @@ xlabel!(fig, "V")
 ylabel!(fig, "z /m")
 display(fig)
 ##
+# Plotting T profile
 index₁ = 10
 index₂ = 90
 index₃ = 110
