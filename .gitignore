@@ -32,6 +32,8 @@ docs/site/
 *.mp4
 *.gif
 *.png
+*.txt
+*.pdf
 
 # Slurm scripts
 *.slurm

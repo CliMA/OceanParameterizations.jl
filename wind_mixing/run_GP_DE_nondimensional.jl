@@ -11,13 +11,12 @@ function parse_command_line_arguments()
 
     @add_arg_table! settings begin
         "--reconstruct_fluxes"
-            help = "The number of grid points in x, y, and z."
-            nargs = 3
+            help = ""
             default = false
             arg_type = Bool
 
         "--enforce_surface_fluxes"
-            help = "Plot some turbulence statistics after the simulation is complete."
+            help = ""
             default = true
             arg_type = Bool
 
@@ -64,7 +63,6 @@ file_labels = Dict(
 files =  ["free_convection", "strong_wind", "strong_wind_no_coriolis",
             "weak_wind_strong_cooling", "strong_wind_weak_cooling", "strong_wind_weak_heating"]
 
-files = files[1:2]
 for i=1:length(files)
 
     if train_test_same
@@ -138,6 +136,10 @@ for i=1:length(files)
     vw_GP = predict(𝒟test.vw, vw_GP_model)
     wT_GP = predict(𝒟test.wT, wT_GP_model)
 
+    uw_GP = predict(𝒟test.uw, uw_GP_model; scaled = true)
+    vw_GP = predict(𝒟test.vw, vw_GP_model; scaled = true)
+    wT_GP = predict(𝒟test.wT, wT_GP_model; scaled = true)
+
     # Report GP prediction error on the fluxes
     write(o, "GP prediction error on u'w'..... $(mse(uw_GP)) \n")
     write(o, "GP prediction error on v'w'..... $(mse(vw_GP)) \n")
@@ -150,46 +152,62 @@ for i=1:length(files)
     myanimate(vw_GP, "vw")
     myanimate(wT_GP, "wT")
 
-    uvT₀      = 𝒟test.uvT_unscaled[:,1]
-    zF_coarse = 𝒟test.uw.z
-    zC_coarse = 𝒟test.u.z
-    t         = 𝒟test.t
-    f⁰        = les.f⁰
-    Nz        = 32
+    t  = 𝒟test.t
+    Nz = 32
+    f  = les.f⁰
+    H  = Float32(abs(𝒟test.uw.z[end] - 𝒟test.uw.z[1]))
+    τ  = Float32(abs(t[:,1][end] - t[:,1][1]))
+    u_scaling = 𝒟test.scalings["u"]
+    v_scaling = 𝒟test.scalings["v"]
+    T_scaling = 𝒟test.scalings["T"]
+    uw_scaling = 𝒟test.scalings["uw"]
+    vw_scaling = 𝒟test.scalings["vw"]
+    wT_scaling = 𝒟test.scalings["wT"]
 
-    uw_unscale = 𝒟test.uw.unscale_fn # unscale function
-    vw_unscale = 𝒟test.vw.unscale_fn # unscale function
-    wT_unscale = 𝒟test.wT.unscale_fn # unscale function
-    # uw_scale = 𝒟test.scalings["uw"] # scale function
-    # uw_unscale = Base.inv(uw_scale) # unscale function
-    # vw_scale = 𝒟test.scalings["vw"] # scale function
-    # vw_unscale = Base.inv(vw_scale) # unscale function
-    # wT_scale = 𝒟test.scalings["wT"] # scale function
-    # wT_unscale = Base.inv(wT_scale) # unscale function
+    get_μ_σ(name) = (𝒟test.scalings[name].μ, 𝒟test.scalings[name].σ)
+    μ_u, σ_u = get_μ_σ("u")
+    μ_v, σ_v = get_μ_σ("v")
+    μ_T, σ_T = get_μ_σ("T")
+    μ_uw, σ_uw = get_μ_σ("uw")
+    μ_vw, σ_vw = get_μ_σ("vw")
+    μ_wT, σ_wT = get_μ_σ("wT")
+    D_cell = Float32.(Dᶜ(Nz, 1/Nz))
 
-    u_scale = 𝒟test.scalings["u"] # scale function
-    v_scale = 𝒟test.scalings["v"] # scale function
-    T_scale = 𝒟test.scalings["T"] # scale function
+    top_bottom(x) = (Float32(x[1,1]), Float32(x[end,1]))
+    uw_top, uw_bottom = top_bottom(𝒟test.uw.scaled)
+    vw_top, vw_bottom = top_bottom(𝒟test.vw.scaled)
+    wT_top, wT_bottom = top_bottom(𝒟test.wT.scaled)
 
-    function scale_uvT(uvT)
-        uvT[1:32] .= u_scale(uvT[1:32])
-        uvT[33:64] .= v_scale(uvT[33:64])
-        uvT[65:96] .= T_scale(uvT[65:96])
-        return uvT
+    # enforce surface fluxes in the predictions
+    function predict_and_enforce_fluxes(model, x, top, bottom)
+        return [top; model(x); bottom]
     end
 
-    ∂z(vec) = (vec[1:Nz] .- vec[2:Nz+1]) ./ diff(zF_coarse)
-    function f(dx, x, p, t)
+    A = - τ / H
+    B = f * τ
+
+    function NDE_nondimensional_flux(x, p, t)
         u = x[1:Nz]
         v = x[Nz+1:2*Nz]
-        y = scale_uvT(x)
-        dx[1:Nz] .= -∂z(uw_unscale(uw_GP_model(y))) .+ f⁰ .* v
-        dx[Nz+1:2*Nz] .= -∂z(vw_unscale(vw_GP_model(y))) .- f⁰ .* u
-        dx[2*Nz+1:end] .= -∂z(wT_unscale(wT_GP_model(y)))
+        T = x[2*Nz+1:96]
+        dx₁ = A .* σ_uw ./ σ_u .* D_cell * uw_GP_model(x) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) #nondimensional gradient
+        dx₂ = A .* σ_vw ./ σ_v .* D_cell * vw_GP_model(x) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+        dx₃ = A .* σ_wT ./ σ_T .* D_cell * wT_GP_model(x)
+        return [dx₁; dx₂; dx₃]
     end
 
-    prob = ODEProblem(f, uvT₀, (t[1],t[end]), saveat=t)
-    sol = solve(prob, ROCK4())
+    function time_window(t, uvT, trange)
+        return (Float32.(t[trange]), Float32.(uvT[:,trange]))
+    end
+
+    timesteps = 1:1:length(t) #1:5:100
+    uvT₀ = Float32.(𝒟test.uvT_scaled[:,1])
+
+    t_train, uvT_train = time_window(t, 𝒟test.uvT_scaled, timesteps)
+    t_train = Float32.(t_train ./ τ)
+
+    prob = ODEProblem(NDE_nondimensional_flux, uvT₀, (t_train[1], t_train[end]), saveat=t_train)
+    sol = solve(prob, Tsit5())
 
     split_array(uvT) = (uvT[1:Nz,:], uvT[Nz+1:2*Nz,:], uvT[2*Nz+1:end,:])
     u_pred, v_pred, T_pred = split_array(sol)
@@ -211,8 +229,6 @@ for i=1:length(files)
     # Close output file
     close(o)
 end
-
-
 
 # tpoint = 100
 # split_vector(uvT) = (uvT[1:Nz], uvT[Nz+1:2*Nz], uvT[2*Nz+1:end])

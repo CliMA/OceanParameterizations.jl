@@ -1,10 +1,10 @@
-function closure_tke_full_evolution(parameters, T⁰, les; subsample = 1, grid = 1)
+function closure_tke_full_evolution(parameters, U⁰, V⁰, T⁰, t, les; subsample = 1, grid = 1)
 
      # set parameters
      # parameters = TKEMassFlux.TKEParameters( Cᴰ = Cᴰ )
 
      # assume constant interval between time steps
-     Δt = les.t[2] - les.t[1]
+     Δt = t[2] - t[1]
 
      # number of gridpoints
      N = length(T⁰)
@@ -29,25 +29,32 @@ function closure_tke_full_evolution(parameters, T⁰, les; subsample = 1, grid =
     function evolve()
 
         # set equal to initial condition of parameterization
+        model.solution.U[1:N] = copy(U⁰)
+        model.solution.V[1:N] = copy(V⁰)
         model.solution.T[1:N] = copy(T⁰)
 
         # set aside memory
         if subsample != 1
             time_index = subsample
         else
-            time_index = 1:length(les.t)
+            time_index = 1:length(t)
         end
-        Nt = length(les.t[time_index])
-        𝒢 = zeros(N, Nt)
+        Nt = length(t[time_index])
+
+        U_evolution = zeros(N, Nt)
+        V_evolution = zeros(N, Nt)
+        T_evolution = zeros(N, Nt)
 
         # loop the model
         ti = collect(time_index)
         for i in 1:Nt
-            t = les.t[ti[i]]
-            run_until!(model, Δt, t)
-            @. 𝒢[:,i] = model.solution.T[1:N]
+            time = t[ti[i]]
+            run_until!(model, Δt, time)
+            @. U_evolution[:,i] = model.solution.U[1:N]
+            @. V_evolution[:,i] = model.solution.V[1:N]
+            @. T_evolution[:,i] = model.solution.T[1:N]
         end
-        return 𝒢
+        return (U_evolution, V_evolution, T_evolution)
     end
     return evolve
 end

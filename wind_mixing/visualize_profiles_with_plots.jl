@@ -1,7 +1,8 @@
 using Plots
 using OceanParameterizations
+using WindMixing
 
-reconstruct_fluxes = true
+reconstruct_fluxes = false
 println("Reconstruct fluxes? $(reconstruct_fluxes)")
 
 enforce_surface_fluxes = true
@@ -23,19 +24,22 @@ file_labels = Dict(
 )
 
 Ts = Dict()
+
 for file in files
     Ts[file] = data(file, reconstruct_fluxes=reconstruct_fluxes,
                     enforce_surface_fluxes=enforce_surface_fluxes) # <: OceananigansData
 end
 
 x_lims = Dict(
-    "uw" => (-10,2),
+    "uw" => (-10,0),
     "vw" => (-4,4.5),
     "wT" => (-1.5,0.7),
     "T" => (19.6,20)
 )
 
 f = Dict(
+    "u" => 𝒟 -> 𝒟.u.coarse,
+    "v" => 𝒟 -> 𝒟.v.coarse,
     "uw" => 𝒟 -> 𝒟.uw.coarse,
     "vw" => 𝒟 -> 𝒟.vw.coarse,
     "wT" => 𝒟 -> 𝒟.wT.coarse,
@@ -43,6 +47,8 @@ f = Dict(
 )
 
 zs = Dict(
+    "u" => 𝒟 -> 𝒟.u.z,
+    "v" => 𝒟 -> 𝒟.v.z,
     "uw" => 𝒟 -> 𝒟.uw.z,
     "vw" => 𝒟 -> 𝒟.vw.z,
     "wT" => 𝒟 -> 𝒟.wT.z,
@@ -56,6 +62,9 @@ zs = Dict(
 # )
 
 legend_placement = Dict(
+    "u" => false,
+    "v" => false,
+    "T" => false,
     "uw" => false,
     "vw" => false,
     "wT" => false,
@@ -66,10 +75,14 @@ scaling_factor = Dict(
     "uw" => 1e4,
     "vw" => 1e4,
     "wT" => 1e4,
+    "u" => 1,
+    "v" => 1,
     "T" => 1
 )
 
 x_labels = Dict(
+    "u" => "U (m/s)",
+    "v" => "V (m/s)",
     "uw" => "U'W' x 10⁴ (m²/s²)",
     "vw" => "V'W' x 10⁴ (m²/s²)",
     "wT" => "W'T' x 10⁴ (C⋅m/s)",
@@ -80,6 +93,8 @@ titles = Dict(
     "uw" => "Zonal momentum flux, U'W'",
     "vw" => "Meridional momentum flux, V'W'",
     "wT" => "Temperature flux, W'T'",
+    "u" => "Zonal momentum (m/s)",
+    "v" => "Meridional momentum (m/s)",
     "T" => "Temperature, T",
 )
 
@@ -101,6 +116,12 @@ savefig(p2, output_directory*"/vw_last_frame.pdf")
 
 p3 = plot_frame_i("wT", 288)
 savefig(p3, output_directory*"/wT_last_frame.pdf")
+
+pu = plot_frame_i("u", 288)
+savefig(pu, output_directory*"/u_last_frame.pdf")
+
+pv = plot_frame_i("v", 288)
+savefig(pv, output_directory*"/v_last_frame.pdf")
 
 pT = plot_frame_i("T", 288)
 savefig(pT, output_directory*"/T_last_frame.pdf")
