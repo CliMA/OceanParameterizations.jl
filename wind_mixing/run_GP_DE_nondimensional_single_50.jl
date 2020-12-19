@@ -6,8 +6,8 @@ using Plots
 
 
 x_lims = Dict(
-    "u" => (-2.0, 3.0),
-    "v" => (-1.0, 2.0),
+    "u" => (-1.0, 4.0),
+    "v" => (-4.0, 1.0),
     "uw" => (-10,0),
     "vw" => (-4,4.5),
     "wT" => (-1.5,0.7),
@@ -107,7 +107,7 @@ test_file = "strong_wind_weak_cooling"
                     enforce_surface_fluxes=enforce_surface_fluxes)
 les = read_les_output(test_file)
 
-output_gif_directory="train_SW_test_SW_WC/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)"
+output_gif_directory="train_SW_test_SW_WC_50/subsample_$(subsample_frequency)/reconstruct_$(reconstruct_fluxes)/enforce_surface_fluxes_$(enforce_surface_fluxes)"
 directory = pwd() * "/$(output_gif_directory)/"
 mkpath(directory)
 file = directory*"_output.txt"
@@ -162,11 +162,11 @@ write(o, "GP prediction error on v'w'..... $(mse(vw_GP)) \n")
 write(o, "GP prediction error on w'T'..... $(mse(wT_GP)) \n")
 
 # Compare GP predictions to truth
-myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
-                        legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
-myanimate(uw_GP, "uw")
-myanimate(vw_GP, "vw")
-myanimate(wT_GP, "wT")
+# myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
+#                         legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
+# myanimate(uw_GP, "uw")
+# myanimate(vw_GP, "vw")
+# myanimate(wT_GP, "wT")
 
 t  = 𝒟test.t
 Nz = 32
@@ -234,12 +234,12 @@ T_pair = (T_pred, 𝒟test.T.scaled)
 
 myanimate(xs, name) = animate_prediction(xs, name, 𝒟test, test_file;
                             legend_labels=["GP(u,v,T)","Truth"], directory=output_gif_directory)
-myanimate(u_pair, "u")
-myanimate(v_pair, "v")
-myanimate(T_pair, "T")
-save_frame_n(100, u_pair, "u", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="u_GP_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, v_pair, "v", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="v_GP_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, T_pair, "T", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="T_GP_$(test_file)", directory=output_gif_directory)
+# myanimate(u_pair, "u")
+# myanimate(v_pair, "v")
+# myanimate(T_pair, "T")
+save_frame_n(50, u_pair, "u", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="u_GP_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, v_pair, "v", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="v_GP_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, T_pair, "T", 𝒟test, test_file; legend_labels=["GP", "truth"], filename="T_GP_$(test_file)", directory=output_gif_directory)
 
 write(o, "GP prediction error on u........ $(mse(u_pair)) \n")
 write(o, "GP prediction error on v........ $(mse(v_pair)) \n")
@@ -281,12 +281,12 @@ T_KPP = (𝒟test.scalings["T"](T_pred), 𝒟test.T.scaled)
 mse(u_KPP)
 mse(v_KPP)
 mse(T_KPP)
-save_frame_n(100, u_KPP, "u", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="u_KPP_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, v_KPP, "v", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="v_KPP_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, T_KPP, "T", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="T_KPP_$(test_file)", directory=output_gif_directory)
-animate_prediction(u_KPP, "u", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="u_KPP_$(test_file)", directory=output_gif_directory)
-animate_prediction(v_KPP, "v", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="v_KPP_$(test_file)", directory=output_gif_directory)
-animate_prediction(T_KPP, "T", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="T_KPP_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, u_KPP, "u", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="u_KPP_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, v_KPP, "v", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="v_KPP_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, T_KPP, "T", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="T_KPP_$(test_file)", directory=output_gif_directory)
+# animate_prediction(u_KPP, "u", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="u_KPP_$(test_file)", directory=output_gif_directory)
+# animate_prediction(v_KPP, "v", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="v_KPP_$(test_file)", directory=output_gif_directory)
+# animate_prediction(T_KPP, "T", 𝒟test, test_file; legend_labels=["KPP(U⁰,V⁰,T⁰)", "truth"], filename="T_KPP_$(test_file)", directory=output_gif_directory)
 
 #TKE Parameterization (no training; use default parameters)
 les = read_les_output(test_file)
@@ -299,12 +299,12 @@ T_TKE = (𝒟test.scalings["T"](T_pred), 𝒟test.T.scaled)
 mse(u_TKE)
 mse(v_TKE)
 mse(T_TKE)
-save_frame_n(100, u_TKE, "u", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="u_TKE_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, v_TKE, "v", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="v_TKE_$(test_file)", directory=output_gif_directory)
-save_frame_n(100, T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="T_TKE_$(test_file)", directory=output_gif_directory)
-animate_prediction(u_TKE, "u", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="u_TKE_$(test_file)", directory=output_gif_directory)
-animate_prediction(v_TKE, "v", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="v_TKE_$(test_file)", directory=output_gif_directory)
-animate_prediction(T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="T_TKE_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, u_TKE, "u", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="u_TKE_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, v_TKE, "v", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="v_TKE_$(test_file)", directory=output_gif_directory)
+save_frame_n(50, T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="T_TKE_$(test_file)", directory=output_gif_directory)
+# animate_prediction(u_TKE, "u", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="u_TKE_$(test_file)", directory=output_gif_directory)
+# animate_prediction(v_TKE, "v", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="v_TKE_$(test_file)", directory=output_gif_directory)
+# animate_prediction(T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(U⁰,V⁰,T⁰)", "truth"], filename="T_TKE_$(test_file)", directory=output_gif_directory)
 
 
 ## NN
@@ -312,19 +312,19 @@ animate_prediction(T_TKE, "T", 𝒟test, test_file; legend_labels=["TKE(U⁰,V�
 using BSON
 
 file = BSON.load("u_SWWC_test.bson")
-data_100 = file[100]
-NDE_u = data_100[:NDE]
-truth_u = data_100[:truth]
+data_50 = file[50]
+NDE_u = data_50[:NDE]
+truth_u = data_50[:truth]
 
 file = BSON.load("v_SWWC_test.bson")
-data_100 = file[100]
-NDE_v = data_100[:NDE]
-truth_v = data_100[:truth]
+data_50 = file[50]
+NDE_v = data_50[:NDE]
+truth_v = data_50[:truth]
 
 file = BSON.load("T_SWWC_test.bson")
-data_100 = file[100]
-NDE_T = data_100[:NDE]
-truth_T = data_100[:truth]
+data_50 = file[50]
+NDE_T = data_50[:NDE]
+truth_T = data_50[:truth]
 
 save_frame_n(1, (NDE_u,truth_u), "u", 𝒟test, test_file; legend_labels=["NDE", "truth"], filename="u_NN_$(test_file)", directory=output_gif_directory)
 save_frame_n(1, (NDE_v,truth_v), "v", 𝒟test, test_file; legend_labels=["NDE", "truth"], filename="v_NN_$(test_file)", directory=output_gif_directory)
