@@ -33,6 +33,7 @@ using OrdinaryDiffEq
 using DiffEqSensitivity
 using DiffEqFlux
 using JLD2
+using OceanTurb
 using Oceananigans.Utils
 using OceanParameterizations
 
