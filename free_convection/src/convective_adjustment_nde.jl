@@ -38,7 +38,7 @@ function ConvectiveAdjustmentNDE(NN, ds; iterations=nothing)
 
         # Convective adjustment
         ∂T∂z = Dzᶠ * T
-        ∂z_K∂T∂z = Dzᶜ * min.(0, 1 * ∂T∂z)
+        ∂z_K∂T∂z = Dzᶜ * min.(0, 10 * ∂T∂z)
 
         return σ_wT/σ_T * τ/H * (- ∂z_wT .+ ∂z_K∂T∂z)
     end
