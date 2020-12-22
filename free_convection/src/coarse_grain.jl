@@ -32,7 +32,7 @@ end
 function coarse_grain(d::Dimension, n, loc)
     dim_base_type = basetypeof(d)
     d̄ = coarse_grain(val(d), n, loc)
-    return dim_base_type(d̄, mode=mode(d), metadata=metadata(d))
+    return dim_base_type(d̄, mode=GeoData.mode(d), metadata=metadata(d))
 end
 
 function coarse_grain(A::GeoArray, n)
@@ -43,7 +43,7 @@ function coarse_grain(A::GeoArray, n)
 
     Ā = zeros(eltype(A), loc isa Face ? n+1 : n, T)
     for j in 1:T
-        Ā[:, j] .= coarse_grain(data(A[Ti=j]), n, loc)
+        Ā[:, j] .= coarse_grain(GeoData.data(A[Ti=j]), n, loc)
     end
 
     z = dims(A, ZDim)
