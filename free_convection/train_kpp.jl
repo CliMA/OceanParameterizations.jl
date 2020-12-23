@@ -1,7 +1,6 @@
 using DataDeps
 using GeoData
-using Flux
-using JLD2
+using Plots
 using OceanParameterizations
 using FreeConvection
 using FreeConvection: coarse_grain
@@ -82,19 +81,19 @@ eki_iterations = 10
 eki, eki_loss_history = optimize_kpp_parameters(coarse_training_datasets, true_solutions, T_scaling,
                                                 ensemble_members=eki_ensemble_size, iterations=eki_iterations)
 
-plot(eki_loss_history, linewidth=3, linealpha=0.8, yaxis=:log, ylims=(1e-3, 1e-1),
+plot(eki_loss_history, linewidth=3, linealpha=0.8, yaxis=:log,
      label="", xlabel="EKI iteration", ylabel="mean squared error",
      title="Optimizing KPP: EKI particle loss", grid=false, framestyle=:box, dpi=200)
 
 savefig("eki_kpp_loss_history.png")
 
-kwargs = (label="", bins=0:0.1:1.1, xlims=(0, 1.1), grid=false, framestyle=:box)
+kwargs = (label="", grid=false, framestyle=:box)
 
 anim = @animate for n in 1:eki_iterations
-    h1 = histogram(clamp.(eki.u[n][:, 1], 0, 1), xlabel="CSL", title="Optimizing KPP parameters"; kwargs...)
-    h2 = histogram(clamp.(eki.u[n][:, 2], 0, 1), xlabel="CNL", title="EKI iteration $n"; kwargs...)
-    h3 = histogram(clamp.(eki.u[n][:, 3], 0, 1), xlabel="CbT"; kwargs...)
-    h4 = histogram(clamp.(eki.u[n][:, 4], 0, 1), xlabel="CKE"; kwargs...)
+    h1 = histogram(eki.u[n][:, 1], bins=0:0.1:1, xlims=(0, 1), xlabel="CSL", title="Optimizing KPP parameters"; kwargs...)
+    h2 = histogram(eki.u[n][:, 2], bins=0:0.8:8, xlims=(0, 8), xlabel="CNL", title="EKI iteration $n"; kwargs...)
+    h3 = histogram(eki.u[n][:, 3], bins=0:0.6:6, xlims=(0, 6), xlabel="CbT"; kwargs...)
+    h4 = histogram(eki.u[n][:, 4], bins=0:0.5:5, xlims=(0, 5), xlabel="CKE"; kwargs...)
     plot(h1, h2, h3, h4, layout=(2, 2), dpi=200)
 end
 

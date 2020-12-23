@@ -15,7 +15,7 @@ function optimize_kpp_parameters(datasets, true_solutions, T_scaling; ensemble_m
     )
 
     n_params = 4
-    prior_distributions = [Uniform(0, 1) |> Parameterized for _ in 1:n_params]
+    prior_distributions = [Uniform(0, 1), Uniform(0, 8), Uniform(0, 6), Uniform(0, 5)] .|> Parameterized
     constraints = [[no_constraint()] for _ in 1:n_params]
     prior_names = ["CSL", "CNL", "Cb_T", "CKE"]
     prior = ParameterDistribution(prior_distributions, constraints, prior_names)
@@ -34,7 +34,8 @@ function optimize_kpp_parameters(datasets, true_solutions, T_scaling; ensemble_m
         loss_i = zeros(ensemble_members, 1)
         for e in 1:ensemble_members
             @info "Computing loss for ensemble member $e/$ensemble_members..."
-            p = clamp.(eki.u[end][e, :], 0, 1)
+            p = eki.u[end][e, :]
+            p = [clamp(p[1], 0, 1), max(0, p[2]), max(0, p[3]), max(0, p[4])]
             kpp_params = OceanTurb.KPP.Parameters(CSL=p[1], CNL=p[2], Cb_T=p[3], CKE=p[4])
             loss_i[e] = loss_history[i, e] = loss(kpp_params)
             @info "KPP parameters = $p" * @sprintf(", loss = %.12e", loss_i[e])
