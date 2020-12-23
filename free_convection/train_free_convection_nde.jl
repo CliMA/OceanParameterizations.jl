@@ -139,7 +139,7 @@ output_training_data = wrangle_output_training_data(coarse_training_datasets)
 
 @info "Scaling features..."
 
-T_training_data = cat([input.temperature for input in input_training_data]..., dims=2)
+T_training_data = reduce(hcat, input.temperature for input in input_training_data)
 wT_training_data = output_training_data
 
 @assert size(wT_training_data, 1) == size(T_training_data, 1) + 1
@@ -244,6 +244,7 @@ end
 
 true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_datasets)
 nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, nn_history_filepath)
+kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 
 for id in (ids_train..., ids_test...)
     @info @sprintf("MDE loss (id=%s): %.12e", id, Flux.mse(true_solutions[id], nde_solution_history[id][end]))
