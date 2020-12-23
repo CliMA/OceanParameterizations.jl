@@ -1,4 +1,6 @@
-function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
+using OceanTurb: KPP, Constants, FluxBoundaryCondition, GradientBoundaryCondition, run_until!
+
+function free_convection_kpp(ds; parameters=KPP.Parameters())
 
     ρ₀ = 1027.0
     cₚ = 4000.0
@@ -6,7 +8,7 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
     α  = ds.metadata[:thermal_expansion_coefficient]
     β  = 0.0
     g  = ds.metadata[:gravitational_acceleration]
-    constants = OceanTurb.Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
+    constants = Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
 
     zf = dims(ds[:wT], ZDim)
     zc = dims(ds[:T], ZDim)

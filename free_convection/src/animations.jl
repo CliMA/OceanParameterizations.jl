@@ -46,7 +46,7 @@ function animate_data(ds, ds_coarse; filepath, frameskip=1, fps=15)
     return nothing
 end
 
-function animate_learned_free_convection(ds, NN, NN_function, NDEType, T_scaling, wT_scaling; filepath, frameskip=1, fps=15)
+function animate_learned_free_convection(ds, NN, NN_function, NDEType, algorithm, T_scaling, wT_scaling; filepath, frameskip=1, fps=15)
     Nz, Nt = size(ds[:T])
     zc = dims(ds[:T], ZDim)
     zf = dims(ds[:wT], ZDim)
@@ -55,7 +55,7 @@ function animate_learned_free_convection(ds, NN, NN_function, NDEType, T_scaling
     nde_params = FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     T₀ = T_scaling.(ds[:T][Ti=1].data)
     nde = NDEType(NN, ds)
-    nde_sol = solve_nde(nde, NN, T₀, Tsit5(), nde_params)
+    nde_sol = solve_nde(nde, NN, T₀, algorithm, nde_params)
 
     kwargs = (linewidth=3, linealpha=0.8, ylims=extrema(zf),
               grid=false, legend=:bottomright, framestyle=:box,

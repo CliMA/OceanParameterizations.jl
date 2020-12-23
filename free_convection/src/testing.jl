@@ -1,4 +1,4 @@
-function compute_nde_solution_history(datasets, nn_filepath, nn_history_filepath)
+function compute_nde_solution_history(datasets, nn_filepath, algorithm, nn_history_filepath)
     final_nn = jldopen(nn_filepath, "r")
     Nz = final_nn["grid_points"]
     NN = final_nn["neural_network"]
@@ -20,7 +20,7 @@ function compute_nde_solution_history(datasets, nn_filepath, nn_history_filepath
         ndes = Dict(id => FreeConvectionNDE(NN, datasets[id]) for id in ids)
 
         for id in ids
-            nde_sol = solve_nde(ndes[id], NN, T₀[id], Tsit5(), nde_params[id])
+            nde_sol = solve_nde(ndes[id], NN, T₀[id], algorithm, nde_params[id])
             push!(solution_history[id], nde_sol)
         end
 

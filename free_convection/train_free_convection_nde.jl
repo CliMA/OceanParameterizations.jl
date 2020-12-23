@@ -9,6 +9,7 @@ using DataDeps
 using GeoData
 using Flux
 using JLD2
+using OrdinaryDiffEq
 
 using OceanParameterizations
 using FreeConvection
@@ -30,13 +31,18 @@ function parse_command_line_arguments()
 
         "--nde"
             help = "Type of neural differential equation (NDE) to train. Options: free_convection, convective_adjustment"
-            default = "convective_adjustment"
-            arg_type = AbstractString
+            default = "free_convection"
+            arg_type = String
+
+        "--time-stepper"
+            help = "DifferentialEquations.jl time stepping algorithm to use."
+            default = "Tsit5"
+            arg_type = String
 
         "--name"
             help = "Experiment name (also determines name of output directory)."
             default = "layers3_depth4_relu"
-            arg_type = AbstractString
+            arg_type = String
     end
 
     return parse_args(settings)
@@ -64,6 +70,7 @@ nde_type = Dict(
 )
 
 NDEType = nde_type[args["nde"]]
+algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 
 ## Neural network architecture
 
@@ -189,7 +196,7 @@ end
 @info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
     filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, T_scaling, wT_scaling, filepath=filepath)
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
 end
 
 ## Save neural network + weights
@@ -208,25 +215,25 @@ end
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
 training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
-training_epochs     = (20,   20,      20,       20,       20)
+training_epochs     = (10,   10,      10,       10,       10)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
     @info "Training free convection NDE with iterations=$iterations for $epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, NDEType, coarse_training_datasets, T_scaling, wT_scaling, iterations, opt,
-                                        epochs, history_filepath=nn_history_filepath)
+    train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
+                                        iterations, opt, epochs, history_filepath=nn_history_filepath)
 end
 
 ## Train on entire solution while decreasing the learning rate
 
 burn_in_iterations = 1:32:1153
-burn_in_epochs = 200
+burn_in_epochs = 10
 optimizers = [ADAM(1e-3)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, NDEType, coarse_training_datasets, T_scaling, wT_scaling, burn_in_iterations, opt,
-                                        burn_in_epochs, history_filepath=nn_history_filepath)
+    train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
+                                        burn_in_iterations, opt, burn_in_epochs, history_filepath=nn_history_filepath)
 end
 
 ## Save neural network + weights
@@ -243,7 +250,7 @@ end
 ## Analyze NDE accuracy
 
 true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_datasets)
-nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, nn_history_filepath)
+nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, algorithm, nn_history_filepath)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 
 for id in (ids_train..., ids_test...)
@@ -261,5 +268,5 @@ animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, tru
 @info "Animating what the neural network has learned..."
 for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "learned_free_convection_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, T_scaling, wT_scaling, filepath=filepath)
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
 end
