@@ -103,7 +103,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
     prob_loss = OptimizationProblem(f_loss, weights)
 
-    for epoch in epochs, opt in optimizers
+    for opt in optimizers, epoch in 1:epochs
         @info "Epoch $epoch, $opt"
         res = solve(prob_loss, opt, cb=cb, maxiters = 500)
         weights .= res.minimizer
@@ -197,7 +197,7 @@ function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps,
     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
     prob_loss = OptimizationProblem(f_loss, weights)
 
-    for opt in optimizers, epoch in epochs
+    for opt in optimizers, epoch in 1:epochs
         @info "Epoch $epoch, $opt"
         res = solve(prob_loss, opt, cb=cb, maxiters=500)
         weights .= res.minimizer
