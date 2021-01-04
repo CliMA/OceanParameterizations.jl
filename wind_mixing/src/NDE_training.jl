@@ -16,7 +16,7 @@ function time_window(t, uvT, trange)
     return (Float32.(t[trange]), Float32.(uvT[:,trange]))
 end
 
-function save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, FILE_PATH, filename)
+function save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, FILE_PATH=pwd(), filename="weights")
     uw_weights = weights[1:size_uw_NN]
     vw_weights = weights[size_uw_NN + 1:size_uw_NN + size_vw_NN]
     wT_weights = weights[size_uw_NN + size_vw_NN + 1:size_uw_NN + size_vw_NN + size_wT_NN]
@@ -110,6 +110,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, OUTPUT_PATH, filename)
     end
     save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, OUTPUT_PATH, filename)
+    return weights
 end
 
 function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, OUTPUT_PATH, filename)
@@ -204,5 +205,6 @@ function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps,
         save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, OUTPUT_PATH, filename)
     end
     save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, OUTPUT_PATH, filename)
+    return weights
 end
 

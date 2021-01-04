@@ -1,26 +1,22 @@
 using Statistics
-using NCDatasets
-using Plots
 using Flux
 using OceanParameterizations
 using Oceananigans.Grids
 using BSON
 using OrdinaryDiffEq, DiffEqSensitivity
 using LaTeXStrings
-
-# using data processing scripts
-include("lesbrary_data.jl")
-include("data_containers.jl")
-include("animate_prediction.jl")
+using WindMixing
 
 # data in which the neural network is trained on
 train_files = ["strong_wind"]
-output_gif_directory = "Output"
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
+
+PATH = pwd()
+OUTPUT_PATH = joinpath(PATH, "Output")
+
+𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 # produce a gif animation to visualize the profiles as given by NN and the simulations
-function animate_NN(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=x_str)
-    PATH = joinpath(pwd(), "Output")
+function animate_NN(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=x_str, PATH=joinpath(pwd(), "Output"))
     anim = @animate for n in 1:size(xs[1], 2)
         x_max = maximum(maximum(x) for x in xs)
         x_min = minimum(minimum(x) for x in xs)
