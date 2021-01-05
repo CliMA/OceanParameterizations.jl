@@ -63,8 +63,7 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     ## Boundary conditions
 
-    T_flux = -heat_flux / (ρ₀ * cₚ)
-    T_bc_top = FluxBoundaryCondition(T_flux)
+    T_bc_top = FluxBoundaryCondition(heat_flux)
     T_bc_bottom = GradientBoundaryCondition(∂T₀∂z)
     T_bcs = TracerBoundaryConditions(grid, top=T_bc_top, bottom=T_bc_bottom)
 
@@ -88,7 +87,7 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
         return interior(∂z_wT_field)[:]
     end
 
-    enforce_fluxes(wT) = cat(0, wT, T_flux, dims=1)
+    enforce_fluxes(wT) = cat(0, wT, heat_flux, dims=1)
 
     neural_network_forcing = Chain(
         T -> T_scaling.(T),
