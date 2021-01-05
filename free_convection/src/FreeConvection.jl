@@ -16,8 +16,8 @@ export
     # Neural differential equations
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
 
-    # Other parameterizations
-    free_convection_kpp, optimize_kpp_parameters,
+    # Testing and comparisons
+    oceananigans_convective_adjustment_nn, free_convection_kpp, optimize_kpp_parameters, plot_comparisons,
 
     # Testing
     compute_nde_solution_history, plot_epoch_loss, animate_nde_loss
@@ -56,6 +56,7 @@ include("training.jl")
 include("testing.jl")
 include("kpp.jl")
 include("optimize_kpp_parameters.jl")
+include("oceananigans_nn.jl")
 
 include("data_dependencies.jl")
 

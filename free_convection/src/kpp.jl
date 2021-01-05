@@ -1,5 +1,7 @@
 using OceanTurb: KPP, Constants, FluxBoundaryCondition, GradientBoundaryCondition, run_until!
 
+import OceanTurb
+
 function free_convection_kpp(ds; parameters=KPP.Parameters())
 
     ρ₀ = 1027.0
@@ -23,8 +25,8 @@ function free_convection_kpp(ds; parameters=KPP.Parameters())
     # Set boundary conditions
     FT = ds.metadata[:heat_flux]
     ∂T∂z = ds.metadata[:dθdz_deep]
-    model.bcs.T.top = FluxBoundaryCondition(FT)
-    model.bcs.T.bottom = GradientBoundaryCondition(∂T∂z)
+    model.bcs.T.top = OceanTurb.FluxBoundaryCondition(FT)
+    model.bcs.T.bottom = OceanTurb.GradientBoundaryCondition(∂T∂z)
 
     times = dims(ds[:T], Ti)
     Nt = length(times)
