@@ -4,8 +4,12 @@ directories = Dict(
     "strong_wind_no_coriolis"  => "2DaySuite/three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2",
     "weak_wind_strong_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu3.0e-04_Qb1.0e-07_f1.0e-04_Nh256_Nz128_weak_wind_strong_cooling_statistics.jld2",
     "strong_wind_weak_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu8.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling_statistics.jld2",
-    "strong_wind_weak_heating" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_heating_statistics.jld2"
-)
+    "strong_wind_weak_heating" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_heating_statistics.jld2",
+    "-5e-4"                    => "Data/three_layer_constant_fluxes_hr192_Qu5.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
+    "-2.5e-4"                  => "Data/three_layer_constant_fluxes_hr192_Qu2.5e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
+    "-7.5e-4"                  => "Data/three_layer_constant_fluxes_hr192_Qu7.5e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
+    "-1e-3"                    => "Data/three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2"
+    )
 
 function read_les_output(filename::String)
     filename = pwd() * "/" * directories[filename]

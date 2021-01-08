@@ -39,6 +39,7 @@ uw_NN = re_uw(uw_weights)
 vw_NN = re_vw(vw_weights)
 wT_NN = re_wT(wT_weights)
 
+train_tranges_NDE = [1:5:50, 1:5:100]
 optimizers_NDE = [ADAM(0.01)]
 epochs_NDE = 100
 

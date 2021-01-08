@@ -1,10 +1,3 @@
-using Statistics
-using Flux
-using OceanParameterizations
-using Oceananigans.Grids
-using OrdinaryDiffEq, DiffEqSensitivity
-using WindMixing
-
 function predict_NN(NN, x, y)
     interior = NN(x)
     return [y[1]; interior; y[end]]

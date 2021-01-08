@@ -2,11 +2,8 @@ using BSON
 using Flux
 
 # Export the Neural Network given their weights
-function export_NN(weights_str, NN_str)
+function export_NN(weights_str, NN_str, uw_NN, vw_NN, wT_NN)
     PATH = pwd()
-    uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_SWNH_100.bson"))[:neural_network]
-    vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_SWNH_100.bson"))[:neural_network]
-    wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_SWNH_100.bson"))[:neural_network]
 
     _, re_uw = Flux.destructure(uw_NN)
     _, re_vw = Flux.destructure(vw_NN)
@@ -25,10 +22,22 @@ function export_NN(weights_str, NN_str)
     bson(joinpath(PATH, "NDEs", "$(NN_str[3]).bson"), Dict(:neural_network => wT_NN))
 end
 
+# uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_SWNH_100.bson"))[:neural_network]
+# vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_SWNH_100.bson"))[:neural_network]
+# wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_SWNH_100.bson"))[:neural_network]
+
+N_inputs = 96
+hidden_units = 400
+N_outputs = 31
+uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
+vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
+wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
+
+
 # File name of the weights
-weights_str = ["uw_NDE_weights_2DaySuite_2Sims", "vw_NDE_weights_2DaySuite_2Sims", "wT_NDE_weights_2DaySuite_2Sims"]
+weights_str = ["uw_weights_large_NN", "vw_weights_large_NN", "wT_weights_large_NN"]
 
 # Names of the output files
-NN_str = ["uw_NDE_2sims_100", "vw_NDE_2sims_100", "wT_NDE_2sims_100"]
+NN_str = ["uw_NN_large", "vw_NN_large", "wT_NN_large"]
 
-export_NN(weights_str, NN_str)
+export_NN(weights_str, NN_str, uw_NN, vw_NN, wT_NN)

@@ -6,11 +6,7 @@ using OceanParameterizations
 using Oceananigans.Grids
 using BSON
 using OrdinaryDiffEq, DiffEqSensitivity
-include("lesbrary_data.jl")
-include("data_containers.jl")
-include("animate_prediction.jl")
-
-output_gif_directory = "Output"
+using WindMixing
 
 PATH = pwd()
 
@@ -20,7 +16,8 @@ function calculate_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
     output_gif_directory = "Output"
     PATH = pwd()
 
-    𝒟tests = [data(test_file, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training") for test_file in test_files]
+    # 𝒟tests = [data(test_file, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training") for test_file in test_files]
+    𝒟tests = [data(test_files[1], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)]
 
     tsteps = size(𝒟train.t[:,1], 1)
 
@@ -49,13 +46,14 @@ function calculate_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
 
     uw_tops = [Float32(𝒟test.uw.scaled[1,1]) for 𝒟test in 𝒟tests]
 
-    uw_bottom₁ = Float32(uw_scaling(-1f-3))
-    uw_bottom₂ = Float32(uw_scaling(-1f-3))
-    uw_bottom₃ = Float32(uw_scaling(-8f-4))
-    uw_bottom₄ = Float32(uw_scaling(-2f-4))
-    uw_bottom₅ = Float32(uw_scaling(0f0))
-    uw_bottom₆ = Float32(uw_scaling(-3f-4))
-    uw_bottoms = [uw_bottom₁, uw_bottom₂, uw_bottom₃, uw_bottom₄, uw_bottom₅, uw_bottom₆]
+    # uw_bottom₁ = Float32(uw_scaling(-1f-3))
+    # uw_bottom₂ = Float32(uw_scaling(-1f-3))
+    # uw_bottom₃ = Float32(uw_scaling(-8f-4))
+    # uw_bottom₄ = Float32(uw_scaling(-2f-4))
+    # uw_bottom₅ = Float32(uw_scaling(0f0))
+    # uw_bottom₆ = Float32(uw_scaling(-3f-4))
+    # uw_bottoms = [uw_bottom₁, uw_bottom₂, uw_bottom₃, uw_bottom₄, uw_bottom₅, uw_bottom₆]
+    uw_bottoms = [Float32(𝒟test.uw.scaled[end,1]) for 𝒟test in 𝒟tests]
 
     vw_tops = [Float32(𝒟test.vw.scaled[1,1]) for 𝒟test in 𝒟tests]
 
@@ -63,13 +61,15 @@ function calculate_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
 
     wT_tops = [Float32(𝒟test.wT.scaled[1,1]) for 𝒟test in 𝒟tests]
 
-    wT_bottom₁ = Float32(wT_scaling(0f0))
-    wT_bottom₂ = Float32(wT_scaling(-4f-8))
-    wT_bottom₃ = Float32(wT_scaling(3f-8))
-    wT_bottom₄ = Float32(wT_scaling(0f0))
-    wT_bottom₅ = Float32(wT_scaling(1.2f-7))
-    wT_bottom₆ = Float32(wT_scaling(1f-7))
-    wT_bottoms = [wT_bottom₁, wT_bottom₂, wT_bottom₃, wT_bottom₄, wT_bottom₅, wT_bottom₆]
+    # wT_bottom₁ = Float32(wT_scaling(0f0))
+    # wT_bottom₂ = Float32(wT_scaling(-4f-8))
+    # wT_bottom₃ = Float32(wT_scaling(3f-8))
+    # wT_bottom₄ = Float32(wT_scaling(0f0))
+    # wT_bottom₅ = Float32(wT_scaling(1.2f-7))
+    # wT_bottom₆ = Float32(wT_scaling(1f-7))
+    # wT_bottoms = [wT_bottom₁, wT_bottom₂, wT_bottom₃, wT_bottom₄, wT_bottom₅, wT_bottom₆]
+
+    wT_bottoms = [Float32(𝒟test.wT.scaled[end,1]) for 𝒟test in 𝒟tests]
 
 
     fs = [1f-4, 1f-4, 1f-4, 0f0, 1f-4, 1f-4]
@@ -106,11 +106,11 @@ function calculate_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
 
     return Dict(
                 :strong_wind   =>  [predict_NDE(probs[1]), uvT_tests[1]],
-                :strong_wind_weak_heating   =>  [predict_NDE(probs[2]), uvT_tests[2]],
-                :strong_wind_weak_cooling   =>  [predict_NDE(probs[3]), uvT_tests[3]],
-                :strong_wind_no_coriolis   =>  [predict_NDE(probs[4]), uvT_tests[4]],
-                :free_convection   =>  [predict_NDE(probs[5]), uvT_tests[5]],
-                :weak_wind_strong_cooling   =>  [predict_NDE(probs[6]), uvT_tests[6]]
+                # :strong_wind_weak_heating   =>  [predict_NDE(probs[2]), uvT_tests[2]],
+                # :strong_wind_weak_cooling   =>  [predict_NDE(probs[3]), uvT_tests[3]],
+                # :strong_wind_no_coriolis   =>  [predict_NDE(probs[4]), uvT_tests[4]],
+                # :free_convection   =>  [predict_NDE(probs[5]), uvT_tests[5]],
+                # :weak_wind_strong_cooling   =>  [predict_NDE(probs[6]), uvT_tests[6]]
         )
 end
 
@@ -132,20 +132,23 @@ function animate_NDE(xs, y, t, x_str, x_label=["" for i in length(xs)], filename
 end
 
 # data used to train the neural differential equations
-train_files = ["strong_wind", "strong_wind_weak_heating"]
-uw_NDE = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_2sims_100.bson"))[:neural_network]
-vw_NDE = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_2sims_100.bson"))[:neural_network]
-wT_NDE = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_2sims_100.bson"))[:neural_network]
+train_files = ["strong_wind"]
+uw_NDE = BSON.load(joinpath(PATH, "NDEs", "uw_NDE_convective_adjustment_100_large.bson"))[:neural_network]
+vw_NDE = BSON.load(joinpath(PATH, "NDEs", "vw_NDE_convective_adjustment_100_large.bson"))[:neural_network]
+wT_NDE = BSON.load(joinpath(PATH, "NDEs", "wT_NDE_convective_adjustment_100_large.bson"))[:neural_network]
 
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, animate=false, animate_dir="$(output_gif_directory)/Training")
+𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 trange = 1:1:289
 output = calculate_NDE(𝒟train, uw_NDE, vw_NDE, wT_NDE, trange)
 
-simulation = :strong_wind_weak_cooling
+simulation = :strong_wind
 u_plots = [output[simulation][1][1:32,:], output[simulation][2][1:32,:]]
 v_plots = [output[simulation][1][33:64,:], output[simulation][2][33:64,:]]
 T_plots = [output[simulation][1][65:96,:], output[simulation][2][65:96,:]]
 
-animate_NDE(u_plots, 𝒟train.u.z, trange, "U", ["NDE", "truth"], "u_NDE_2sims_100_SWWC")
-animate_NDE(v_plots, 𝒟train.u.z, trange, "V", ["NDE", "truth"], "v_NDE_2sims_100_SWWC")
-animate_NDE(T_plots, 𝒟train.u.z, trange, "T", ["NDE", "truth"], "T_NDE_2sims_100_SWWC")
+animate_NDE(u_plots, 𝒟train.u.z, trange, "U", ["NDE", "truth"], "u_NDE_convective_adjustment_100_SWNH_large1")
+animate_NDE(v_plots, 𝒟train.u.z, trange, "V", ["NDE", "truth"], "v_NDE_convective_adjustment_100_SWNH_large1")
+animate_NDE(T_plots, 𝒟train.u.z, trange, "T", ["NDE", "truth"], "T_NDE_convective_adjustment_100_SWNH_large1")
+
+
+animate_NN()

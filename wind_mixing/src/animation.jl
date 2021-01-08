@@ -1,5 +1,3 @@
-using Plots
-
 function animate_NN(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=x_str, PATH=joinpath(pwd(), "Output"))
     anim = @animate for n in 1:size(xs[1], 2)
         x_max = maximum(maximum(x) for x in xs)
