@@ -9,7 +9,6 @@ train_files = ["strong_wind"]
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "Output")
-
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 uvT = 𝒟train.uvT_scaled

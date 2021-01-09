@@ -8,23 +8,22 @@ function save_NN_weights(weights, FILE_PATH, filename)
     bson(joinpath(FILE_PATH, "$filename.bson"), NN_params)
 end
 
-function train_NN(NN, uvT, flux, optimizers, epochs=1, FILE_PATH=pwd(), filename="weights")
+function train_NN(NN, uvT, flux, optimizers, train_epochs, FILE_PATH, NN_type)
     function prepare_training_data(input, truth)
         return [(input[:,i], truth[:,i]) for i in 1:size(truth, 2)]
     end
 
-    data = prepare_training_data(uvT, flux)
+    train_data = shuffle(prepare_training_data(uvT, flux))
 
     loss(x, y) = Flux.Losses.mse(predict_NN(NN, x, y), y)
 
-    function cb()
-        @info "loss = $(mean([loss(data[i][1], data[i][2]) for i in 1:length(data)]))"
-    end
-
-    for opt in optimizers, epoch in 1:epochs
-        @info "Epoch $epoch/$epochs, $opt"
-        Flux.train!(loss, Flux.params(NN), data, opt, cb=Flux.throttle(cb, 5))
-        save_NN_weights(Flux.destructure(NN)[1], FILE_PATH, filename)
+    for i in 1:length(optimizers), epoch in 1:train_epochs[i]
+        opt = optimizers[i]
+        function cb()
+            @info "$NN_type NN, loss = $(mean([loss(train_data[i][1], train_data[i][2]) for i in 1:length(train_data)])), opt $i/$(length(optimizers)), epoch $epoch/$(train_epochs[i])"
+        end
+        Flux.train!(loss, Flux.params(NN), train_data, opt, cb=Flux.throttle(cb,10))
+        write_data_NN_training(FILE_PATH, mean([loss(train_data[i][1], train_data[i][2]) for i in 1:length(train_data)]), NN)
     end
 
     return Flux.destructure(NN)[1]
