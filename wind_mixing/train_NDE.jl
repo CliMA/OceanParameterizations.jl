@@ -1,24 +1,31 @@
 using Flux
 using WindMixing
-using BSON
+using JLD2
+using FileIO
 using OceanParameterizations
 using OrdinaryDiffEq
 
 # Training data
-train_files = ["-1e-3"]
+train_files = ["-2.5e-4", "-7.5e-4"]
 
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
-PATH=pwd()
-FILE_PATH = joinpath(PATH, "training_output", "NDE_training_convective_adjustment_1sim_-1e-3_large.jld2")
 
-uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NN_large.bson"))[:neural_network]
-vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NN_large.bson"))[:neural_network]
-wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NN_large.bson"))[:neural_network]
+PATH = pwd()
+OUTPUT_PATH = joinpath(PATH, "training_output")
 
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_convective_adjustment_2sim_-2.5e-4_-7.5e-4_large.jld2")
 
-train_epochs = [1, 1, 1]
-train_tranges = [1:5:50, 1:5:100, 1:10:200]
-train_optimizers = [[ADAM(0.01)] for i in 1:3]
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+
+uw_NN = load(FILE_PATH_uw, "training_data/neural_network")["$(length(keys(load(FILE_PATH_uw, "training_data/neural_network"))))"]
+vw_NN = load(FILE_PATH_vw, "training_data/neural_network")["$(length(keys(load(FILE_PATH_vw, "training_data/neural_network"))))"]
+wT_NN = load(FILE_PATH_wT, "training_data/neural_network")["$(length(keys(load(FILE_PATH_wT, "training_data/neural_network"))))"]
+
+train_epochs = [20, 20, 20, 20, 40]
+train_tranges = [1:5:50, 1:5:100, 1:10:200, 1:20:400, 1:20:500]
+train_optimizers = [[ADAM(0.01)] for i in 1:length(train_epochs)]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)

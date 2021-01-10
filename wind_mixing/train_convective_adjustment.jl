@@ -1,6 +1,9 @@
 using Flux
 using OceanParameterizations
 using WindMixing
+using OrdinaryDiffEq, DiffEqSensitivity
+using JLD2
+using FileIO
 
 train_files = ["-2.5e-4", "-7.5e-4"]
 
@@ -12,6 +15,10 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+
+# FILE_PATH_uw = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+# FILE_PATH_vw = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+# FILE_PATH_wT = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "wT_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
@@ -33,6 +40,7 @@ vw_weights = train_NN(vw_NN, 𝒟train.uvT_scaled, 𝒟train.vw.scaled, train_op
 
 write_metadata_NN_training(FILE_PATH_wT, train_files, train_epochs, train_optimizers, wT_NN, "wT")
 wT_weights = train_NN(wT_NN, 𝒟train.uvT_scaled, 𝒟train.wT.scaled, train_optimizers, train_epochs, FILE_PATH_wT, "wT")
+
 
 uw_NN = Flux.destructure(uw_NN)[2](uw_weights)
 vw_NN = Flux.destructure(vw_NN)[2](vw_weights)
