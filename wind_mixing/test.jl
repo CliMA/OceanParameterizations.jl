@@ -42,3 +42,12 @@ end
 
 @info loss(weights, nothing)
 res = solve(loss_prob, ADAM(), cb = cb, maxiters = 5)M(), cb=cb, maxiters=5)
+
+using FileIO
+using JLD2
+
+filepath = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+
+
+uw_file = jldopen(filepath, "r")
+uw_NN = uw_file["training_data/neural_network"]["$(length(keys(uw_file["training_data/neural_network"])))"]

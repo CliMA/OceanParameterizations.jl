@@ -19,13 +19,17 @@ FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.
 FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 
-uw_file = load(FILE_PATH_uw, "training_data/neural_network")
-vw_file = load(FILE_PATH_vw, "training_data/neural_network")
-wT_file = load(FILE_PATH_wT, "training_data/neural_network")
+# uw_file = load(FILE_PATH_uw, "training_data/neural_network")
+# vw_file = load(FILE_PATH_vw, "training_data/neural_network")
+# wT_file = load(FILE_PATH_wT, "training_data/neural_network")
 
-uw_NN = uw_file["$(length(keys(uw_file)))"]
-vw_NN = vw_file["$(length(keys(vw_file)))"]
-wT_NN = wT_file["$(length(keys(wT_file)))"]
+uw_file = jldopen(FILE_PATH_uw, "r")
+vw_file = jldopen(FILE_PATH_vw, "r")
+wT_file = jldopen(FILE_PATH_wT, "r")
+
+uw_NN = uw_file["training_data/neural_network"]["$(length(keys(uw_file["training_data/neural_network"])))"]
+vw_NN = vw_file["training_data/neural_network"]["$(length(keys(vw_file["training_data/neural_network"])))"]
+wT_NN = wT_file["training_data/neural_network"]["$(length(keys(wT_file["training_data/neural_network"])))"]
 
 train_epochs = [20, 20, 20, 20, 40]
 train_tranges = [1:5:50, 1:5:100, 1:10:200, 1:20:400, 1:20:500]
