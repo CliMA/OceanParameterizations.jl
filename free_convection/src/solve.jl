@@ -26,5 +26,5 @@ function solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling; T₀=nothi
         wT[:, n] .= wT_n
     end
 
-    return (T=T, wT=wT)
+    return (T=inv(T_scaling).(T), wT=inv(wT_scaling).(wT))
 end

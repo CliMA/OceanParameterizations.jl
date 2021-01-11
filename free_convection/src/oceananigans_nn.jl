@@ -89,6 +89,13 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     enforce_fluxes(wT) = cat(0, wT, heat_flux, dims=1)
 
+    diagnose_wT_NN = Chain(
+        T -> T_scaling.(T),
+        neural_network,
+        wT -> inv(wT_scaling).(wT),
+        enforce_fluxes
+    )
+
     neural_network_forcing = Chain(
         T -> T_scaling.(T),
         neural_network,
@@ -146,17 +153,18 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     ## Output writing
 
-    w_CA, T_CA = model_convective_adjustment.velocities.w, model_convective_adjustment.tracers.T
-    outputs_CA = (T = T_CA, wT = ComputedField(w_CA * T_CA))
+    outputs_CA = (T  = model_convective_adjustment.tracers.T,)
     simulation_convective_adjustment.output_writers[:solution] =
         NetCDFOutputWriter(model_convective_adjustment, outputs_CA, schedule=TimeInterval(Δt),
                            filepath="oceananigans_convective_adjustment.nc", mode="c")
 
-    w_NN, T_NN = model_neural_network.velocities.w, model_neural_network.tracers.T
-    outputs_NN = (T = T_NN, wT = ComputedField(w_NN * T_NN))
+    outputs_NN = (T  = model_neural_network.tracers.T,
+                  wT = model -> diagnose_wT_NN(interior(model.tracers.T)[:]))
+
     simulation_neural_network.output_writers[:solution] =
         NetCDFOutputWriter(model_neural_network, outputs_NN, schedule=TimeInterval(Δt),
-                           filepath="oceananigans_neural_network.nc", mode="c")
+                           filepath="oceananigans_neural_network.nc", mode="c",
+                           dimensions=(wT=("zF",),))
 
     run!(simulation_convective_adjustment)
     run!(simulation_neural_network)
@@ -166,6 +174,10 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     T_ca = dropdims(Array(ds_ca[:T]), dims=(1, 2))
     T_nn = dropdims(Array(ds_nn[:T]), dims=(1, 2))
+    wT_nn = Array(ds_nn[:wT])
 
-    return T_ca, T_nn
+    convective_adjustment_solution = (T=T_ca, wT=nothing)
+    neural_network_solution = (T=T_nn, wT=wT_nn)
+
+    return convective_adjustment_solution, neural_network_solution
 end

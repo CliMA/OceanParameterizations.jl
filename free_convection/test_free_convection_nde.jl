@@ -139,8 +139,16 @@ end
 nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, algorithm, nn_history_filepath)
 
 nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
-true_solutions = Dict(id => (T=T_scaling.(ds[:T].data), wT=wT_scaling.(ds[:wT].data) for (id, ds) in coarse_datasets)
+true_solutions = Dict(id => (T=T_scaling.(ds[:T].data), wT=wT_scaling.(ds[:wT].data)) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
+
+convective_adjustment_solutions = Dict()
+oceananigans_solutions = Dict()
+for (id, ds) in coarse_datasets
+    ca_sol, nn_sol = oceananigans_convective_adjustment_nn(ds, nn_filepath=final_nn_filepath)
+    convective_adjustment_solutions[id] = ca_sol
+    oceananigans_solutions[id] = nn_sol
+end
 
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,
                 title = "Free convection NDE",

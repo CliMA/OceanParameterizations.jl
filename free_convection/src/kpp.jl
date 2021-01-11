@@ -1,8 +1,6 @@
-using OceanTurb: KPP, Constants, FluxBoundaryCondition, GradientBoundaryCondition, run_until!
-
 import OceanTurb
 
-function free_convection_kpp(ds; parameters=KPP.Parameters())
+function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
 
     ρ₀ = 1027.0
     cₚ = 4000.0
@@ -10,13 +8,13 @@ function free_convection_kpp(ds; parameters=KPP.Parameters())
     α  = ds.metadata[:thermal_expansion_coefficient]
     β  = 0.0
     g  = ds.metadata[:gravitational_acceleration]
-    constants = Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
+    constants = OceanTurb.Constants(Float64, ρ₀=ρ₀, cP=cₚ, f=f, α=α, β=β, g=g)
 
     zf = dims(ds[:wT], ZDim)
     zc = dims(ds[:T], ZDim)
     N = length(zc)
     L = abs(zf[1])
-    model = KPP.Model(N=N, H=L, stepper=:BackwardEuler, constants=constants, parameters=parameters)
+    model = OceanTurb.KPP.Model(N=N, H=L, stepper=:BackwardEuler, constants=constants, parameters=parameters)
 
     # Coarse grain initial condition from LES and set equal
     # to initial condition of parameterization.
@@ -31,13 +29,15 @@ function free_convection_kpp(ds; parameters=KPP.Parameters())
     times = dims(ds[:T], Ti)
     Nt = length(times)
     solution = zeros(N, Nt)
+    flux = zeros(N+1, Nt)
 
     # loop the model
     Δt = ds.metadata[:interval]
     for n in 1:Nt
-        run_until!(model, Δt, times[n])
-        @. solution[:, n] = model.solution.T[1:N]
+        OceanTurb.run_until!(model, Δt, times[n])
+        solution[:, n] .= model.solution.T[1:N]
+        flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1]
     end
 
-    return solution
+    return (T=solution, wT=flux)
 end
