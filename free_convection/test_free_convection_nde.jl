@@ -134,17 +134,13 @@ end
 
 ## Gather solutions
 
-@info "Gathering solutions..."
+@info "Gathering and computing solutions..."
 
 nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, algorithm, nn_history_filepath)
 
 nde_solutions = Dict(id => nde_solution_history[id][end] for (id, ds) in coarse_datasets)
 true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
-
-for id in (ids_train..., ids_test...)
-    @info @sprintf("MDE loss (id=%s): %.12e", id, Flux.mse(true_solutions[id], nde_solution_history[id][end]))
-end
 
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,
                 title = "Free convection NDE",
@@ -154,8 +150,8 @@ animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, tru
                  title = "Free convection NDE",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
-@info "Animating what the neural network has learned..."
-for (id, ds) in coarse_datasets
-    filepath = joinpath(output_dir, "learned_free_convection_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
-end
+# @info "Animating what the neural network has learned..."
+# for (id, ds) in coarse_datasets
+#     filepath = joinpath(output_dir, "learned_free_convection_$id")
+#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
+# end
