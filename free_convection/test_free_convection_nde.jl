@@ -138,8 +138,8 @@ end
 
 nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, algorithm, nn_history_filepath)
 
-nde_solutions = Dict(id => nde_solution_history[id][end] for (id, ds) in coarse_datasets)
-true_solutions = Dict(id => T_scaling.(ds[:T].data) for (id, ds) in coarse_datasets)
+nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
+true_solutions = Dict(id => (T=T_scaling.(ds[:T].data), wT=wT_scaling.(ds[:wT].data) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,

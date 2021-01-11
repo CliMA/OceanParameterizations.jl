@@ -14,7 +14,7 @@ export
     FreeConvectionTrainingDataInput, rescale, wrangle_input_training_data, wrangle_output_training_data,
 
     # Neural differential equations
-    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
+    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!, solve_nde,
 
     # Testing and comparisons
     oceananigans_convective_adjustment_nn, free_convection_kpp, optimize_kpp_parameters, plot_comparisons,
@@ -52,6 +52,7 @@ include("animations.jl")
 include("training_data.jl")
 include("free_convection_nde.jl")
 include("convective_adjustment_nde.jl")
+include("solve.jl")
 include("training.jl")
 include("testing.jl")
 include("kpp.jl")
