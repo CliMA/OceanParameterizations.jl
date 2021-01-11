@@ -17,10 +17,10 @@ export
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!, solve_nde,
 
     # Testing and comparisons
-    oceananigans_convective_adjustment_nn, free_convection_kpp, optimize_kpp_parameters, plot_comparisons,
+    oceananigans_convective_adjustment_nn, free_convection_kpp, free_convection_tke_mass_flux, optimize_kpp_parameters,
 
     # Testing
-    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss
+    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss, plot_comparisons
 
 using Logging
 using Printf
@@ -55,7 +55,8 @@ include("convective_adjustment_nde.jl")
 include("solve.jl")
 include("training.jl")
 include("testing.jl")
-include("kpp.jl")
+include("k_profile_parameterization.jl")
+include("tke_mass_flux.jl")
 include("optimize_kpp_parameters.jl")
 include("oceananigans_nn.jl")
 

@@ -1,6 +1,6 @@
 import OceanTurb
 
-function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
+function free_convection_tke_mass_flux(ds; parameters=OceanTurb.TKEMassFlux.TKEParameters())
 
     ρ₀ = 1027.0
     cₚ = 4000.0
@@ -13,8 +13,14 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
     zf = dims(ds[:wT], ZDim)
     zc = dims(ds[:T], ZDim)
     N = length(zc)
-    L = abs(zf[1])
-    model = OceanTurb.KPP.Model(N=N, H=L, stepper=:BackwardEuler, constants=constants, parameters=parameters)
+    H = abs(zf[1])
+
+    model = OceanTurb.TKEMassFlux.Model(
+                      grid = OceanTurb.UniformGrid(N=N, H=H),
+                   stepper = :BackwardEuler,
+        eddy_diffusivities = OceanTurb.TKEMassFlux.RiDependentDiffusivities(),
+                 constants = constants
+    )
 
     # Coarse grain initial condition from LES and set equal
     # to initial condition of parameterization.

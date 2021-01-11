@@ -99,7 +99,7 @@ end
 minimum_nonzero(xs...) = min([minimum(filter(!iszero, x)) for x in xs]...)
 maximum_nonzero(xs...) = max([maximum(filter(!iszero, x)) for x in xs]...)
 
-function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
+function plot_comparisons(ds, nde_sol, kpp_sol, tke_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
     Nz, Nt = size(ds[:T])
     zc = dims(ds[:T], ZDim) |> Array
     zf = dims(ds[:wT], ZDim) |> Array
@@ -114,11 +114,12 @@ function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, ocean
     loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
     loss_nde = [loss(ds[:T][Ti=n][:], nde_sol.T[:, n]) for n in 1:Nt]
     loss_kpp = [loss(ds[:T][Ti=n][:], kpp_sol.T[:, n]) for n in 1:Nt]
+    loss_tke = [loss(ds[:T][Ti=n][:], tke_sol.T[:, n]) for n in 1:Nt]
     loss_ca = [loss(ds[:T][Ti=n][:], convective_adjustment_sol.T[:, n]) for n in 1:Nt]
     loss_emb = [loss(ds[:T][Ti=n][:], oceananigans_sol.T[:, n]) for n in 1:Nt]
 
-    loss_min = minimum_nonzero(loss_nde, loss_kpp, loss_ca, loss_emb)
-    loss_max = maximum_nonzero(loss_nde, loss_kpp, loss_ca, loss_emb)
+    loss_min = minimum_nonzero(loss_nde, loss_kpp, loss_tke, loss_ca, loss_emb)
+    loss_max = maximum_nonzero(loss_nde, loss_kpp, loss_tke, loss_ca, loss_emb)
     loss_extrema = (loss_min, loss_max)
 
     anim = @animate for n=1:frameskip:Nt
@@ -146,6 +147,9 @@ function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, ocean
         plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
         plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
 
+        plot!(wT_plot, tke_sol.wT[:, n], zf, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(T_plot, tke_sol.T[:, n], zc, label="TKE mass flux", color="darkmagenta"; kwargs...)
+
         loss_plot = plot()
 
         time_in_days = times[1:n] / 86400
@@ -157,6 +161,7 @@ function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, ocean
         plot!(loss_plot, time_in_days, loss_nde[1:n], label="Neural DE", color="forestgreen"; kwargs...)
         plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
         plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
+        plot!(loss_plot, time_in_days, loss_tke[1:n], label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         plot(wT_plot, T_plot, loss_plot, layout=(1, 3), size=(1000, 400), dpi=200)
     end
