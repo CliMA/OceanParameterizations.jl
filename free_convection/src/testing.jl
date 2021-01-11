@@ -96,18 +96,30 @@ function animate_nde_loss(datasets, ids_train, ids_test, nde_solutions, true_sol
     return nothing
 end
 
-function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, oceananigans_sol; filepath, frameskip=1, fps=15)
+minimum_nonzero(xs...) = min([minimum(filter(!iszero, x)) for x in xs]...)
+maximum_nonzero(xs...) = max([maximum(filter(!iszero, x)) for x in xs]...)
+
+function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
     Nz, Nt = size(ds[:T])
     zc = dims(ds[:T], ZDim) |> Array
     zf = dims(ds[:wT], ZDim) |> Array
     times = dims(ds[:wT], Ti)
 
-    kwargs = (linewidth=3, linealpha=0.8, ylims=extrema(zf),
-              grid=false, legend=:bottomright, framestyle=:box,
+    kwargs = (linewidth=2, linealpha=0.8, grid=false, framestyle=:box,
               foreground_color_legend=nothing, background_color_legend=nothing)
 
     T_lims = extrema(ds[:T])
     wT_lims = extrema(ds[:wT])
+
+    loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
+    loss_nde = [loss(ds[:T][Ti=n][:], nde_sol.T[:, n]) for n in 1:Nt]
+    loss_kpp = [loss(ds[:T][Ti=n][:], kpp_sol.T[:, n]) for n in 1:Nt]
+    loss_ca = [loss(ds[:T][Ti=n][:], convective_adjustment_sol.T[:, n]) for n in 1:Nt]
+    loss_emb = [loss(ds[:T][Ti=n][:], oceananigans_sol.T[:, n]) for n in 1:Nt]
+
+    loss_min = minimum_nonzero(loss_nde, loss_kpp, loss_ca, loss_emb)
+    loss_max = maximum_nonzero(loss_nde, loss_kpp, loss_ca, loss_emb)
+    loss_extrema = (loss_min, loss_max)
 
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting comparisons [frame $n/$Nt]: $filepath ..."
@@ -117,18 +129,36 @@ function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, ocean
         wT_plot = plot()
         T_plot = plot()
 
-        plot!(wT_plot, ds[:wT][Ti=n][:], zf, label="", xlabel="Heat flux wT (m/s °C)",
-              xlims=wT_lims, ylabel="Depth z (meters)", title="Free convection: $time_str"; kwargs...)
+        plot!(wT_plot, ds[:wT][Ti=n][:], zf, xlims=wT_lims, label="LES", color="dodgerblue", ylims=extrema(zf),
+              xlabel="Heat flux wT (m/s °C)", ylabel="Depth z (meters)", legend=nothing; kwargs...)
 
-        plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", xlabel="Temperature T (°C)",
-              xlims=T_lims; kwargs...)
+        plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", color="dodgerblue", xlabel="Temperature T (°C)",
+              xlims=T_lims, ylims=extrema(zf), itle="Free convection: $time_str", legend=:bottomright; kwargs...)
 
-        plot!(T_plot, convective_adjustment_sol[:, n], zc, label="Convective adjustment"; kwargs...)
-        plot!(T_plot, nde_sol[:, n], zc, label="Neural DE"; kwargs...)
-        plot!(T_plot, kpp_sol[:, n], zc, label="KPP"; kwargs...)
-        plot!(T_plot, oceananigans_sol[:, n], zc, label="Embedded"; kwargs...)
+        plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
 
-        plot(wT_plot, T_plot, dpi=200)
+        plot!(wT_plot, nde_sol.wT[:, n], zf, label="Neural DE", color="forestgreen"; kwargs...)
+        plot!(T_plot, nde_sol.T[:, n], zc, label="Neural DE", color="forestgreen"; kwargs...)
+
+        plot!(wT_plot, oceananigans_sol.wT[:, n], zf, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(T_plot, oceananigans_sol.T[:, n], zc, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+
+        plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
+        plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
+
+        loss_plot = plot()
+
+        time_in_days = times[1:n] / 86400
+
+        plot!(loss_plot, time_in_days, loss_ca[1:n], label="Convective adjustment", color="gray",
+              yaxis=(:log10, (1e-6, 1e-1)), xlims=extrema(times) ./ 86400, ylims=(1e-6, 1e-1),
+              xlabel="Time (days)", ylabel="Mean squared error", legend=nothing; kwargs...)
+
+        plot!(loss_plot, time_in_days, loss_nde[1:n], label="Neural DE", color="forestgreen"; kwargs...)
+        plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
+
+        plot(wT_plot, T_plot, loss_plot, layout=(1, 3), size=(1000, 400), dpi=200)
     end
 
     @info "Saving $filepath..."
