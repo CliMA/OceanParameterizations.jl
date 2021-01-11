@@ -96,3 +96,42 @@ function animate_nde_loss(datasets, ids_train, ids_test, nde_solutions, true_sol
     return nothing
 end
 
+function plot_comparisons(ds, nde_sol, kpp_sol, convective_adjustment_sol, oceananigans_sol; filepath, frameskip=1, fps=15)
+    Nz, Nt = size(ds[:T])
+    zc = dims(ds[:T], ZDim) |> Array
+    zf = dims(ds[:wT], ZDim) |> Array
+    times = dims(ds[:wT], Ti)
+
+    kwargs = (linewidth=3, linealpha=0.8, ylims=extrema(zf),
+              grid=false, legend=:bottomright, framestyle=:box,
+              foreground_color_legend=nothing, background_color_legend=nothing)
+
+    T_lims = extrema(ds[:T])
+    wT_lims = extrema(ds[:wT])
+
+    anim = @animate for n=1:frameskip:Nt
+        @info "Plotting comparisons [frame $n/$Nt]: $filepath ..."
+
+        time_str = @sprintf("%.2f days", times[n] / days)
+
+        wT_plot = plot()
+        T_plot = plot()
+
+        plot!(wT_plot, ds[:wT][Ti=n][:], zf, label="", xlabel="Heat flux wT (m/s °C)",
+              xlims=wT_lims, ylabel="Depth z (meters)", title="Free convection: $time_str"; kwargs...)
+
+        plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", xlabel="Temperature T (°C)",
+              xlims=T_lims; kwargs...)
+
+        plot!(T_plot, convective_adjustment_sol[:, n], zc, label="Convective adjustment"; kwargs...)
+        plot!(T_plot, nde_sol[:, n], zc, label="Neural DE"; kwargs...)
+        plot!(T_plot, kpp_sol[:, n], zc, label="KPP"; kwargs...)
+        plot!(T_plot, oceananigans_sol[:, n], zc, label="Embedded"; kwargs...)
+
+        plot(wT_plot, T_plot, dpi=200)
+    end
+
+    @info "Saving $filepath..."
+    mp4(anim, filepath * ".mp4", fps=fps)
+    gif(anim, filepath * ".gif", fps=fps)
+end
