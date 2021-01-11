@@ -126,7 +126,7 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     function progress_convective_adjustment(simulation)
         clock = simulation.model.clock
-        @info "Convective adjustment: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        # @info "Convective adjustment: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
         convective_adjustment!(simulation.model, simulation.Δt, K)
         return nothing
     end
@@ -135,7 +135,7 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
         model = simulation.model
         clock = simulation.model.clock
 
-        @info "Neural network: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        # @info "Neural network: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
 
         T = interior(model.tracers.T)[:]
         ∂z_wT_NN .= neural_network_forcing(T)
@@ -155,18 +155,23 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
 
     outputs_CA = (T  = model_convective_adjustment.tracers.T,)
     simulation_convective_adjustment.output_writers[:solution] =
-        NetCDFOutputWriter(model_convective_adjustment, outputs_CA, schedule=TimeInterval(Δt),
-                           filepath="oceananigans_convective_adjustment.nc", mode="c")
+        NetCDFOutputWriter(model_convective_adjustment, outputs_CA,
+                           schedule = TimeInterval(ds.metadata[:interval]),
+                           filepath = "oceananigans_convective_adjustment.nc", mode="c")
 
     outputs_NN = (T  = model_neural_network.tracers.T,
                   wT = model -> diagnose_wT_NN(interior(model.tracers.T)[:]))
 
     simulation_neural_network.output_writers[:solution] =
-        NetCDFOutputWriter(model_neural_network, outputs_NN, schedule=TimeInterval(Δt),
-                           filepath="oceananigans_neural_network.nc", mode="c",
-                           dimensions=(wT=("zF",),))
+        NetCDFOutputWriter(model_neural_network, outputs_NN,
+                           schedule = TimeInterval(ds.metadata[:interval]),
+                           filepath = "oceananigans_neural_network.nc", mode="c",
+                           dimensions = (wT=("zF",),))
 
+    @info "Running convective adjustment simulation..."
     run!(simulation_convective_adjustment)
+
+    @info "Running convective adjustment simulation + neural network..."
     run!(simulation_neural_network)
 
     ds_ca = NCDstack("oceananigans_convective_adjustment.nc")

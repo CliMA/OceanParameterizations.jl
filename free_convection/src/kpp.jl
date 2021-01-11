@@ -35,8 +35,11 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
     Δt = ds.metadata[:interval]
     for n in 1:Nt
         OceanTurb.run_until!(model, Δt, times[n])
+
         solution[:, n] .= model.solution.T[1:N]
+
         flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1]
+        flux[N+1, n] = FT
     end
 
     return (T=solution, wT=flux)
