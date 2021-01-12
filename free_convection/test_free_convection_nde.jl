@@ -150,17 +150,18 @@ for (id, ds) in coarse_datasets
 end
 
 for (id, ds) in coarse_datasets
+    filepath = joinpath(output_dir, "free_convection_comparisons_$id")
     plot_comparisons(ds, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
-                     filepath = joinpath(output_dir, "free_convection_comparisons_$id"),
-                     frameskip = 10)
+                     filepath = filepaths, frameskip = 5)
 end
 
-# @info "Animating what the neural network has learned..."
-# for (id, ds) in coarse_datasets
-#     filepath = joinpath(output_dir, "learned_free_convection_$id")
-#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
-# end
+@info "Animating what the neural network has learned..."
+for (id, ds) in coarse_datasets
+    filepath = joinpath(output_dir, "learned_free_convection_$id")
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                    filepath=filepath, frameskip=5)
+end
 
 @info "Computing NDE solution history..."
 
