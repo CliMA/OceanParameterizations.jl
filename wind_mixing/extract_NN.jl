@@ -21,10 +21,10 @@ losses = file["training_data/loss/$(N_stages-1)"]
 
 @info "Writing file"
 jldopen(OUTPUT_PATH, "w") do file
-    @info "Writing Training Info"
-    for key in keys(training_info)
-        file["training_info/$key"] = training_info[key]
-    end
+    # @info "Writing Training Info"
+    # for key in keys(training_info)
+    #     file["training_info/$key"] = training_info[key]
+    # end
 
     @info "Writing NNs"
     for key in keys(uw_NNs)
