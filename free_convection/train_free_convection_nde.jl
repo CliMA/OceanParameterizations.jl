@@ -43,6 +43,11 @@ function parse_command_line_arguments()
             help = "Experiment name (also determines name of output directory)."
             default = "layers3_depth4_relu"
             arg_type = String
+
+        "--epochs"
+            help = "Number of epochs per optimizer to train on the full time series."
+            default = 10
+            arg_type = Int
     end
 
     return parse_args(settings)
@@ -53,10 +58,21 @@ end
 @info "Parsing command line arguments..."
 args = parse_command_line_arguments()
 
+nde_type = Dict(
+    "free_convection" => FreeConvectionNDE,
+    "convective_adjustment" => ConvectiveAdjustmentNDE
+)
+
+Nz = args["grid-points"]
+NDEType = nde_type[args["nde"]]
+algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 experiment_name = args["name"]
+full_epochs = args["epochs"]
 
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
+
+## Set up loggers
 
 log_filepath = joinpath(output_dir, "$(experiment_name)_training.log")
 TeeLogger(
@@ -64,17 +80,7 @@ TeeLogger(
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
 ) |> global_logger
 
-nde_type = Dict(
-    "free_convection" => FreeConvectionNDE,
-    "convective_adjustment" => ConvectiveAdjustmentNDE
-)
-
-NDEType = nde_type[args["nde"]]
-algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
-
 ## Neural network architecture
-
-Nz = args["grid-points"]
 
 NN = Chain(Dense( Nz, 4Nz, relu),
            Dense(4Nz, 4Nz, relu),
@@ -228,13 +234,12 @@ end
 ## Train on entire solution while decreasing the learning rate
 
 burn_in_iterations = 1:9:1153
-burn_in_epochs = 100
-optimizers = [ADAM(1e-3), ADAM(1e-4)]
+optimizers = [ADAM(), Descent()]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
     train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
-                                        burn_in_iterations, opt, burn_in_epochs, history_filepath=nn_history_filepath)
+                                        burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath)
 end
 
 ## Save neural network + weights
