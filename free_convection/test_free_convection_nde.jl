@@ -157,7 +157,7 @@ plot_loss_matrix(coarse_datasets, ids_train, nde_solutions, kpp_solutions, tke_s
 
 for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
-    plot_comparisons(ds, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
+    plot_comparisons(ds, id, ids_train, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
                      filepath = filepath, frameskip = 5)
 end

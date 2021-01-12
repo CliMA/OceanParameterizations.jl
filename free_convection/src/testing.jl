@@ -103,7 +103,7 @@ end
 minimum_nonzero(xs...) = min([minimum(filter(!iszero, x)) for x in xs]...)
 maximum_nonzero(xs...) = max([maximum(filter(!iszero, x)) for x in xs]...)
 
-function plot_comparisons(ds, nde_sol, kpp_sol, tke_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
+function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
     Nz, Nt = size(ds[:T])
     zc = dims(ds[:T], ZDim) |> Array
     zf = dims(ds[:wT], ZDim) |> Array
@@ -129,7 +129,8 @@ function plot_comparisons(ds, nde_sol, kpp_sol, tke_sol, convective_adjustment_s
     anim = @animate for n=1:frameskip:Nt
         @info "Plotting comparisons [frame $n/$Nt]: $filepath ..."
 
-        time_str = @sprintf("%.2f days", times[n] / days)
+        time_str = @sprintf("%.2f days", times[n])
+        title = @sprintf("Free convection (Q = %d W/m², %s): %s", -ds.metadata[:heat_flux_Wm⁻²], id in ids_train ? "train" : "test", time_str)
 
         wT_plot = plot()
         T_plot = plot()
@@ -138,7 +139,7 @@ function plot_comparisons(ds, nde_sol, kpp_sol, tke_sol, convective_adjustment_s
               xlabel="Heat flux wT (m/s °C)", ylabel="Depth z (meters)", legend=nothing; kwargs...)
 
         plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", color="dodgerblue", xlabel="Temperature T (°C)",
-              xlims=T_lims, ylims=extrema(zf), itle="Free convection: $time_str", legend=:bottomright; kwargs...)
+              xlims=T_lims, ylims=extrema(zf), title=title, legend=:bottomright; kwargs...)
 
         plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
 
