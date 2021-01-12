@@ -20,11 +20,24 @@ losses = file["training_data/loss/$(N_stages-1)"]
 
 @info "Writing file"
 jldopen(OUTPUT_PATH, "w") do file
-    file["neural_network/uw"] = uw_NNs
-    file["neural_network/vw"] = vw_NNs
-    file["neural_network/wT"] = wT_NNs
-    file["loss"] = losses
-    file["training_info"] = training_info
+    @info "Writing Training Info"
+    for key in keys(training_info)
+        file["training_info/$key"] = training_info[key]
+    end
+
+    @info "Writing NNs"
+    for key in keys(uw_NNs)
+        file["neural_network/uw/$key"] = uw_NNs[key]
+        file["neural_network/vw/$key"] = vw_NNs[key]
+        file["neural_network/wT/$key"] = wT_NNs[key]
+    end
+
+    @info "Writing losses"
+
+    for key in keys(losses)
+        file["loss/$key"] = losses[key]
+    end
+
 end
 
 @info "End"
