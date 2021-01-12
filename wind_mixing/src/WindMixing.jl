@@ -3,8 +3,9 @@ module WindMixing
 export data, read_les_output,
        animate_prediction,
        mse, 
+       predict_NDE, predict_NDE_convective_adjustment,
        train_NDE, train_NDE_convective_adjustment, train_NN, 
-       animate_NN,
+       NDE_profile, NDE_profile_convective_adjustment, animate_NN, animate_profile, animate_flux, animate_profile_flux 
        write_metadata_NDE_training, write_data_NDE_training,
        write_metadata_NN_training, write_data_NN_training
 
