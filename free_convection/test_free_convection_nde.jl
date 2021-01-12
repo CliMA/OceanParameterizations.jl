@@ -149,6 +149,8 @@ for (id, ds) in coarse_datasets
     oceananigans_solutions[id] = nn_sol
 end
 
+@info "Plotting loss matrix..."
+
 plot_loss_matrix(coarse_datasets, ids_train, nde_solutions, kpp_solutions, tke_solutions,
                  convective_adjustment_solutions, oceananigans_solutions, T_scaling,
                  filepath = joinpath(output_dir, "loss_matrix_plots.png"))
@@ -160,12 +162,13 @@ for (id, ds) in coarse_datasets
                      filepath = filepath, frameskip = 5)
 end
 
-@info "Animating what the neural network has learned..."
-for (id, ds) in coarse_datasets
-    filepath = joinpath(output_dir, "learned_free_convection_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-                                    filepath=filepath, frameskip=5)
-end
+# @info "Animating what the neural network has learned..."
+
+# for (id, ds) in coarse_datasets
+#     filepath = joinpath(output_dir, "learned_free_convection_$id")
+#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+#                                     filepath=filepath, frameskip=5)
+# end
 
 @info "Computing NDE solution history..."
 

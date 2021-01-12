@@ -153,20 +153,23 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     ## Output writing
 
+    filepath_CA = joinpath(output_dir, "oceananigans_convective_adjustment.nc")
     outputs_CA = (T  = model_convective_adjustment.tracers.T,)
+
     simulation_convective_adjustment.output_writers[:solution] =
         NetCDFOutputWriter(model_convective_adjustment, outputs_CA,
                            schedule = TimeInterval(ds.metadata[:interval]),
-                           filepath = joinpath(output_dir, "oceananigans_convective_adjustment.nc"),
+                           filepath = filepath_CA,
                            mode = "c")
 
+    filepath_NN = joinpath(output_dir, "oceananigans_neural_network.nc")
     outputs_NN = (T  = model_neural_network.tracers.T,
                   wT = model -> diagnose_wT_NN(interior(model.tracers.T)[:]))
 
     simulation_neural_network.output_writers[:solution] =
         NetCDFOutputWriter(model_neural_network, outputs_NN,
                            schedule = TimeInterval(ds.metadata[:interval]),
-                           filepath = joinpath(output_dir, "oceananigans_neural_network.nc"),
+                           filepath = filepath_NN,
                            mode = "c",
                            dimensions = (wT=("zF",),))
 
@@ -176,8 +179,8 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
     @info "Running convective adjustment simulation + neural network..."
     run!(simulation_neural_network)
 
-    ds_ca = NCDstack("oceananigans_convective_adjustment.nc")
-    ds_nn = NCDstack("oceananigans_neural_network.nc")
+    ds_ca = NCDstack(filepath_CA)
+    ds_nn = NCDstack(filepath_NN)
 
     T_ca = dropdims(Array(ds_ca[:T]), dims=(1, 2))
     T_nn = dropdims(Array(ds_nn[:T]), dims=(1, 2))
