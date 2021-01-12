@@ -3,8 +3,9 @@ using FileIO
 using Flux
 using OrdinaryDiffEq, DiffEqSensitivity
 
-FILE_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment.jld2")
-OUTPUT_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment_temp3.jld2")
+# FILE_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment.jld2")
+FILE_PATH = joinpath(pwd(), "training_output", "NDE_training_2sim.jld2")
+OUTPUT_PATH = joinpath(pwd(), "training_output", "NDE_training_2sim_convective_adjustment_temp.jld2")
 
 @info "Opening file"
 file = jldopen(FILE_PATH, "r")
@@ -20,7 +21,7 @@ wT_NNs = file["training_data/neural_network/wT/$(N_stages-1)"]
 N_data = length(keys(uw_NNs))
 losses = file["training_data/loss/$(N_stages-1)"]
 
-output_size = 500
+output_size = 200
 
 @info "Writing file"
 jldopen(OUTPUT_PATH, "w") do file
