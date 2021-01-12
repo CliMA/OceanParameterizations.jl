@@ -170,6 +170,6 @@ plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_sca
                 title = "Free convection loss history",
                 filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
 
-animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
-                 title = "Free convection NDE",
+animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
+                 title = "Free convection loss history",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
