@@ -136,10 +136,8 @@ end
 
 @info "Gathering and computing solutions..."
 
-nde_solution_history = compute_nde_solution_history(coarse_datasets, final_nn_filepath, algorithm, nn_history_filepath)
-
 nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
-true_solutions = Dict(id => (T=T_scaling.(ds[:T].data), wT=wT_scaling.(ds[:wT].data)) for (id, ds) in coarse_datasets)
+true_solutions = Dict(id => (T=ds[:T].data, wT=ds[:wT].data) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
 
@@ -151,20 +149,27 @@ for (id, ds) in coarse_datasets
     oceananigans_solutions[id] = nn_sol
 end
 
-plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions,
-                title = "Free convection NDE",
-                filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
-
-animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
-                 title = "Free convection NDE",
-                 filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
-
-plot_comparisons(coarse_datasets[6], nde_solutions[6], kpp_solutions[6], tke_solutions[6],
-                 convective_adjustment_solutions[6], oceananigans_solutions[6], T_scaling,
-                 filepath="free_convection_comparisons_6", frameskip=10)
+for (id, ds) in coarse_datasets
+    plot_comparisons(ds, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
+                     convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
+                     filepath = joinpath(output_dir, "free_convection_comparisons_$id"),
+                     frameskip = 10)
+end
 
 # @info "Animating what the neural network has learned..."
 # for (id, ds) in coarse_datasets
 #     filepath = joinpath(output_dir, "learned_free_convection_$id")
 #     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
 # end
+
+@info "Computing NDE solution history..."
+
+nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
+
+plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
+                title = "Free convection loss history",
+                filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
+
+animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions,
+                 title = "Free convection NDE",
+                 filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
