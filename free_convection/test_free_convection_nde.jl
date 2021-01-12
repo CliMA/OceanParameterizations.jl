@@ -57,7 +57,7 @@ experiment_name = args["name"]
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
 
-log_filepath = joinpath(output_dir, "$experiment_name.log")
+log_filepath = joinpath(output_dir, "$(experiment_name)_testing.log")
 TeeLogger(
     OceananigansLogger(),
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
@@ -144,7 +144,7 @@ tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coa
 convective_adjustment_solutions = Dict()
 oceananigans_solutions = Dict()
 for (id, ds) in coarse_datasets
-    ca_sol, nn_sol = oceananigans_convective_adjustment_nn(ds, nn_filepath=final_nn_filepath)
+    ca_sol, nn_sol = oceananigans_convective_adjustment_nn(ds, output_dir=output_dir, nn_filepath=final_nn_filepath)
     convective_adjustment_solutions[id] = ca_sol
     oceananigans_solutions[id] = nn_sol
 end
@@ -157,7 +157,7 @@ for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
     plot_comparisons(ds, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
-                     filepath = filepaths, frameskip = 5)
+                     filepath = filepath, frameskip = 5)
 end
 
 @info "Animating what the neural network has learned..."

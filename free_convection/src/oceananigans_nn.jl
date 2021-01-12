@@ -37,7 +37,7 @@ function convective_adjustment!(model, Δt, K)
     return nothing
 end
 
-function oceananigans_convective_adjustment_nn(ds; nn_filepath)
+function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
     ρ₀ = 1027.0
     cₚ = 4000.0
     f  = ds.metadata[:coriolis_parameter]
@@ -157,7 +157,8 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
     simulation_convective_adjustment.output_writers[:solution] =
         NetCDFOutputWriter(model_convective_adjustment, outputs_CA,
                            schedule = TimeInterval(ds.metadata[:interval]),
-                           filepath = "oceananigans_convective_adjustment.nc", mode="c")
+                           filepath = joinpath(output_dir, "oceananigans_convective_adjustment.nc"),
+                           mode = "c")
 
     outputs_NN = (T  = model_neural_network.tracers.T,
                   wT = model -> diagnose_wT_NN(interior(model.tracers.T)[:]))
@@ -165,7 +166,8 @@ function oceananigans_convective_adjustment_nn(ds; nn_filepath)
     simulation_neural_network.output_writers[:solution] =
         NetCDFOutputWriter(model_neural_network, outputs_NN,
                            schedule = TimeInterval(ds.metadata[:interval]),
-                           filepath = "oceananigans_neural_network.nc", mode="c",
+                           filepath = joinpath(output_dir, "oceananigans_neural_network.nc"),
+                           mode = "c",
                            dimensions = (wT=("zF",),))
 
     @info "Running convective adjustment simulation..."

@@ -58,7 +58,7 @@ experiment_name = args["name"]
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
 
-log_filepath = joinpath(output_dir, "$experiment_name.log")
+log_filepath = joinpath(output_dir, "$(experiment_name)_training.log")
 TeeLogger(
     OceananigansLogger(),
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
@@ -196,7 +196,8 @@ end
 @info "Animating what the neural network has learned..."
 for (id, ds) in coarse_training_datasets
     filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling, filepath=filepath)
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                    filepath=filepath, frameskip=5)
 end
 
 ## Save neural network + weights
@@ -226,9 +227,9 @@ end
 
 ## Train on entire solution while decreasing the learning rate
 
-burn_in_iterations = 1:32:1153
-burn_in_epochs = 10
-optimizers = [ADAM(1e-3)]
+burn_in_iterations = 1:9:1153
+burn_in_epochs = 100
+optimizers = [ADAM(1e-3), ADAM(1e-4)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
