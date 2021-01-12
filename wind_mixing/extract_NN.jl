@@ -1,6 +1,7 @@
 using JLD2
 using FileIO
 using Flux
+using OrdinaryDiffEq, DiffEqSensitivity
 
 FILE_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment.jld2")
 OUTPUT_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment_temp.jld2")
