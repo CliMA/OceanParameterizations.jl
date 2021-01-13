@@ -82,3 +82,11 @@ function write_data_NN_training(FILE_PATH, loss, NN)
 
     end
 end
+
+function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
+    jldopen(FILE_PATH, "w") do file
+        file["neural_network/uw"] = uw_NN
+        file["neural_network/vw"] = vw_NN
+        file["neural_network/wT"] = wT_NN
+    end
+end
