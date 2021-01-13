@@ -37,8 +37,8 @@ wT_NN = load(FILE_PATH_NN, "neural_network/wT")
 # vw_NN = vw_file["training_data/neural_network"]["$(length(keys(vw_file["training_data/neural_network"])))"]
 # wT_NN = wT_file["training_data/neural_network"]["$(length(keys(wT_file["training_data/neural_network"])))"]
 
-train_epochs = [1, 1, 1, 1, 10]
-train_tranges = [1:20:400, 1:20:500, 1:25:700, 1:25:900, 1:40:1153]
+train_epochs = [1, 1, 1, 1, 1, 10]
+train_tranges = [1:20:400, 1:20:500, 1:25:700, 1:25:900, 1:30:1000, 1:40:1153]
 train_optimizers = [[ADAM(0.01)] for i in 1:length(train_epochs)]
 timestepper = ROCK4()
 

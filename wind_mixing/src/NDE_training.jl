@@ -39,7 +39,7 @@ function cb(args...)
     false
 end
 
-function prepare_parameters(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
+function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
     H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
     τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
     u_scaling = 𝒟train.scalings["u"]
@@ -72,7 +72,7 @@ function prepare_parameters(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
 end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500)
-    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters(𝒟train, uw_NN, vw_NN, wT_NN)
+    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
 
@@ -136,7 +136,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 end
 
 function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500)
-    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters(𝒟train, uw_NN, vw_NN, wT_NN)
+    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
 

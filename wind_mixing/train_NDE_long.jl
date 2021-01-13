@@ -9,7 +9,9 @@ train_files = ["-1e-3"]
 
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 PATH=pwd()
-FILE_PATH = joinpath(PATH, "training_output", "NDE_training_convective_adjustment_1sim_-1e-3_large_long.jld2")
+# FILE_PATH = joinpath(PATH, "training_output", "NDE_training_convective_adjustment_1sim_-1e-3_large_long_test.jld2")
+FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "NDE_training_convective_adjustment_1sim_-1e-3_large_long_test.jld2")
+
 
 uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NN_large.bson"))[:neural_network]
 vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NN_large.bson"))[:neural_network]
