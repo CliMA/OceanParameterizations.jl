@@ -5,16 +5,18 @@ using OrdinaryDiffEq, DiffEqSensitivity
 using JLD2
 using FileIO
 
-train_files = ["-1e-3", "-5e-4"]
+train_files = ["-1e-3", "-8e-4"]
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "testNN.jld2")
 
-FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-5e-4_-1e-3_large.jld2")
-FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-5e-4_-1e-3_large.jld2")
-FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-5e-4_-1e-3_large.jld2")
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-8e-4_-1e-3_large.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-8e-4_-1e-3_large.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-8e-4_-1e-3_large.jld2")
+
+FILE_PATH_NDE = joinpath(OUTPUT_PATH, "NDE_training_convective_adjustment_2sim_-8e-4_-1e-3_large.jld2")
 
 # FILE_PATH_uw = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 # FILE_PATH_vw = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
@@ -46,7 +48,6 @@ uw_NN = Flux.destructure(uw_NN)[2](uw_weights)
 vw_NN = Flux.destructure(vw_NN)[2](vw_weights)
 wT_NN = Flux.destructure(wT_NN)[2](wT_weights)
 
-FILE_PATH_NDE = joinpath(OUTPUT_PATH, "NDE_training_convective_adjustment_2sim_-5e-4_-1e-3_large.jld2")
 
 train_epochs = [1, 1, 1, 1, 1, 1, 1, 1, 10]
 train_tranges = [1:5:50, 1:5:100, 1:10:200, 1:20:400, 1:20:500, 1:25:700, 1:25:900, 1:30:1000, 1:40:1153]
