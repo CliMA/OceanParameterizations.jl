@@ -2,45 +2,55 @@ using JLD2
 using FileIO
 using Flux
 using OrdinaryDiffEq, DiffEqSensitivity
+using ArgParse
 
-FILE_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment.jld2")
-OUTPUT_PATH = joinpath(pwd(), "training_output", "NDE_training_1sim_convective_adjustment_temp3.jld2")
+s = ArgParseSettings()
+@add_arg_table s begin
+    "--input"
+        help = "location of input file in training_output directory"
+        required = true
+    "--output"
+        help = "destination of output file in extracted_training_output directory"
+        required = true
+end
+
+arg_parse = parse_args(s)
+
+FILE_PATH = joinpath(pwd(), "training_output", arg_parse["input"])
+OUTPUT_PATH = joinpath(pwd(), "extracted_training_output", arg_parse["output"])
 
 @info "Opening file"
-file = jldopen(FILE_PATH, "r")
+train_files, losses, uw_NN, vw_NN, wT_NN = jldopen(FILE_PATH, "r") do file
+    train_files = file["training_info/train_files"]
+    N_stages = length(keys(file["training_data/loss"]))
+    N_data = length(keys(file["training_data/loss/$N_stages"]))
+    losses = Array{Float32}(undef, N_data)
+    
+    @info "Loading Loss"
+    for i in 1:length(losses)
+        losses[i] = file["training_data/loss/$N_stages/$i"]
+    end
 
-N_stages = length(keys(file["training_data/loss"]))
-
-@info "Loading file"
-# training_info = file["training_info"]
-uw_NNs = file["training_data/neural_network/uw/$(N_stages-1)"]
-vw_NNs = file["training_data/neural_network/vw/$(N_stages-1)"]
-wT_NNs = file["training_data/neural_network/wT/$(N_stages-1)"]
-
-N_data = length(keys(uw_NNs))
-losses = file["training_data/loss/$(N_stages-1)"]
-
-output_size = 200
+    @info "Loading NN"
+    NN_index = argmin(losses)
+    uw_NN = file["training_data/neural_network/uw/$(N_stages)/$NN_index"]
+    vw_NN = file["training_data/neural_network/vw/$(N_stages)/$NN_index"]
+    wT_NN = file["training_data/neural_network/wT/$(N_stages)/$NN_index"]
+    return train_files, losses, uw_NN, vw_NN, wT_NN
+end
 
 @info "Writing file"
 jldopen(OUTPUT_PATH, "w") do file
-    # @info "Writing Training Info"
-    # for key in keys(training_info)
-    #     file["training_info/$key"] = training_info[key]
-    # end
+    @info "Writing Training Info"
+    file["training_info/train_files"] = train_files
 
-    for i in N_data - output_size + 1:1:N_data
-        @info "Writing NN $i/$N_data"
-        file["neural_network/uw/$i"] = uw_NNs["$i"]
-        file["neural_network/vw/$i"] = vw_NNs["$i"]
-        file["neural_network/wT/$i"] = wT_NNs["$i"]
-    end
+    @info "Writing Loss"
+    file["losses"] = losses
 
-    for i in N_data - output_size + 1:1:N_data
-        @info "Writing loss $i/$N_data"
-        file["loss/$i"] = losses["$i"]
-    end
-
+    @info "Writing NN"
+    file["neural_network/uw"] = uw_NN
+    file["neural_network/vw"] = vw_NN
+    file["neural_network/wT"] = wT_NN
 end
 
 @info "End"

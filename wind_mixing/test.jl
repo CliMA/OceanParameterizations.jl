@@ -45,9 +45,33 @@ res = solve(loss_prob, ADAM(), cb = cb, maxiters = 5)M(), cb=cb, maxiters=5)
 
 using FileIO
 using JLD2
+using Flux
+using OceanParameterizations
+using OrdinaryDiffEq, DiffEqSensitivity
 
-filepath = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+filepath_input = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "test_input.jld2")
+filepath_output = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "test_output.jld2")
+    
+NN = Chain(Dense(2,10, relu), Dense(10, 2))
 
+
+using WindMixing
+write_metadata_NN_training(filepath_input, ["1e-3"], [1, 2], [ADAM(), Descent()], NN, "uw")
+data(["-1e-3"], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+write_data_NN(filepath_input, NN, NN, NN)
+a = load(filepath_input, "training_info/optimizers")
+
+a["train_epochs"]
+
+@load filepath_input "training_data"
+
+a = jldopen(filepath_input, "r") do file
+    load(file, "training_info")
+end
+
+a["train_epochs"]
+jldopen()
+a["train_epochs"]
 
 uw_file = jldopen(filepath, "r")
 uw_NN = uw_file["training_data/neural_network"]["$(length(keys(uw_file["training_data/neural_network"])))"]
