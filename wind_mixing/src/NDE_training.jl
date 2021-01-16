@@ -135,12 +135,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
 end
 
-function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500)
+function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, κ=10f0, maxiters=500)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
-
-    κ = 10f0
 
     function NDE!(dx, x, p, t)
         uw_weights = p[uw_range]
