@@ -13,7 +13,9 @@ train_files = ["-1e-3"]
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_convective_adjustment_1sim_-1e-3.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_convective_adjustment_1sim_-1e-3_2.jld2")
+
+@assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
 # FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
@@ -24,6 +26,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_convective_adjustment_1si
 # wT_file = load(FILE_PATH_wT, "training_data/neural_network")
 
 FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_convective_adjustment_1sim_-1e-3_2_extracted.jld2")
+@assert isfile(FILE_PATH_NN)
 
 # uw_file = jldopen(FILE_PATH_uw, "r")
 # vw_file = jldopen(FILE_PATH_vw, "r")
