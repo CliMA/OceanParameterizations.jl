@@ -237,7 +237,7 @@ burn_in_iterations = 1:9:1153
 optimizers = [ADAM(), Descent()]
 
 for opt in optimizers
-    @info "Training free convection NDE with iterations=$burn_in_iterations for $burn_in_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
+    @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
     train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
                                         burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath)
 end
