@@ -39,7 +39,7 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
 
         solution[:, n] .= model.solution.T[1:N]
 
-        flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1]
+        flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1] .+ OceanTurb.KPP.nonlocal_temperature_flux(model)[1:N+1]
         flux[N+1, n] = FT
     end
 
