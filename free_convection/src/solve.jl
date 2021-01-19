@@ -6,6 +6,13 @@ function solve_nde(nde, NN, T₀, alg, nde_params)
 end
 
 function solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling; T₀=nothing)
+    zc = dims(ds[:T], ZDim)
+    zf = dims(ds[:wT], ZDim)
+    Nz = length(zc)
+    H = abs(zf[1]) # Domain height
+    Δẑ = diff(zc[:])[1] / H  # Non-dimensional grid spacing
+    Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
+
     nde_params = FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     nde = NDEType(NN, ds)
 
@@ -20,10 +27,20 @@ function solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling; T₀=nothi
     Nz, Nt = size(T)
     wT = zeros(Nz+1, Nt)
 
+
     for n in 1:Nt
-        wT_interior = NN(T[:, n])
-        wT_n = cat(bottom_flux, wT_interior, top_flux, dims=1)
-        wT[:, n] .= wT_n
+        T_n = T[:, n]
+
+        wT_NN_interior = NN(T_n)
+        wT_NN_n = cat(bottom_flux, wT_NN_interior, top_flux, dims=1)
+
+        if NDEType == FreeConvectionNDE
+            @. wT[:, n] = wT_NN_n
+        elseif NDEType == ConvectiveAdjustmentNDE
+            ∂T∂z_n = Dzᶠ * T_n
+            K∂T∂z_n = min.(0, 10 * ∂T∂z_n)
+            @. wT[:, n] = wT_NN_n - K∂T∂z_n
+        end
     end
 
     return (T=inv(T_scaling).(T), wT=inv(wT_scaling).(wT))
