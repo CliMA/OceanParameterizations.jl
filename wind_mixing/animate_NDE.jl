@@ -11,7 +11,7 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_strong_convective_adjustment_1sim_-1e-3_2_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_strong_convective_adjustment_1sim_-1e-3_extracted.jld2")
 
 file = jldopen(DATA_PATH, "r")
 
@@ -23,6 +23,9 @@ size = length(losses)
 train_files = file["training_info/train_files"]
 
 plot(1:1:size, losses, yscale=:log10)
+xlabel!("Iteration")
+ylabel!("Loss mse")
+savefig(joinpath(PATH, "Output", "NDE_training_strong_convective_adjustment_1sim_-1e-3_loss.pdf"))
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 test_files = ["-1e-3"]
