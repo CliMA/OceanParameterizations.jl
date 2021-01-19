@@ -196,3 +196,68 @@ function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps,
     end
     return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
 end
+
+function train_NDE_convective_adjustment_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, κ=10f0, maxiters=500)
+    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
+
+    n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+
+    function NDE(x, p, t)
+        uw_weights = p[uw_range]
+        vw_weights = p[vw_range]
+        wT_weights = p[wT_range]
+        uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
+        uw_NN = re_uw(uw_weights)
+        vw_NN = re_vw(vw_weights)
+        wT_NN = re_wT(wT_weights)
+        A = - τ / H
+        B = f * τ
+        u = x[1:Nz]
+        v = x[Nz + 1:2Nz]
+        T = x[2Nz + 1:3Nz]
+        dx₁ = A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) # nondimensional gradient
+        dx₂ = A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
+        dx₃ = -A .* σ_wT ./ σ_T .* predict_NDE_convective_adjustment(wT_NN, x, wT_top, wT_bottom, D_face, D_cell, κ, Nz)
+        return [dx₁; dx₂; dx₃]
+    end
+
+    uvT₀s = [Float32.(𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]]) for i in 0:n_simulations - 1]
+    t_train = prepare_time_window(𝒟train.t[:,1], tsteps)
+    uvT_trains = [prepare_training_data(𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)], tsteps) for i in 0:n_simulations - 1]
+    t_train = Float32.(t_train ./ τ)
+    tspan_train = (t_train[1], t_train[end])
+    BCs = [[Float32.(𝒟train.uw.scaled[1,n_steps * i + tsteps[1]]),
+            Float32.(𝒟train.uw.scaled[end,n_steps * i + tsteps[1]]),
+            Float32.(𝒟train.vw.scaled[1,n_steps * i + tsteps[1]]),
+            Float32.(𝒟train.vw.scaled[end,n_steps * i + tsteps[1]]),
+            Float32.(𝒟train.wT.scaled[1,n_steps * i + tsteps[1]]),
+            Float32.(𝒟train.wT.scaled[end,n_steps * i + tsteps[1]])] for i in 0:n_simulations - 1]
+
+    prob_NDEs = [ODEProblem(NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+
+    function loss(weights, BCs)
+        sols = [Float32.(Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train))) for i in 1:n_simulations]
+        # sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        
+        return mean(Flux.mse.(sols, uvT_trains))
+    end
+
+    f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
+    prob_loss = OptimizationProblem(f_loss, weights, BCs)
+
+    for i in 1:length(optimizers), epoch in 1:epochs
+        iter = 1
+        opt = optimizers[i]
+        function cb(args...)
+            if iter <= maxiters
+                @info "loss = $(args[2]), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
+                write_data_NDE_training(FILE_PATH, args[2], re_uw(args[1][uw_range]), re_vw(args[1][vw_range]), re_wT(args[1][wT_range]), stage)
+            end
+            iter += 1
+            false
+        end
+        res = solve(prob_loss, opt, cb=cb, maxiters=maxiters)
+        weights .= res.minimizer
+    end
+    return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
+end

@@ -4,6 +4,7 @@ using JLD2
 using FileIO
 using OceanParameterizations
 using OrdinaryDiffEq
+using Random
 
 # Training data
 train_files = ["-1e-3"]
@@ -13,7 +14,7 @@ train_files = ["-1e-3"]
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_convective_adjustment_1sim_-1e-3_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_100_convective_adjustment_1sim_-1e-3.jld2")
 
 @assert !isfile(FILE_PATH)
 
@@ -41,8 +42,8 @@ wT_NN = file["neural_network/wT"]
 # vw_NN = vw_file["training_data/neural_network"]["$(length(keys(vw_file["training_data/neural_network"])))"]
 # wT_NN = wT_file["training_data/neural_network"]["$(length(keys(wT_file["training_data/neural_network"])))"]
 
-train_epochs = [10]
-train_tranges = [1:40:1153]
+train_epochs = [1 for i in 1:100]
+train_tranges = [1:rand(10:1:40):1153 for i in 1:length(train_epochs)]
 train_optimizers = [[ADAM(0.01)] for i in 1:length(train_epochs)]
 timestepper = ROCK4()
 
@@ -50,7 +51,9 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimi
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN)
 
     for i in 1:length(train_epochs)
-        uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 1, 50f0)
+        @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
+        # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, start_tranges[i]:rand(10:1:40):end_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 1, 100f0, 5)
+        uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 100f0, 5)
     end
 
 end
