@@ -89,12 +89,31 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     enforce_fluxes(wT) = cat(0, wT, heat_flux, dims=1)
 
-    diagnose_wT_NN = Chain(
-        T -> T_scaling.(T),
-        neural_network,
-        wT -> inv(wT_scaling).(wT),
-        enforce_fluxes
-    )
+    K = wT_scaling.σ / T_scaling.σ * stop_time / Lz * 10
+
+    @show K
+
+    # K = 100  # convective adjustment diffusivity
+
+    function diagnose_wT_NN(model)
+        T = interior(model.tracers.T)[:]
+        T = T_scaling.(T)
+        wT_NN_interior = neural_network(T)
+        wT_NN_interior = inv(wT_scaling).(wT_NN_interior)
+        wT_NN = enforce_fluxes(wT_NN_interior)
+
+        ∂T∂z = ComputedField(@at (Cell, Cell, Face) ∂z(model.tracers.T))
+        compute!(∂T∂z)
+
+        κ = zeros(Nz+1)
+        for i in 1:Nz+1
+            κ[i] = ∂T∂z[1, 1, i] < 0 ? K : 0
+        end
+
+        K∂T∂z = κ .* interior(∂T∂z)[:]
+
+        return wT_NN .- K∂T∂z
+    end
 
     neural_network_forcing = Chain(
         T -> T_scaling.(T),
@@ -121,8 +140,6 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
     set!(model_neural_network, T=T₀)
 
     ## Simulation setup
-
-    K = 100  # convective adjustment diffusivity
 
     function progress_convective_adjustment(simulation)
         clock = simulation.model.clock
@@ -164,7 +181,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     filepath_NN = joinpath(output_dir, "oceananigans_neural_network.nc")
     outputs_NN = (T  = model_neural_network.tracers.T,
-                  wT = model -> diagnose_wT_NN(interior(model.tracers.T)[:]))
+                  wT = model -> diagnose_wT_NN(model))
 
     simulation_neural_network.output_writers[:solution] =
         NetCDFOutputWriter(model_neural_network, outputs_NN,
