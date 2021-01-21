@@ -22,7 +22,7 @@ function ConvectiveAdjustmentNDE(NN, ds; iterations=nothing)
     """
     Non-dimensional PDE is
 
-        ∂T/∂t = - σ_wT/σ_T * τ/H * ∂/∂z(wT + K ∂T/∂z)
+        ∂T/∂t = - σ_wT/σ_T * τ/H * ∂/∂z(wT - K ∂T/∂z)
 
     where K = 0 if ∂T/∂z < 0 and K = 100 if ∂T/∂z > 0.
     """
