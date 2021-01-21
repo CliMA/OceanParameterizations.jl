@@ -19,7 +19,7 @@ end
 
 inscribe_history(::Nothing, args...) = nothing
 
-function train_neural_differential_equation!(NN, NDEType, training_datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing)
+function train_neural_differential_equation!(NN, NDEType, algorithm, training_datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing)
 
     ids = [id for id in keys(training_datasets)] |> sort
 
@@ -31,7 +31,7 @@ function train_neural_differential_equation!(NN, NDEType, training_datasets, T_s
     true_sols = cat(true_sols..., dims=2)
 
     function nde_loss()
-        nde_sols = cat([solve_nde(ndes[id], NN, T₀[id], ROCK4(), nde_params[id]) |> Array for id in ids]..., dims=2)
+        nde_sols = cat([solve_nde(ndes[id], NN, T₀[id], algorithm, nde_params[id]) |> Array for id in ids]..., dims=2)
         return Flux.mse(nde_sols, true_sols)
     end
 
