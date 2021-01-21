@@ -3,114 +3,123 @@
 # This example simulates a double gyre following:
 # https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html
 
+using Printf
+
 using Oceananigans
-using Oceananigans.Grids
-using Oceananigans.Utils: minute, day
-
-grid = RegularCartesianGrid(size=(96, 96, 32), x=(-2e6, 2e6), y=(-3e6, 3e6), z=(-2e3, 0),
-                            topology=(Bounded, Bounded, Bounded))
-
-# ## Boundary conditions
-@info "bcs"
-using Oceananigans.BoundaryConditions
-
-@inline wind_stress(x, y, t, parameters) = - parameters.τ * cos(2π * y / parameters.L)
-
-@inline u_bottom_stress(i, j, grid, clock, model_fields, parameters) =
-    @inbounds - parameters.μ * parameters.H * model_fields.u[i, j, 1]
-
-@inline v_bottom_stress(i, j, grid, clock, model_fields, parameters) =
-    @inbounds - parameters.μ * parameters.H * model_fields.v[i, j, 1]
-
-wind_stress_bc = BoundaryCondition(Flux, wind_stress, parameters = (τ=1e-4, L=grid.Ly))
-
-u_bottom_stress_bc = BoundaryCondition(Flux, u_bottom_stress,
-                                       discrete_form=true, parameters=(μ=1/30day, H=grid.Lz))
-
-v_bottom_stress_bc = BoundaryCondition(Flux, v_bottom_stress,
-                                       discrete_form=true, parameters=(μ=1/30day, H=grid.Lz))
-
-u_bcs = UVelocityBoundaryConditions(grid,
-                                     north = BoundaryCondition(Value, 0),
-                                     south = BoundaryCondition(Value, 0),
-                                       top = wind_stress_bc,
-                                    bottom = u_bottom_stress_bc)
-
-v_bcs = VVelocityBoundaryConditions(grid,
-                                      east = BoundaryCondition(Value, 0),
-                                      west = BoundaryCondition(Value, 0),
-                                    bottom = v_bottom_stress_bc)
-
-w_bcs = WVelocityBoundaryConditions(grid,
-                                    north = BoundaryCondition(Value, 0),
-                                    south = BoundaryCondition(Value, 0),
-                                     east = BoundaryCondition(Value, 0),
-                                     west = BoundaryCondition(Value, 0))
-
-b_reference(y, parameters) = parameters.Δb / parameters.Ly * y
-
+using Oceananigans.Advection
+using Oceananigans.Diagnostics
+using Oceananigans.OutputWriters
 using Oceananigans.Utils
 
-@inline buoyancy_flux(i, j, grid, clock, model_fields, parameters) =
-    @inbounds - parameters.μ * (model_fields.b[i, j, grid.Nz] - b_reference(grid.yC[j], parameters))
+## Grid setup
 
-buoyancy_flux_bc = BoundaryCondition(Flux, buoyancy_flux,
-                                     discrete_form = true,
-                                     parameters = (μ=1/day, Δb=0.06, Ly=grid.Ly))
+@info "Grid setup..."
 
-b_bcs = TracerBoundaryConditions(grid, 
-                                 bottom = BoundaryCondition(Value, 0),
-                                 top = buoyancy_flux_bc)
+km = kilometers
+topo = (Bounded, Bounded, Bounded)
+domain = (x=(-2000km, 2000km), y=(-3000km, 3000km), z=(-2km, 0))
+grid = RegularCartesianGrid(topology=topo, size=(96, 96, 32); domain...)
 
-using Oceananigans, Oceananigans.TurbulenceClosures, Oceananigans.Advection
+## Boundary conditions
+
+@info "Boundary conditions setup..."
+
+@inline wind_stress(x, y, t, p) = - p.τ * cos(2π * y / p.L)
+@inline u_bottom_stress(x, y, t, u, p) = - p.μ * p.H * u
+@inline v_bottom_stress(x, y, t, v, p) = - p.μ * p.H * v
+
+wind_stress_params = (τ=1e-4, L=grid.Ly)
+wind_stress_bc = FluxBoundaryCondition(wind_stress, parameters=wind_stress_params)
+
+bottom_stress_params = (μ=1/30day, H=grid.Lz)
+u_bottom_stress_bc = FluxBoundaryCondition(u_bottom_stress, field_dependencies=:u, parameters=bottom_stress_params)
+v_bottom_stress_bc = FluxBoundaryCondition(v_bottom_stress, field_dependencies=:v, parameters=bottom_stress_params)
+
+no_slip = ValueBoundaryCondition(0)
+
+u_bcs = UVelocityBoundaryConditions(grid,
+       top = wind_stress_bc,
+    bottom = u_bottom_stress_bc,
+     north = no_slip,
+     south = no_slip
+)
+
+v_bcs = VVelocityBoundaryConditions(grid,
+      east = no_slip,
+      west = no_slip,
+    bottom = v_bottom_stress_bc
+)
+
+w_bcs = WVelocityBoundaryConditions(grid,
+    north = no_slip,
+    south = no_slip,
+     east = no_slip,
+     west = no_slip
+)
+
+@inline b_reference(y, p) = p.Δb / p.Ly * y
+@inline buoyancy_flux(x, y, t, b, p) = @inbounds - p.μ * (b - b_reference(y, p))
+
+buoyancy_flux_params = (μ=1/day, Δb=0.06, Ly=grid.Ly)
+buoyancy_flux_bc = FluxBoundaryCondition(buoyancy_flux, field_dependencies=:b, parameters=buoyancy_flux_params)
+
+b_bcs = TracerBoundaryConditions(grid,
+    bottom = ValueBoundaryCondition(0),
+       top = buoyancy_flux_bc
+)
+
+## Turbulent diffusivity closure
 
 closure = AnisotropicDiffusivity(νh=500, νz=1e-2, κh=100, κz=1e-2)
-@info "model"
-model = IncompressibleModel(       architecture = CPU(),
-                                    timestepper = :RungeKutta3, 
-                                      advection = WENO5(),
-                                           grid = grid,
-                                       coriolis = BetaPlane(latitude=45),
-                                       buoyancy = BuoyancyTracer(),
-                                        tracers = :b,
-                                        closure = closure,
-                            boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
-nothing # hide
 
-## Temperature initial condition: a stable density gradient with random noise superposed.
-b₀(x, y, z) = b_bcs.top.condition.parameters.Δb * (1 + z / grid.Lz)
+## Model setup
+
+@info "Model setup..."
+
+model = IncompressibleModel(
+           architecture = CPU(),
+            timestepper = :RungeKutta3,
+              advection = WENO5(),
+                   grid = grid,
+               coriolis = BetaPlane(latitude=45),
+               buoyancy = BuoyancyTracer(),
+                tracers = :b,
+                closure = closure,
+    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs)
+)
+
+## Initial condition
+
+@info "Setting initial conditions..."
+
+# a stable density gradient with random noise superposed.
+b₀(x, y, z) = buoyancy_flux_params.Δb * (1 + z / grid.Lz)
 
 set!(model, b=b₀)
 
-# ## Running the simulation
-#
-# To run the simulation, we instantiate a `TimeStepWizard` to ensure stable time-stepping
-# with a Courant-Freidrichs-Lewy (CFL) number of 0.2.
+## Simulation setup
 
-max_Δt = min(hour/2, 0.5 * min(grid.Δz^2 / closure.κz, grid.Δx^2 / closure.νx))
+@info "Setting up simulation..."
 
-wizard = TimeStepWizard(cfl=0.5, Δt=hour/2, max_change=1.1, max_Δt=max_Δt)
-nothing # hide
+wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=0.5hours, max_change=1.1, max_Δt=0.5hours)
 
-# Finally, we set up and run the the simulation.
-
-using Oceananigans.Diagnostics, Printf
-
-umax = FieldMaximum(abs, model.velocities.u)
-vmax = FieldMaximum(abs, model.velocities.v)
-wmax = FieldMaximum(abs, model.velocities.w)
+u_max = FieldMaximum(abs, model.velocities.u)
+v_max = FieldMaximum(abs, model.velocities.v)
+w_max = FieldMaximum(abs, model.velocities.w)
 
 wall_clock = time_ns()
 
 function print_progress(simulation)
     model = simulation.model
 
+    b_min, b_max = interior(model.tracers.b) |> extrema
+
     ## Print a progress message
-    msg = @sprintf("i: %04d, t: %s, Δt: %s, umax = (%.1e, %.1e, %.1e) ms⁻¹, wall time: %s\n",
+    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, b: (min=%.1e, max=%.1e), wall time: %s\n",
                    model.clock.iteration,
                    prettytime(model.clock.time),
                    prettytime(wizard.Δt),
-                   umax(), vmax(), wmax(),
+                   u_max(), v_max(), w_max(), b_min, b_max,
                    prettytime(1e-9 * (time_ns() - wall_clock))
                   )
 
@@ -118,17 +127,12 @@ function print_progress(simulation)
 
     return nothing
 end
-@info "sim"
+
 simulation = Simulation(model, Δt=wizard, stop_time=20years, iteration_interval=1, progress=print_progress)
 
-# ## Set up output
-#
-# We set up an output writer that saves all velocity fields, tracer fields, and the subgrid
-# turbulent diffusivity associated with `model.closure`. The `prefix` keyword argument
-# to `JLD2OutputWriter` indicates that output will be saved in
-# `double_gyre.jld2`.
-@info "output"
-using Oceananigans.OutputWriters
+## Set up output writers
+
+@info "Setting up output writers..."
 
 fields = Dict(
     "u" => model.velocities.u,
@@ -137,8 +141,10 @@ fields = Dict(
     "b" => model.tracers.b
 )
 
-simulation.output_writers[:fields] = NetCDFOutputWriter(model, fields;
-                                                        schedule=TimeInterval(2days),
-                                                        filepath="double_gyre.nc")
-@info "run"
+simulation.output_writers[:fields] = JLD2OutputWriter(model, merge(model.velocities, model.tracers),
+                                                      schedule=TimeInterval(1day), prefix="double_gyre", force=true)
+
+## Running the simulation
+
+@info "Running simulation..."
 run!(simulation)
