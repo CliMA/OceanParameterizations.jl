@@ -181,3 +181,18 @@ plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_sca
 animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
                  title = "Free convection loss history",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
+
+
+# t = dims(coarse_datasets[6][:T], Ti).val / 86400
+# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |wT| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
+#          legend=:outertopright, foreground_color_legend=nothing, background_color_legend=nothing, dpi=200)
+
+# for (id, ds) in coarse_datasets
+#     advective_heat_flux = sum(ds[:wT].data .|> abs, dims=1)[:]
+#     diffusive_heat_flux = sum(ds[:κₑ_∂z_T].data .|> abs, dims=1)[:]
+#     total_heat_flux = advective_heat_flux .+ diffusive_heat_flux
+#     label = @sprintf("%d W/m²", -ds.metadata[:heat_flux_Wm⁻²])
+#     plot!(p, t, diffusive_heat_flux ./ total_heat_flux, linewidth=2, label=label)
+# end
+
+# savefig("les_flux_contribution.png")
