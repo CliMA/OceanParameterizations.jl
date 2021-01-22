@@ -128,21 +128,15 @@ function print_progress(simulation)
     return nothing
 end
 
-simulation = Simulation(model, Δt=wizard, stop_time=20years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=1year, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
 @info "Setting up output writers..."
 
-fields = Dict(
-    "u" => model.velocities.u,
-    "v" => model.velocities.v,
-    "w" => model.velocities.w,
-    "b" => model.tracers.b
-)
-
-simulation.output_writers[:fields] = JLD2OutputWriter(model, merge(model.velocities, model.tracers),
-                                                      schedule=TimeInterval(1day), prefix="double_gyre", force=true)
+simulation.output_writers[:fields] =
+    NetCDFOutputWriter(model, merge(model.velocities, model.tracers),
+                       schedule=TimeInterval(1day), filepath="double_gyre.nc", mode="c")
 
 ## Running the simulation
 
