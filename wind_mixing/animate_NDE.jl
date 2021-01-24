@@ -11,7 +11,7 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_strong_convective_adjustment_1sim_-1e-3_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_convective_adjustment_1sim_-1e-3_2_extracted.jld2")
 
 file = jldopen(DATA_PATH, "r")
 
@@ -35,13 +35,13 @@ vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
 trange = 1:1:1153
-plot_data = NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange)
+plot_data = NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, 10f0, unscale=true)
 
 FILE_PATH = joinpath(pwd(), "Output")
 
-animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_strong_convective_adjustment_1sim_-1e-3_2_temp"))
-animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_strong_convective_adjustment_1sim_-1e-3_2_temp"))
-animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_strong_convective_adjustment_1sim_-1e-3_2_temp"))
+animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_convective_adjustment_1sim_-1e-3_2_temp_dimensional"), gif=true, dimensionless=false)
+animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_convective_adjustment_1sim_-1e-3_2_temp_dimensional"), gif=true, dimensionless=false)
+animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_convective_adjustment_1sim_-1e-3_2_temp_dimensional"), gif=true, dimensionless=false)
 
 # animate_profile(plot_data, "u", joinpath(FILE_PATH, "u_test"))
 # animate_profile(plot_data, "v", joinpath(FILE_PATH, "v_test"))

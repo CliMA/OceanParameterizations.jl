@@ -124,9 +124,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange)
     return output
 end
 
-function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange)
+function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, κ=10f0; unscale=false)
     f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
-    κ = 10f0
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
@@ -158,37 +157,71 @@ function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟tr
 
     output = Dict()
 
-    output["truth_uw"] = uw_scaling.(𝒟test.uw.coarse[:,trange])
-    output["truth_vw"] = vw_scaling.(𝒟test.vw.coarse[:,trange])
-    output["truth_wT"] = wT_scaling.(𝒟test.wT.coarse[:,trange])
+    if unscale == false
+        output["truth_uw"] = uw_scaling.(𝒟test.uw.coarse[:,trange])
+        output["truth_vw"] = vw_scaling.(𝒟test.vw.coarse[:,trange])
+        output["truth_wT"] = wT_scaling.(𝒟test.wT.coarse[:,trange])
 
-    output["truth_u"] = u_scaling.(𝒟test.uvT_unscaled[1:Nz, trange])
-    output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
-    output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
+        output["truth_u"] = u_scaling.(𝒟test.uvT_unscaled[1:Nz, trange])
+        output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
+        output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
 
-    test_uw = similar(output["truth_uw"])
-    test_vw = similar(output["truth_vw"])
-    test_wT = similar(output["truth_wT"])
+        test_uw = similar(output["truth_uw"])
+        test_vw = similar(output["truth_vw"])
+        test_wT = similar(output["truth_wT"])
 
-    for i in 1:size(test_uw, 2)
-        uw = @view test_uw[:,i]
-        vw = @view test_vw[:,i]
-        wT = @view test_wT[:,i]
-        uw .= predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom)
-        vw .= predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom)
-        wT .= predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom)
+        for i in 1:size(test_uw, 2)
+            uw = @view test_uw[:,i]
+            vw = @view test_vw[:,i]
+            wT = @view test_wT[:,i]
+            uw .= predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom)
+            vw .= predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom)
+            wT .= predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom)
+        end
+
+        output["test_uw"] = test_uw
+        output["test_vw"] = test_vw
+        output["test_wT"] = test_wT
+
+        output["test_u"] = sol[1:Nz,:]
+        output["test_v"] = sol[Nz + 1:2Nz, :]
+        output["test_T"] = sol[2Nz + 1: 3Nz, :]
+        output["depth_profile"] = 𝒟test.u.z
+        output["depth_flux"] = 𝒟test.uw.z
+        output["t"] = 𝒟test.t[trange]
+    else
+        output["truth_uw"] = 𝒟test.uw.coarse[:,trange]
+        output["truth_vw"] = 𝒟test.vw.coarse[:,trange]
+        output["truth_wT"] = 𝒟test.wT.coarse[:,trange]
+
+        output["truth_u"] = 𝒟test.uvT_unscaled[1:Nz, trange]
+        output["truth_v"] = 𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]
+        output["truth_T"] = 𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange]
+
+        test_uw = similar(output["truth_uw"])
+        test_vw = similar(output["truth_vw"])
+        test_wT = similar(output["truth_wT"])
+
+        for i in 1:size(test_uw, 2)
+            uw = @view test_uw[:,i]
+            vw = @view test_vw[:,i]
+            wT = @view test_wT[:,i]
+            uw .= inv(uw_scaling).(predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom))
+            vw .= inv(vw_scaling).(predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom))
+            wT .= inv(wT_scaling).(predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom))
+        end
+
+        output["test_uw"] = test_uw
+        output["test_vw"] = test_vw
+        output["test_wT"] = test_wT
+
+        output["test_u"] = inv(u_scaling).(sol[1:Nz,:])
+        output["test_v"] = inv(v_scaling).(sol[Nz + 1:2Nz, :])
+        output["test_T"] = inv(T_scaling).(sol[2Nz + 1: 3Nz, :])
+        output["depth_profile"] = 𝒟test.u.z
+        output["depth_flux"] = 𝒟test.uw.z
+        output["t"] = 𝒟test.t[trange]
     end
-
-    output["test_uw"] = test_uw
-    output["test_vw"] = test_vw
-    output["test_wT"] = test_wT
-
-    output["test_u"] = sol[1:Nz,:]
-    output["test_v"] = sol[Nz + 1:2Nz, :]
-    output["test_T"] = sol[2Nz + 1: 3Nz, :]
-    output["depth_profile"] = 𝒟test.u.z
-    output["depth_flux"] = 𝒟test.uw.z
-    output["t"] = 𝒟test.t[trange]
 
     return output
 end
@@ -219,6 +252,11 @@ function animate_profile(data, profile_type, FILE_PATH; dimensionless=true, fps=
             xlabel!(fig, "T /K")
         else
             xlabel!(fig, "$profile_type /m s⁻¹")
+        end
+
+        if i == 1
+            savefig(fig, "$FILE_PATH.pdf")
+            savefig(fig, "$FILE_PATH.png")
         end
     end
 
@@ -297,6 +335,8 @@ function animate_profile_flux(data, profile_type, flux_type, FILE_PATH; dimensio
         ylabel!(fig₁, "z /m")
         if dimensionless
             xlabel!(fig₁, flux_type)
+        elseif flux_type == "wT"
+            xlabel!(fig₁, "$flux_type /m s⁻¹ °C")
         else
             xlabel!(fig₁, "$flux_type /m² s⁻²")
         end
@@ -307,7 +347,7 @@ function animate_profile_flux(data, profile_type, flux_type, FILE_PATH; dimensio
         if dimensionless
             xlabel!(fig₂, profile_type)
         elseif profile_type == "T"
-            xlabel!(fig₂, "T /K")
+            xlabel!(fig₂, "T /°C")
         else
             xlabel!(fig₂, "$profile_type /m s⁻¹")
         end

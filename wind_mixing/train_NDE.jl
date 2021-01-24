@@ -14,7 +14,7 @@ train_files = ["-1e-3"]
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_strong_100_convective_adjustment_1sim_-1e-3.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_convective_adjustment_1sim_-1e-3_smallADAM.jld2")
 
 @assert !isfile(FILE_PATH)
 
@@ -44,7 +44,7 @@ wT_NN = file["neural_network/wT"]
 
 train_epochs = [1 for i in 1:100]
 train_tranges = [1:rand(10:1:40):1153 for i in 1:length(train_epochs)]
-train_optimizers = [[ADAM(0.01)] for i in 1:length(train_epochs)]
+train_optimizers = [[ADAM()] for i in 1:length(train_epochs)]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
@@ -53,7 +53,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimi
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
         # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, start_tranges[i]:rand(10:1:40):end_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 1, 100f0, 5)
-        uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 100f0, 5)
+        uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
     end
 
 end

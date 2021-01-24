@@ -22,7 +22,6 @@ using GalacticOptim
 using Statistics
 using Random
 using Logging
-using ModelingToolkit
 
 
 mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
