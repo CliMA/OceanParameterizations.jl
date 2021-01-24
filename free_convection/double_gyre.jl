@@ -57,15 +57,16 @@ w_bcs = WVelocityBoundaryConditions(grid,
      west = no_slip
 )
 
-@inline b_reference(y, p) = p.Δb / p.Ly * y
-@inline buoyancy_flux(x, y, t, b, p) = @inbounds - p.μ * (b - b_reference(y, p))
+@inline T_reference(y, p) = p.T_mid + p.ΔT/2 / p.Ly * y
+@inline temperature_flux(x, y, t, T, p) = @inbounds - p.μ * (T - T_reference(y, p))
 
-buoyancy_flux_params = (μ=1/day, Δb=0.06, Ly=grid.Ly)
-buoyancy_flux_bc = FluxBoundaryCondition(buoyancy_flux, field_dependencies=:b, parameters=buoyancy_flux_params)
+T_min, T_max = 0, 70
+temperature_flux_params = (T_min=0, T_max=70, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Ly=grid.Ly)
+temperature_flux_bc = FluxBoundaryCondition(temperature_flux, field_dependencies=:T, parameters=temperature_flux_params)
 
-b_bcs = TracerBoundaryConditions(grid,
-    bottom = ValueBoundaryCondition(0),
-       top = buoyancy_flux_bc
+T_bcs = TracerBoundaryConditions(grid,
+    bottom = ValueBoundaryCondition(T_min),
+       top = temperature_flux_bc
 )
 
 ## Turbulent diffusivity closure
@@ -78,14 +79,14 @@ closure = AnisotropicDiffusivity(νh=500, νz=1e-2, κh=100, κz=1e-2)
 
 model = IncompressibleModel(
            architecture = CPU(),
+                   grid = grid,
             timestepper = :RungeKutta3,
               advection = WENO5(),
-                   grid = grid,
                coriolis = BetaPlane(latitude=45),
-               buoyancy = BuoyancyTracer(),
-                tracers = :b,
+               buoyancy = SeawaterBuoyancy(constant_salinity=true),
+                tracers = :T,
                 closure = closure,
-    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs)
+    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs)
 )
 
 ## Initial condition
@@ -93,9 +94,9 @@ model = IncompressibleModel(
 @info "Setting initial conditions..."
 
 # a stable density gradient with random noise superposed.
-b₀(x, y, z) = buoyancy_flux_params.Δb * (1 + z / grid.Lz)
+T₀(x, y, z) = temperature_flux_params.T_mid + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
 
-set!(model, b=b₀)
+set!(model, T=T₀)
 
 ## Simulation setup
 
@@ -112,23 +113,22 @@ wall_clock = time_ns()
 function print_progress(simulation)
     model = simulation.model
 
-    b_min, b_max = interior(model.tracers.b) |> extrema
+    T_min, T_max = interior(model.tracers.T) |> extrema
 
     ## Print a progress message
-    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, b: (min=%.1e, max=%.1e), wall time: %s\n",
+    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, T: (min=%.1f, max=%.1f), wall time: %s\n",
                    model.clock.iteration,
                    prettytime(model.clock.time),
                    prettytime(wizard.Δt),
-                   u_max(), v_max(), w_max(), b_min, b_max,
-                   prettytime(1e-9 * (time_ns() - wall_clock))
-                  )
+                   u_max(), v_max(), w_max(), T_min, T_max,
+                   prettytime(1e-9 * (time_ns() - wall_clock)))
 
     @info msg
 
     return nothing
 end
 
-simulation = Simulation(model, Δt=wizard, stop_time=1year, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=60days, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
