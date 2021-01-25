@@ -57,11 +57,11 @@ w_bcs = WVelocityBoundaryConditions(grid,
      west = no_slip
 )
 
-@inline T_reference(y, p) = p.T_mid + p.ΔT/2 / p.Ly * y
+@inline T_reference(y, p) = p.T_mid + p.ΔT / p.Ly * y
 @inline temperature_flux(x, y, t, T, p) = @inbounds - p.μ * (T - T_reference(y, p))
 
-T_min, T_max = 0, 70
-temperature_flux_params = (T_min=0, T_max=70, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Ly=grid.Ly)
+T_min, T_max = 0, 30
+temperature_flux_params = (T_min=T_min, T_max=T_max, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Ly=grid.Ly)
 temperature_flux_bc = FluxBoundaryCondition(temperature_flux, field_dependencies=:T, parameters=temperature_flux_params)
 
 T_bcs = TracerBoundaryConditions(grid,
@@ -102,8 +102,6 @@ set!(model, T=T₀)
 
 @info "Setting up simulation..."
 
-wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=0.5hours, max_change=1.1, max_Δt=0.5hours)
-
 u_max = FieldMaximum(abs, model.velocities.u)
 v_max = FieldMaximum(abs, model.velocities.v)
 w_max = FieldMaximum(abs, model.velocities.w)
@@ -127,6 +125,8 @@ function print_progress(simulation)
 
     return nothing
 end
+
+wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
 
 simulation = Simulation(model, Δt=wizard, stop_time=60days, iteration_interval=1, progress=print_progress)
 

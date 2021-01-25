@@ -23,7 +23,7 @@ for var in ("u", "v", "T")
     var_zonal = @lift ds[var][Nx½, :, :, $frame]
 
     cmap = var == "T" ? :thermal : :balance
-    clims = var == "T" ? (0, 70) : (-1, 1)
+    clims = var == "T" ? (0, 35) : (-1, 1)
     label = var == "T" ? "temperature (°C)" : "velocity (m/s)"
 
     fig = Figure(resolution=(1920, 1080))
@@ -36,10 +36,10 @@ for var in ("u", "v", "T")
     ax2 = fig[1, 2] = Axis(fig, title="$var(x, 0, z)", xlabel="x (km)", ylabel="z (km)")
     hm2 = heatmap!(ax2, xc, zc, var_meridional, colormap=cmap, colorrange=clims)
 
-    ax3 = fig[1, 3] = Axis(fig, title="b(0, y, z)", xlabel="y (km)", ylabel="z (km)")
+    ax3 = fig[1, 3] = Axis(fig, title="$var(0, y, z)", xlabel="y (km)", ylabel="z (km)")
     hm3 = heatmap!(ax3, yc, zc, var_zonal, colormap=cmap, colorrange=clims)
 
-    cb1 = fig[1, 4] = Colorbar(fig, hm1, label="buoyancy (m/s²)", width=30)
+    cb1 = fig[1, 4] = Colorbar(fig, hm1, label=label, width=30)
 
     supertitle = fig[0, :] = Label(fig, title, textsize=30)
 
@@ -60,7 +60,7 @@ for (i, nx) in enumerate(Nxs), (j, ny) in enumerate(Nys)
 
     ax_ij = fig[i, j] = Axis(fig)
     T_ij = plot!(ax_ij, T_profile, zc)
-    xlims!(ax_ij, (0, 70))
+    xlims!(ax_ij, (0, 35))
     ylims!(ax_ij, extrema(zf))
 end
 
