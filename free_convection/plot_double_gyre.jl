@@ -1,3 +1,4 @@
+using Printf
 using NCDatasets
 using CairoMakie
 
@@ -57,11 +58,12 @@ fig = Figure(resolution = (1920, 1080))
 
 for (i, nx) in enumerate(Nxs), (j, ny) in enumerate(Nys)
     T_profile = @lift ds["T"][nx, ny, :, $frame]
+    title = @sprintf("x = %d km, y = %d km", xc[nx], yc[ny])
 
-    ax_ij = fig[i, j] = Axis(fig)
-    T_ij = plot!(ax_ij, T_profile, zc)
-    xlims!(ax_ij, (0, 35))
-    ylims!(ax_ij, extrema(zf))
+    ax = fig[i, j] = Axis(fig, title=title, xlabel="Temperature (°C)", ylabel="z (km)")
+    T_plot = plot!(ax, T_profile, zc)
+    xlims!(ax, (0, 35))
+    ylims!(ax, extrema(zf))
 end
 
 record(fig, "double_gyre_T_profiles.mp4", 1:length(ds["time"]), framerate=30) do n
