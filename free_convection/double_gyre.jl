@@ -3,13 +3,58 @@
 # This example simulates a double gyre following:
 # https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html
 
+using LinearAlgebra
 using Printf
 
 using Oceananigans
+using Oceananigans.Grids
+using Oceananigans.Fields
 using Oceananigans.Advection
+using Oceananigans.AbstractOperations
 using Oceananigans.Diagnostics
 using Oceananigans.OutputWriters
 using Oceananigans.Utils
+
+using Oceananigans.Simulations: get_Δt
+
+## Convective adjustment
+
+function convective_adjustment!(model, Δt, K)
+    grid = model.grid
+    Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
+    Δz = model.grid.Δz
+    T = model.tracers.T
+
+    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
+    compute!(∂T∂z)
+
+    κ = zeros(Nx, Ny, Nz)
+    for k in 1:Nz, j in 1:Ny, i in 1:Nx
+        κ[i, j, k] = ∂T∂z[i, j, k] < 0 ? K : 0
+    end
+
+    T_interior = interior(T)
+    Tⁿ⁺¹ = zeros(Nx, Ny, Nz)
+
+    for j in 1:Ny, i in 1:Nx
+        ld = [-Δt/Δz^2 * κ[i, j, k]   for k in 2:Nz]
+        ud = [-Δt/Δz^2 * κ[i, j, k+1] for k in 1:Nz-1]
+
+        d = zeros(Nz)
+        for k in 1:Nz-1
+            d[k] = 1 + Δt/Δz^2 * (κ[i, j, k] + κ[i, j, k+1])
+        end
+        d[Nz] = 1 + Δt/Δz^2 * κ[i, j, Nz]
+
+        𝓛 = Tridiagonal(ld, d, ud)
+
+        Tⁿ⁺¹[i, j, :] .= 𝓛 \ T_interior[i, j, :]
+    end
+
+    set!(model, T=Tⁿ⁺¹)
+
+    return nothing
+end
 
 ## Grid setup
 
@@ -94,7 +139,7 @@ model = IncompressibleModel(
 @info "Setting initial conditions..."
 
 # a stable density gradient with random noise superposed.
-T₀(x, y, z) = temperature_flux_params.T_mid + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
+T₀(x, y, z) = temperature_flux_params.T_min + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
 
 set!(model, T=T₀)
 
@@ -110,6 +155,9 @@ wall_clock = time_ns()
 
 function print_progress(simulation)
     model = simulation.model
+
+    K = 10
+    convective_adjustment!(model, get_Δt(simulation), K)
 
     T_min, T_max = interior(model.tracers.T) |> extrema
 
@@ -128,7 +176,7 @@ end
 
 wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
 
-simulation = Simulation(model, Δt=wizard, stop_time=60days, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=100days, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 

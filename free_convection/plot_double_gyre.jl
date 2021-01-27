@@ -61,7 +61,7 @@ for (i, nx) in enumerate(Nxs), (j, ny) in enumerate(Nys)
     title = @sprintf("x = %d km, y = %d km", xc[nx], yc[ny])
 
     ax = fig[i, j] = Axis(fig, title=title, xlabel="Temperature (°C)", ylabel="z (km)")
-    T_plot = plot!(ax, T_profile, zc)
+    T_plot = lines!(ax, T_profile, zc, linewidth=2)
     xlims!(ax, (0, 35))
     ylims!(ax, extrema(zf))
 end
