@@ -6,6 +6,7 @@
 using LinearAlgebra
 using Statistics
 using Printf
+using JLD2
 
 using Oceananigans
 using Oceananigans.Grids
@@ -16,7 +17,10 @@ using Oceananigans.Diagnostics
 using Oceananigans.OutputWriters
 using Oceananigans.Utils
 
+using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Simulations: get_Δt
+
+using OceanParameterizations
 
 ## Convective adjustment
 
@@ -26,7 +30,7 @@ function convective_adjustment!(model, Δt, K)
     Δz = model.grid.Δz
     T = model.tracers.T
 
-    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
+    ∂T∂z = ComputedField(@at (Cell, Cell, Cell) ∂z(T))
     compute!(∂T∂z)
 
     κ = zeros(Nx, Ny, Nz)
@@ -115,6 +119,54 @@ T_bcs = TracerBoundaryConditions(grid,
        top = temperature_flux_bc
 )
 
+## Neural network embedding/forcing
+
+final_nn_filepath = joinpath("free_convection_final_neural_network.jld2")
+
+final_nn = jldopen(final_nn_filepath, "r")
+NN = final_nn["neural_network"]
+T_scaling = final_nn["T_scaling"]
+wT_scaling = final_nn["wT_scaling"]
+close(final_nn)
+
+Nx, Ny, Nz = size(grid)
+∂z_wT_NN = zeros(Nx, Ny, Nz)
+T_neural_network_params = (∂z_wT_NN=∂z_wT_NN,)
+@inline neural_network_∂z_wT(i, j, k, grid, clock, model_fields, p) = - p.∂z_wT_NN[i, j, k]
+T_forcing = Forcing(neural_network_∂z_wT, discrete_form=true, parameters=T_neural_network_params)
+
+@inline enforce_fluxes(interior_flux, bottom_flux, top_flux) = cat(bottom_flux, interior_flux, top_flux, dims=1)
+
+function ∂z_wT(wT)
+    wT_field = ZFaceField(CPU(), grid)
+    set!(wT_field, wT)
+    fill_halo_regions!(wT_field, CPU(), nothing, nothing)
+    ∂z_wT_field = ComputedField(@at (Cell, Cell, Cell) ∂z(wT_field))
+    compute!(∂z_wT_field)
+    return interior(∂z_wT_field)
+end
+
+function compute_neural_network_forcing!(params, model)
+    T_interior = interior(model.tracers.T)
+    wT = zeros(Nx, Ny, Nz+1)
+
+    for i in 1:Nx, j in 1:Ny
+	    surface_flux_ij = temperature_flux(grid.xC[i], grid.yC[j], model.clock.time, T_interior[i, j, Nz], temperature_flux_params)
+	    T_profile = T_interior[i, j, :]
+     	T_profile = @. 19.65 + T_profile/20
+
+        wT_interior_ij = NN(T_scaling.(T_profile))
+	    wT_interior_ij = inv(wT_scaling).(wT_interior_ij)
+        wT_ij = enforce_fluxes(wT_interior_ij, 0, surface_flux_ij)
+
+        wT[i, j, :] .= wT_ij
+    end
+
+    params.∂z_wT_NN .= ∂z_wT(wT)
+
+    return nothing
+end
+
 ## Turbulent diffusivity closure
 
 closure = AnisotropicDiffusivity(νh=500, νz=1e-2, κh=100, κz=1e-2)
@@ -132,7 +184,8 @@ model = IncompressibleModel(
                buoyancy = SeawaterBuoyancy(constant_salinity=true),
                 tracers = :T,
                 closure = closure,
-    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs)
+    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs),
+                forcing = (T=T_forcing,)
 )
 
 ## Initial condition
@@ -161,6 +214,8 @@ function print_progress(simulation)
     K = 10
     convective_adjustment!(model, get_Δt(simulation), K)
 
+    compute_neural_network_forcing!(T_neural_network_params, model)
+
     T_interior = interior(model.tracers.T)
     T_min, T_max = extrema(T_interior)
     T_mean = mean(T_interior)
@@ -180,7 +235,7 @@ end
 
 wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
 
-simulation = Simulation(model, Δt=wizard, stop_time=2years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=1year, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
@@ -188,7 +243,7 @@ simulation = Simulation(model, Δt=wizard, stop_time=2years, iteration_interval=
 
 simulation.output_writers[:fields] =
     NetCDFOutputWriter(model, merge(model.velocities, model.tracers),
-                       schedule=TimeInterval(1day), filepath="double_gyre.nc", mode="c")
+                       schedule=TimeInterval(1day), filepath="double_gyre_nn.nc", mode="c")
 
 ## Running the simulation
 

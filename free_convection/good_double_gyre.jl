@@ -3,59 +3,15 @@
 # This example simulates a double gyre following:
 # https://mitgcm.readthedocs.io/en/latest/examples/baroclinic_gyre/baroclinic_gyre.html
 
-using LinearAlgebra
-using Statistics
 using Printf
+using Statistics
 
 using Oceananigans
-using Oceananigans.Grids
 using Oceananigans.Fields
 using Oceananigans.Advection
-using Oceananigans.AbstractOperations
 using Oceananigans.Diagnostics
 using Oceananigans.OutputWriters
 using Oceananigans.Utils
-
-using Oceananigans.Simulations: get_Δt
-
-## Convective adjustment
-
-function convective_adjustment!(model, Δt, K)
-    grid = model.grid
-    Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
-    Δz = model.grid.Δz
-    T = model.tracers.T
-
-    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
-    compute!(∂T∂z)
-
-    κ = zeros(Nx, Ny, Nz)
-    for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        κ[i, j, k] = ∂T∂z[i, j, k] < 0 ? K : 0
-    end
-
-    T_interior = interior(T)
-    Tⁿ⁺¹ = zeros(Nx, Ny, Nz)
-
-    for j in 1:Ny, i in 1:Nx
-        ld = [-Δt/Δz^2 * κ[i, j, k]   for k in 2:Nz]
-        ud = [-Δt/Δz^2 * κ[i, j, k+1] for k in 1:Nz-1]
-
-        d = zeros(Nz)
-        for k in 1:Nz-1
-            d[k] = 1 + Δt/Δz^2 * (κ[i, j, k] + κ[i, j, k+1])
-        end
-        d[Nz] = 1 + Δt/Δz^2 * κ[i, j, Nz]
-
-        𝓛 = Tridiagonal(ld, d, ud)
-
-        Tⁿ⁺¹[i, j, :] .= 𝓛 \ T_interior[i, j, :]
-    end
-
-    set!(model, T=Tⁿ⁺¹)
-
-    return nothing
-end
 
 ## Grid setup
 
@@ -103,16 +59,15 @@ w_bcs = WVelocityBoundaryConditions(grid,
      west = no_slip
 )
 
-@inline T_reference(y, p) = p.T_mid + p.ΔT / p.Ly * y
-@inline temperature_flux(x, y, t, T, p) = @inbounds - p.μ * (T - T_reference(y, p))
+@inline b_reference(y, p) = p.Δb / p.Ly * y
+@inline buoyancy_flux(x, y, t, b, p) = @inbounds - p.μ * (b - b_reference(y, p))
 
-T_min, T_max = 0, 30
-temperature_flux_params = (T_min=T_min, T_max=T_max, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Ly=grid.Ly)
-temperature_flux_bc = FluxBoundaryCondition(temperature_flux, field_dependencies=:T, parameters=temperature_flux_params)
+buoyancy_flux_params = (μ=1/day, Δb=0.06, Ly=grid.Ly)
+buoyancy_flux_bc = FluxBoundaryCondition(buoyancy_flux, field_dependencies=:b, parameters=buoyancy_flux_params)
 
-T_bcs = TracerBoundaryConditions(grid,
-    bottom = ValueBoundaryCondition(T_min),
-       top = temperature_flux_bc
+b_bcs = TracerBoundaryConditions(grid,
+    bottom = ValueBoundaryCondition(0),
+       top = buoyancy_flux_bc
 )
 
 ## Turbulent diffusivity closure
@@ -125,14 +80,14 @@ closure = AnisotropicDiffusivity(νh=500, νz=1e-2, κh=100, κz=1e-2)
 
 model = IncompressibleModel(
            architecture = CPU(),
-                   grid = grid,
             timestepper = :RungeKutta3,
               advection = WENO5(),
+                   grid = grid,
                coriolis = BetaPlane(latitude=45),
-               buoyancy = SeawaterBuoyancy(constant_salinity=true),
-                tracers = :T,
+               buoyancy = BuoyancyTracer(),
+                tracers = :b,
                 closure = closure,
-    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs)
+    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs)
 )
 
 ## Initial condition
@@ -140,14 +95,15 @@ model = IncompressibleModel(
 @info "Setting initial conditions..."
 
 # a stable density gradient with random noise superposed.
-T₀(x, y, z) = temperature_flux_params.T_min + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
-set!(model, T=T₀)
+b₀(x, y, z) = buoyancy_flux_params.Δb * (1 + z / grid.Lz)
 
-# set!(model, T=temperature_flux_params.T_mid)
+set!(model, b=b₀)
 
 ## Simulation setup
 
 @info "Setting up simulation..."
+
+wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
 
 u_max = FieldMaximum(abs, model.velocities.u)
 v_max = FieldMaximum(abs, model.velocities.v)
@@ -158,37 +114,37 @@ wall_clock = time_ns()
 function print_progress(simulation)
     model = simulation.model
 
-    K = 10
-    convective_adjustment!(model, get_Δt(simulation), K)
-
-    T_interior = interior(model.tracers.T)
-    T_min, T_max = extrema(T_interior)
-    T_mean = mean(T_interior)
+    b_interior = interior(model.tracers.b)
+    b_min, b_max = extrema(b_interior)
+    b_mean = mean(b_interior)
 
     ## Print a progress message
-    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, T: (min=%.2f, mean=%.2f, max=%.2f), wall time: %s\n",
+    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, b: (min=%.1e, mean=%.1e, max=%.1e), wall time: %s\n",
                    model.clock.iteration,
                    prettytime(model.clock.time),
                    prettytime(wizard.Δt),
-                   u_max(), v_max(), w_max(), T_min, T_mean, T_max,
-                   prettytime(1e-9 * (time_ns() - wall_clock)))
+                   u_max(), v_max(), w_max(), b_min, b_mean, b_max,
+                   prettytime(1e-9 * (time_ns() - wall_clock))
+                  )
 
     @info msg
 
     return nothing
 end
 
-wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
-
-simulation = Simulation(model, Δt=wizard, stop_time=2years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=20years, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
 @info "Setting up output writers..."
 
+u, v, w = model.velocities
+speed = ComputedField(√(u^2 + v^2))
+
+output_fields = merge(model.velocities, model.tracers, (speed=speed,))
+
 simulation.output_writers[:fields] =
-    NetCDFOutputWriter(model, merge(model.velocities, model.tracers),
-                       schedule=TimeInterval(1day), filepath="double_gyre.nc", mode="c")
+    NetCDFOutputWriter(model, output_fields, schedule=TimeInterval(1day), filepath="good_double_gyre.nc", mode="c")
 
 ## Running the simulation
 

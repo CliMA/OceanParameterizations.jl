@@ -3,6 +3,7 @@ using NCDatasets
 using CairoMakie
 
 ds = NCDataset("double_gyre.nc")
+ds_nn = NCDataset("double_gyre_nn.nc")
 
 xc = ds["xC"] / 1000
 yc = ds["yC"] / 1000
@@ -59,9 +60,15 @@ fig = Figure(resolution = (1920, 1080))
 for (i, nx) in enumerate(Nxs), (j, ny) in enumerate(Nys)
     title = @sprintf("x = %d km, y = %d km", xc[nx], yc[ny])
     T_profile = @lift ds["T"][nx, ny, :, $frame]
+    T_profile_nn = @lift ds_nn["T"][nx, ny, :, $frame]
 
     ax = fig[i, j] = Axis(fig, title=title, xlabel="Temperature (°C)", ylabel="z (km)")
-    T_plot = lines!(ax, T_profile, zc, linewidth=3)
+    line1 = lines!(ax, T_profile, zc, linewidth=3, color="dodgerblue2")
+    line2 = lines!(ax, T_profile_nn, zc, linewidth=3, color="crimson")
+
+    if i == 3 && j == 3
+        legend = fig[:, end+1] = Legend(fig, [line1, line2], ["Oceananigans", "Oceananigans + NN"])
+    end
 
     xlims!(ax, (0, 35))
     ylims!(ax, extrema(zf))
@@ -70,9 +77,10 @@ end
 title = @lift "Double gyre day $(round(Int, ds["time"][$frame] / 86400))"
 supertitle = fig[0, :] = Label(fig, title, textsize=30)
 
-record(fig, "double_gyre_T_profiles.mp4", 1:length(ds["time"]), framerate=2) do n
+record(fig, "double_gyre_T_profiles.mp4", 1:length(ds["time"]), framerate=10) do n
     @info "Animating double gyre T profiles frame $n/$(length(ds["time"]))..."
     frame[] = n
 end
 
 close(ds)
+close(ds_nn)
