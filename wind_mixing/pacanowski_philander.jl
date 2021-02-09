@@ -4,19 +4,25 @@ using DataDeps
 using OceanTurb
 using CairoMakie
 
-using Oceananigans.Utils
-
 ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary/2DaySuite/"
 
-dd = DataDep("strong_wind",
-             "proto-LESbrary.jl 2-day suite (strong wind)",
-             joinpath(ENGAGING_LESBRARY_DIR,
-                      "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind",
-                      "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2"))
+dd1 = DataDep("strong_wind",
+              "proto-LESbrary.jl 2-day suite (strong wind)",
+              joinpath(ENGAGING_LESBRARY_DIR,
+                       "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind",
+                       "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2"))
 
-DataDeps.register(dd)
+dd2 = DataDep("strong_wind_no_rotation",
+              "proto-LESbrary.jl 2-day suite (strong wind, no rotation)",
+              joinpath(ENGAGING_LESBRARY_DIR,
+                       "three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation",
+                       "three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2"))
 
-ds = jldopen(datadep"strong_wind/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2")
+DataDeps.register(dd1)
+DataDeps.register(dd2)
+
+# ds = jldopen(datadep"strong_wind/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2")
+ds = jldopen(datadep"strong_wind_no_rotation/three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2")
 
 Nz = ds["grid/Nz"]
 Lz = ds["grid/Lz"]
@@ -24,6 +30,7 @@ u₀ = ds["timeseries/u/0"][:]
 v₀ = ds["timeseries/v/0"][:]
 T₀ = ds["timeseries/T/0"][:]
 Fu = ds["boundary_conditions/u_top"]
+Fθ = ds["boundary_conditions/θ_top"]
 
 f₀ = ds["parameters/coriolis_parameter"]
 constants = OceanTurb.Constants(Float64, f=f₀)
@@ -31,6 +38,7 @@ parameters = PacanowskiPhilander.Parameters()
 model = PacanowskiPhilander.Model(N=Nz, L=Lz, stepper=:BackwardEuler, constants=constants, parameters=parameters)
 
 model.bcs[1].top = OceanTurb.FluxBoundaryCondition(Fu)
+model.bcs[3].top = OceanTurb.FluxBoundaryCondition(Fθ)
 
 model.solution[1].data[1:Nz] .= u₀
 model.solution[2].data[1:Nz] .= v₀
@@ -141,7 +149,7 @@ ylims!(ax_UW, -Lz, 0)
 ax_VW = fig[2, 2] = Axis(fig, xlabel="V′W′ (m²/s²)", ylabel="z (m)")
 l1_VW = lines!(ax_VW, V′W′, zf, linewidth=3, color="dodgerblue2")
 l2_VW = lines!(ax_VW, V′W′_LES, zf, linewidth=3, color="crimson")
-xlims!(ax_VW, extrema(V_flux))
+xlims!(ax_VW, all(V_flux .== 0) ? (-1, 1) : extrema(V_flux))
 ylims!(ax_VW, -Lz, 0)
 
 ax_WT = fig[2, 3] = Axis(fig, xlabel="W′T′ (m/s ⋅ °C)", ylabel="z (m)")
