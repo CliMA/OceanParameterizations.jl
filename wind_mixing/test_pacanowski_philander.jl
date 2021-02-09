@@ -71,10 +71,12 @@ T_mpp_solution = zeros(Nz, Nt)
 U′W′_pp_solution = zeros(Nz+1, Nt)
 V′W′_pp_solution = zeros(Nz+1, Nt)
 W′T′_pp_solution = zeros(Nz+1, Nt)
+Ri_pp_solution = zeros(Nz+1, Nt)
 
 U′W′_mpp_solution = zeros(Nz+1, Nt)
 V′W′_mpp_solution = zeros(Nz+1, Nt)
 W′T′_mpp_solution = zeros(Nz+1, Nt)
+Ri_mpp_solution = zeros(Nz+1, Nt)
 
 function get_diffusive_flux(field_index, model)
     flux = FaceField(model.grid)
@@ -84,6 +86,14 @@ function get_diffusive_flux(field_index, model)
         @inbounds flux[i] = - K(model, i) * ∂z(field, i)
     end
     return flux
+end
+
+function get_richardson_number_profile(model)
+    Ri = FaceField(model.grid)
+    for i in interiorindices(Ri)
+        @inbounds Ri[i] = local_richardson(model, i)
+    end
+    return Ri
 end
 
 for n in 1:Nt
@@ -109,7 +119,14 @@ for n in 1:Nt
 
     U′W′_pp_solution[Nz+1, n] = Fu
     U′W′_mpp_solution[Nz+1, n] = Fu
+
+    Ri_pp_solution[:, n] = get_richardson_number_profile(pp_model)[1:Nz+1]
+    Ri_mpp_solution[:, n] = get_richardson_number_profile(mpp_model)[1:Nz+1]
 end
+
+# Get rid of ∞ and super large values.
+Ri_pp_solution = clamp.(Ri_pp_solution, -1, 2)
+Ri_mpp_solution = clamp.(Ri_mpp_solution, -1, 2)
 
 ## Plot!
 
@@ -120,6 +137,7 @@ T_LES_solution = zeros(Nz, Nt)
 U′W′_LES_solution = zeros(Nz+1, Nt)
 V′W′_LES_solution = zeros(Nz+1, Nt)
 W′T′_LES_solution = zeros(Nz+1, Nt)
+Ri_LES_solution = zeros(Nz+1, Nt)
 
 for (n, iter) in zip(1:length(times), keys(ds["timeseries/t"]))
     U_LES_solution[:, n] = ds["timeseries/u/$iter"]
@@ -144,6 +162,7 @@ T_pp = @lift T_pp_solution[:, $frame]
 U′W′_pp = @lift U′W′_pp_solution[:, $frame]
 V′W′_pp = @lift V′W′_pp_solution[:, $frame]
 W′T′_pp = @lift W′T′_pp_solution[:, $frame]
+Ri_pp = @lift Ri_pp_solution[:, $frame]
 
 U_mpp = @lift U_mpp_solution[:, $frame]
 V_mpp = @lift V_mpp_solution[:, $frame]
@@ -152,6 +171,7 @@ T_mpp = @lift T_mpp_solution[:, $frame]
 U′W′_mpp = @lift U′W′_mpp_solution[:, $frame]
 V′W′_mpp = @lift V′W′_mpp_solution[:, $frame]
 W′T′_mpp = @lift W′T′_mpp_solution[:, $frame]
+Ri_mpp = @lift Ri_mpp_solution[:, $frame]
 
 U_LES = @lift U_LES_solution[:, $frame]
 V_LES = @lift V_LES_solution[:, $frame]
@@ -203,6 +223,12 @@ l2_WT = lines!(ax_WT, W′T′_pp, zf, linewidth=3, color="dodgerblue2")
 l3_WT = lines!(ax_WT, W′T′_mpp, zf, linewidth=3, color="forestgreen")
 xlims!(ax_WT, extrema(W′T′_LES_solution))
 ylims!(ax_WT, -Lz, 0)
+
+ax_Ri = fig[2, 4] = Axis(fig, xlabel="Richardson number", ylabel="z (m)")
+l2_Ri = lines!(ax_Ri, Ri_pp, zf, linewidth=3, color="dodgerblue2")
+l3_Ri = lines!(ax_Ri, Ri_mpp, zf, linewidth=3, color="forestgreen")
+xlims!(ax_Ri, extrema(Ri_pp_solution))
+ylims!(ax_Ri, -Lz, 0)
 
 legend = fig[1, 4] = Legend(fig, [l1_U, l2_U, l3_U], ["Oceananigans.jl LES", "Pacanowski-Philander", "Modified Pacanowski-Philander"])
 
