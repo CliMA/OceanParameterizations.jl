@@ -40,25 +40,35 @@ model.solution[3].data[1:Nz] .= T₀
 times = [ds["timeseries/t/$i"] for i in keys(ds["timeseries/t"])]
 Nt = length(times)
 
-u_solution = zeros(Nz, Nt)
-v_solution = zeros(Nz, Nt)
+U_solution = zeros(Nz, Nt)
+V_solution = zeros(Nz, Nt)
 T_solution = zeros(Nz, Nt)
-u_flux = zeros(Nz+1, Nt)
-v_flux = zeros(Nz+1, Nt)
+U_flux = zeros(Nz+1, Nt)
+V_flux = zeros(Nz+1, Nt)
 T_flux = zeros(Nz+1, Nt)
 
-for n in 1:Nt
-    @info "Time = $(times[n])"
-    OceanTurb.run_until!(model, Δt, times[n])
+function get_diffusive_flux(field_index, model)
+    flux = FaceField(model.grid)
+    field = model.solution[field_index]
+    K = model.timestepper.eqn.K[field_index]
+    for i in interiorindices(flux)
+        @inbounds flux[i] = - K(model, i) * ∂z(field, i)
+    end
+    return flux
+end
 
-    u_solution[:, n] .= model.solution[1][1:Nz]
-    v_solution[:, n] .= model.solution[2][1:Nz]
+for n in 1:Nt
+    OceanTurb.run_until!(model, Δt, times[n])
+    @info "Time = $(times[n])"
+
+    U_solution[:, n] .= model.solution[1][1:Nz]
+    V_solution[:, n] .= model.solution[2][1:Nz]
     T_solution[:, n] .= model.solution[3][1:Nz]
 
-    # u_flux[:, n] .= OceanTurb.diffusive_flux(:u, model)[1:N+1]
-    # v_flux[:, n] .= OceanTurb.diffusive_flux(:v, model)[1:N+1]
-    # T_flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1]
-    # flux[N+1, n] = FT
+    U_flux[:, n] .= get_diffusive_flux(1, model)[1:Nz+1]
+    V_flux[:, n] .= get_diffusive_flux(2, model)[1:Nz+1]
+    T_flux[:, n] .= get_diffusive_flux(3, model)[1:Nz+1]
+    U_flux[Nz+1, n] = Fu
 end
 
 ## Plot!
@@ -67,24 +77,41 @@ U_LES_solution = zeros(Nz, Nt)
 V_LES_solution = zeros(Nz, Nt)
 T_LES_solution = zeros(Nz, Nt)
 
+U′W′_LES_solution = zeros(Nz+1, Nt)
+V′W′_LES_solution = zeros(Nz+1, Nt)
+W′T′_LES_solution = zeros(Nz+1, Nt)
+
 for (n, iter) in zip(1:length(times), keys(ds["timeseries/t"]))
     U_LES_solution[:, n] = ds["timeseries/u/$iter"]
     V_LES_solution[:, n] = ds["timeseries/v/$iter"]
     T_LES_solution[:, n] = ds["timeseries/T/$iter"]
+    
+    U′W′_LES_solution[:, n] = ds["timeseries/wu/$iter"]
+    V′W′_LES_solution[:, n] = ds["timeseries/wv/$iter"]
+    W′T′_LES_solution[:, n] = ds["timeseries/wT/$iter"]
 end
 
 zc = model.grid.zc
+zf = model.grid.zf
 
 frame = Node(1)
 plot_title = @lift @sprintf("Pacanowski-Philander wind-mixing: time = %s", prettytime(times[$frame]))
 
-U = @lift u_solution[:, $frame]
-V = @lift v_solution[:, $frame]
+U = @lift U_solution[:, $frame]
+V = @lift V_solution[:, $frame]
 T = @lift T_solution[:, $frame]
+
+U′W′ = @lift U_flux[:, $frame]
+V′W′ = @lift V_flux[:, $frame]
+W′T′ = @lift T_flux[:, $frame]
 
 U_LES = @lift U_LES_solution[:, $frame]
 V_LES = @lift V_LES_solution[:, $frame]
 T_LES = @lift T_LES_solution[:, $frame]
+
+U′W′_LES = @lift U′W′_LES_solution[:, $frame]
+V′W′_LES = @lift V′W′_LES_solution[:, $frame]
+W′T′_LES = @lift W′T′_LES_solution[:, $frame]
 
 fig = Figure(resolution=(1920, 1080))
 
@@ -104,6 +131,24 @@ ax_T = fig[1, 3] = Axis(fig, xlabel="T (°C)", ylabel="z (m)")
 l1_T = lines!(ax_T, T, zc, linewidth=3, color="dodgerblue2")
 l2_T = lines!(ax_T, T_LES, zc, linewidth=3, color="crimson")
 ylims!(ax_T, -Lz, 0)
+
+ax_UW = fig[2, 1] = Axis(fig, xlabel="U′W′ (m²/s²)", ylabel="z (m)")
+l1_UW = lines!(ax_UW, U′W′, zf, linewidth=3, color="dodgerblue2")
+l2_UW = lines!(ax_UW, U′W′_LES, zf, linewidth=3, color="crimson")
+xlims!(ax_UW, extrema(U_flux))
+ylims!(ax_UW, -Lz, 0)
+
+ax_VW = fig[2, 2] = Axis(fig, xlabel="V′W′ (m²/s²)", ylabel="z (m)")
+l1_VW = lines!(ax_VW, V′W′, zf, linewidth=3, color="dodgerblue2")
+l2_VW = lines!(ax_VW, V′W′_LES, zf, linewidth=3, color="crimson")
+xlims!(ax_VW, extrema(V_flux))
+ylims!(ax_VW, -Lz, 0)
+
+ax_WT = fig[2, 3] = Axis(fig, xlabel="W′T′ (m/s ⋅ °C)", ylabel="z (m)")
+l1_WT = lines!(ax_WT, W′T′, zf, linewidth=3, color="dodgerblue2")
+l2_WT = lines!(ax_WT, W′T′_LES, zf, linewidth=3, color="crimson")
+xlims!(ax_WT, extrema(W′T′_LES_solution))
+ylims!(ax_WT, -Lz, 0)
 
 legend = fig[1, 4] = Legend(fig, [l1_U, l2_U], ["Pacanowski-Philander", "Oceananigans.jl LES"])
 
