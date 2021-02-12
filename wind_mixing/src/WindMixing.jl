@@ -5,10 +5,11 @@ export data, read_les_output,
        mse, 
        predict_NDE, predict_NDE_convective_adjustment,
        train_NDE, train_NDE_convective_adjustment, train_NN, 
-       NDE_profile, NDE_profile_convective_adjustment, animate_NN, animate_profile, animate_flux, animate_profile_flux, 
+       NDE_profile, animate_NN, animate_profile, animate_flux, animate_profile_flux, animate_profiles, animate_local_richardson_profile,
        write_metadata_NDE_training, write_data_NDE_training,
        write_metadata_NN_training, write_data_NN_training, write_data_NN,
-       train_NDE_convective_adjustment_nonmutating
+       train_NDE_convective_adjustment_nonmutating,
+       local_richardson
 
 using Flux, Plots
 using Oceananigans.Grids: Cell, Face
@@ -33,6 +34,7 @@ include("NDE_training.jl")
 include("NN_training.jl")
 include("animation.jl")
 include("training_data.jl")
+include("richardson_number.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())

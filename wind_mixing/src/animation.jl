@@ -14,6 +14,7 @@ function animate_NN(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=
     mp4(anim, joinpath(PATH, "$(filename).mp4"), fps=30)
 end
 
+
 function prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
     H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
     τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
@@ -56,12 +57,105 @@ function prepare_BCs(𝒟, uw_scaling, vw_scaling, wT_scaling)
     return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
 end
 
-function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange)
+function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, α=1.67f-4, g=9.81f0, viscosity=false, convective_adjustment=false)
     f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
-    function NDE!(dx, x, p, t)
+    ν₀ = 1f-4
+    ν₁ = 1f-2
+    κ₀ = 1f-5
+    κ₁ = 1f-2
+    c = 5
+    n = 2
+
+    function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:3Nz]
+        uw = [uw_top; uw_NN(x); uw_bottom]
+        vw = [vw_top; vw_NN(x); vw_bottom]
+        wT = [wT_top; wT_NN(x); wT_bottom]
+        output = similar(x)
+        ∂u∂t = @view output[1:Nz]
+        ∂v∂t = @view output[Nz + 1:2Nz]
+        ∂T∂t = @view output[2Nz + 1:3Nz]
+
+        if viscosity || convective_adjustment
+            ∂u∂z = D_face * u
+            ∂v∂z = D_face * v
+            ∂T∂z = D_face * T
+            # @info "Uz $∂u∂z"
+            # @info "Vz $∂v∂z"
+            # @info "Tz $∂T∂z"
+
+            Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
+
+            for i in 1:length(Ri)
+                if isnan(Ri[i])
+                    Ri[i] = 0
+                end
+            end
+        end
+
+        if viscosity
+            ν = ν₀ .+ ν₁ ./ (1 .+ c .* Ri) .^ n
+            ∂z_ν∂u∂z = D_cell * (∂u∂z .* ν)
+            ∂z_ν∂v∂z = D_cell * (∂v∂z .* ν)
+
+            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^2 .* ∂z_ν∂u∂z
+            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^2 .* ∂z_ν∂v∂z
+        else
+            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
+        end
+
+        if convective_adjustment
+            κ = κ₀ .+ κ₁ ./ (1 .+ c .* Ri) .^ (n + 1)
+            ∂z_κ∂T∂z = D_cell * (∂T∂z .* κ)
+
+            # ∂z_κ∂T∂z = D_cell * min.(0f0, ∂T∂z .* κ)
+            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 .* ∂z_κ∂T∂z
+        else
+            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT
+        end
+        return output
+    end
+
+    function predict_flux(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:3Nz]
+        uw = [uw_top; uw_NN(x); uw_bottom]
+        vw = [vw_top; vw_NN(x); vw_bottom]
+        wT = [wT_top; wT_NN(x); wT_bottom]
+
+        if viscosity || convective_adjustment
+            ∂u∂z = D_face * u
+            ∂v∂z = D_face * v
+            ∂T∂z = D_face * T
+            Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
+        end
+
+        if viscosity
+            ν = ν₀ .+ ν₁ ./ (1 .+ c .* Ri) .^ n
+            uw .= -τ / H * σ_uw / σ_u * uw .+ τ / H ^2 .* ∂u∂z .* ν
+            vw .= -τ / H * σ_vw / σ_v * vw .+ τ / H ^2 .* ∂v∂z .* ν
+        else
+            uw .* -τ / H * σ_uw / σ_u
+            vw .* -τ / H * σ_vw / σ_v
+        end
+
+        if convective_adjustment
+            κ = κ₀ .+ κ₁ ./ (1 .+ c .* Ri) .^ (n + 1)
+            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 * ∂T∂z .* κ
+        else
+            wT .* -τ / H * σ_wT / σ_T
+        end
+        return uw, vw, wT
+    end
+
+    function NDE(x, p, t)
         uw_weights = p[uw_range]
         vw_weights = p[vw_range]
         wT_weights = p[wT_range]
@@ -69,91 +163,16 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange)
         uw_NN = re_uw(uw_weights)
         vw_NN = re_vw(vw_weights)
         wT_NN = re_wT(wT_weights)
-        A = - τ / H
-        B = f * τ
-        u = x[1:Nz]
-        v = x[Nz + 1:2Nz]
-        T = x[2Nz + 1:3Nz]
-        dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) # nondimensional gradient
-        dx[Nz + 1:2Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-        dx[2Nz + 1:3Nz] .= A .* σ_wT ./ σ_T .* predict_NDE(wT_NN, x, wT_top, wT_bottom)
+        return predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
     end
 
     t_test = Float32.(𝒟test.t[trange] ./ τ)
     tspan_test = (t_test[1], t_test[end])
     uvT₀ = [u_scaling(𝒟test.uvT_unscaled[1:Nz, 1]); v_scaling(𝒟test.uvT_unscaled[Nz + 1:2Nz, 1]); T_scaling(𝒟test.uvT_unscaled[2Nz + 1:3Nz, 1])]
     BC = [uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom]
-    prob = ODEProblem(NDE!, uvT₀, tspan_test)
+    prob = ODEProblem(NDE, uvT₀, tspan_test)
 
-    sol = Array(solve(prob, ROCK4(), p=[weights; BC], sensealg=InterpolatingAdjoint(), saveat=t_test))
-
-    output = Dict()
-
-    output["truth_uw"] = uw_scaling.(𝒟test.uw.coarse[:,trange])
-    output["truth_vw"] = vw_scaling.(𝒟test.vw.coarse[:,trange])
-    output["truth_wT"] = wT_scaling.(𝒟test.wT.coarse[:,trange])
-
-    output["truth_u"] = u_scaling.(𝒟test.uvT_unscaled[1:Nz, trange])
-    output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
-    output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
-
-    test_uw = similar(output["truth_uw"])
-    test_vw = similar(output["truth_vw"])
-    test_wT = similar(output["truth_wT"])
-
-    for i in 1:size(test_uw, 2)
-        uw = @view test_uw[:,i]
-        vw = @view test_vw[:,i]
-        wT = @view test_wT[:,i]
-        uw .= predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom)
-        vw .= predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom)
-        wT .= predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom)
-    end
-
-    output["test_uw"] = test_uw
-    output["test_vw"] = test_vw
-    output["test_wT"] = test_wT
-
-    output["test_u"] = sol[1:Nz,:]
-    output["test_v"] = sol[Nz + 1:2Nz, :]
-    output["test_T"] = sol[2Nz + 1: 3Nz, :]
-    output["depth_profile"] = 𝒟test.u.z
-    output["depth_flux"] = 𝒟test.uw.z
-    output["t"] = 𝒟test.t[trange]
-
-    return output
-end
-
-function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, κ=10f0; unscale=false)
-    f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
-
-    uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
-
-    function NDE!(dx, x, p, t)
-        uw_weights = p[uw_range]
-        vw_weights = p[vw_range]
-        wT_weights = p[wT_range]
-        uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
-        uw_NN = re_uw(uw_weights)
-        vw_NN = re_vw(vw_weights)
-        wT_NN = re_wT(wT_weights)
-        A = - τ / H
-        B = f * τ
-        u = x[1:Nz]
-        v = x[Nz + 1:2Nz]
-        T = x[2Nz + 1:3Nz]
-        dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) # nondimensional gradient
-        dx[Nz + 1:2Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-        dx[2Nz + 1:3Nz] .= -A .* σ_wT ./ σ_T .* predict_NDE_convective_adjustment(wT_NN, x, wT_top, wT_bottom, D_face, D_cell, κ, Nz)
-    end
-
-    t_test = Float32.(𝒟test.t[trange] ./ τ)
-    tspan_test = (t_test[1], t_test[end])
-    uvT₀ = [u_scaling(𝒟test.uvT_unscaled[1:Nz, 1]); v_scaling(𝒟test.uvT_unscaled[Nz + 1:2Nz, 1]); T_scaling(𝒟test.uvT_unscaled[2Nz + 1:3Nz, 1])]
-    BC = [uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom]
-    prob = ODEProblem(NDE!, uvT₀, tspan_test)
-
-    sol = Array(solve(prob, ROCK4(), p=[weights; BC], sensealg=InterpolatingAdjoint(), saveat=t_test))
+    sol = Array(solve(prob, ROCK4(), p=[weights; BC], sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_test))
 
     output = Dict()
 
@@ -166,18 +185,16 @@ function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟tr
         output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
         output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
 
-        test_uw = similar(output["truth_uw"])
-        test_vw = similar(output["truth_vw"])
-        test_wT = similar(output["truth_wT"])
+        # test_uw = similar(output["truth_uw"])
+        # test_vw = similar(output["truth_vw"])
+        # test_wT = similar(output["truth_wT"])
 
-        for i in 1:size(test_uw, 2)
-            uw = @view test_uw[:,i]
-            vw = @view test_vw[:,i]
-            wT = @view test_wT[:,i]
-            uw .= predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom)
-            vw .= predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom)
-            wT .= predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom)
-        end
+        # for i in 1:size(test_uw, 2)
+        #     uw = @view test_uw[:,i]
+        #     vw = @view test_vw[:,i]
+        #     wT = @view test_wT[:,i]
+        #     uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        # end
 
         output["test_uw"] = test_uw
         output["test_vw"] = test_vw
@@ -198,22 +215,23 @@ function NDE_profile_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟tr
         output["truth_v"] = 𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]
         output["truth_T"] = 𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange]
 
-        test_uw = similar(output["truth_uw"])
-        test_vw = similar(output["truth_vw"])
-        test_wT = similar(output["truth_wT"])
+        # test_uw = similar(output["truth_uw"])
+        # test_vw = similar(output["truth_vw"])
+        # test_wT = similar(output["truth_wT"])
 
-        for i in 1:size(test_uw, 2)
-            uw = @view test_uw[:,i]
-            vw = @view test_vw[:,i]
-            wT = @view test_wT[:,i]
-            uw .= inv(uw_scaling).(predict_NDE(uw_NN, @view(sol[:,i]), uw_top, uw_bottom))
-            vw .= inv(vw_scaling).(predict_NDE(vw_NN, @view(sol[:,i]), vw_top, vw_bottom))
-            wT .= inv(wT_scaling).(predict_NDE(wT_NN, @view(sol[:,i]), wT_top, wT_bottom))
-        end
+        # for i in 1:size(test_uw, 2)
+        #     uw = @view test_uw[:,i]
+        #     vw = @view test_vw[:,i]
+        #     wT = @view test_wT[:,i]
+        #     uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        #     uw .= inv(uw_scaling).(uw)
+        #     vw .= inv(vw_scaling).(vw)
+        #     wT .= inv(wT_scaling).(wT)
+        # end
 
-        output["test_uw"] = test_uw
-        output["test_vw"] = test_vw
-        output["test_wT"] = test_wT
+        # output["test_uw"] = test_uw
+        # output["test_vw"] = test_vw
+        # output["test_wT"] = test_wT
 
         output["test_u"] = inv(u_scaling).(sol[1:Nz,:])
         output["test_v"] = inv(v_scaling).(sol[Nz + 1:2Nz, :])
@@ -341,7 +359,7 @@ function animate_profile_flux(data, profile_type, flux_type, FILE_PATH; dimensio
             xlabel!(fig₁, "$flux_type /m² s⁻²")
         end
 
-        fig₂ = plot(truth_profile[:,i], z_profile, xlim=(profile_min, profile_max), ylim=(z_min, z_max), label="Truth")
+        fig₂ = plot(truth_profile[:,i], z_profile, xlim=(profile_min, profile_max), ylim=(z_min, z_max), label="Truth", legend=:topleft)
         plot!(fig₂, test_profile[:,i], z_profile, label="NN")
         ylabel!(fig₂, "z /m")
         if dimensionless
@@ -353,6 +371,108 @@ function animate_profile_flux(data, profile_type, flux_type, FILE_PATH; dimensio
         end
 
         fig = plot(fig₁, fig₂, layout=l, title="$(round(t[i]/86400, digits=2)) days")
+    end
+
+    if gif
+        Plots.gif(anim, "$FILE_PATH.gif", fps=fps)
+    end
+
+    if mp4
+        Plots.mp4(anim, "$FILE_PATH.mp4", fps=fps)
+    end
+end
+
+function animate_profiles(data, FILE_PATH; dimensionless=true, fps=30, gif=false, mp4=true)
+    truth_u = data["truth_u"]
+    truth_v = data["truth_v"]
+    truth_T = data["truth_T"]
+
+    test_u = data["test_u"]
+    test_v = data["test_v"]
+    test_T = data["test_T"]
+
+    u_max = maximum([maximum(truth_u), maximum(test_u)])
+    u_min = minimum([minimum(truth_u), minimum(test_u)])
+
+    v_max = maximum([maximum(truth_v), maximum(test_v)])
+    v_min = minimum([minimum(truth_v), minimum(test_v)])
+    
+    T_max = maximum([maximum(truth_T), maximum(test_T)])
+    T_min = minimum([minimum(truth_T), minimum(test_T)])
+
+    t = data["t"]
+
+    z = data["depth_profile"]
+
+    z_max = maximum(z)
+    z_min = minimum(z)
+
+    anim = @animate for i in 1:length(t)
+        if i % 50 == 0
+            @info "Animating frame $i/$(length(t))"
+        end
+        l = @layout [a b c]
+        fig₁ = plot(truth_u[:,i], z, xlim=(u_min, u_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
+        plot!(fig₁, test_u[:,i], z, label = "NN")
+        ylabel!(fig₁, "z /m")
+        if dimensionless
+            xlabel!(fig₁, "u")
+        else
+            xlabel!(fig₁, "u /m s⁻¹")
+        end
+
+        fig₂ = plot(truth_v[:,i], z, xlim=(v_min, v_max), ylim=(z_min, z_max), label="Truth", legend=:bottomleft)
+        plot!(fig₂, test_v[:,i], z, label = "NN")
+        ylabel!(fig₂, "z /m")
+        if dimensionless
+            xlabel!(fig₂, "v")
+        else
+            xlabel!(fig₂, "v /m s⁻¹")
+        end
+
+        fig₃ = plot(truth_T[:,i], z, xlim=(T_min, T_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
+        plot!(fig₃, test_T[:,i], z, label = "NN")
+        ylabel!(fig₃, "z /m")
+        if dimensionless
+            xlabel!(fig₃, "T")
+        else
+            xlabel!(fig₃, "T /°C")
+        end
+
+        fig = plot(fig₁, fig₂, fig₃, layout=l, title="$(round(t[i]/86400, digits=2)) days")
+    end
+
+    if gif
+        Plots.gif(anim, "$FILE_PATH.gif", fps=fps)
+    end
+
+    if mp4
+        Plots.mp4(anim, "$FILE_PATH.mp4", fps=fps)
+    end
+end
+
+function animate_local_richardson_profile(uvT, 𝒟, FILE_PATH; α=1.67f-4, g=9.81f0, fps=30, gif=false, mp4=true, unscale=false)
+    H = Float32(abs(𝒟.uw.z[end] - 𝒟.uw.z[1]))
+    σ_u = Float32(𝒟.scalings["u"].σ)
+    σ_v = Float32(𝒟.scalings["v"].σ)
+    σ_T = Float32(𝒟.scalings["T"].σ)
+    Ris = local_richardson(uvT, 𝒟, unscale=unscale)
+    t = 𝒟.t
+    z = 𝒟.uw.z
+
+    z_max = maximum(z)
+    z_min = minimum(z)
+
+    Ri_max = maximum(Ris)
+    Ri_min = minimum(Ris)
+
+    @info "$Ri_min, $Ri_max"
+    
+    anim = @animate for i in 1:length(t)
+        @info "Animating local Richardson number frame $i/$(length(t))"
+        fig = plot(Ris[:,i], z, xlim=(Ri_min, Ri_max), ylim=(z_min, z_max), label=nothing, title="$(round(t[i]/86400, digits=2)) days", scale=:log10)
+        ylabel!(fig, "z /m")
+        xlabel!(fig, "Local Richardson Number")
     end
 
     if gif
