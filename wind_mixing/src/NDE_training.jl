@@ -71,54 +71,21 @@ function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4,
     return f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range
 end
 
-function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500; ν=10f0, κ=10f0, α=1.67f-4, g=9.81f0, viscosity=false, convective_adjustment=false)
+function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+    Bz = (H * g * α * σ_T .* ∂T∂z)
+    S² = (σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2
+    if Bz == 0 && S² == 0
+        return 0
+    else
+        return Bz ./ S²
+    end
+end
+
+function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500; ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
-    # function predict_u(NN, x, top_flux, bottom_flux)
-    #     uw = [top_flux; NN(x); bottom_flux]
-    #     v = @view x[Nz + 1:2Nz]
-    #     if viscosity
-    #         u = @view x[1:Nz]
-    #         T = @view x[2Nz + 1:3Nz]
-    #         ∂u∂z = D_face * u
-    #         ∂v∂z = D_face * v
-    #         ∂T∂z = D_face * T
-    #         Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
-    #         ∂z_∂u∂z = D_cell * (∂u∂z .* (Ri .< 0.25f0))
-    #         return -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ν * τ / H ^2 .* ∂z_∂u∂z
-    #     else
-    #         return -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
-    #     end
-    # end
+    @assert !modified_pacalowski_philander || !convective_adjustment
 
-    # function predict_v(NN, x, top_flux, bottom_flux)
-    #     vw = [top_flux; NN(x); bottom_flux]
-    #     u = @view x[1:Nz]
-    #     if viscosity
-    #         v = @view x[Nz + 1:2Nz]
-    #         T = @view x[2Nz + 1:3Nz]
-    #         ∂u∂z = D_face * u
-    #         ∂v∂z = D_face * v
-    #         ∂T∂z = D_face * T
-    #         Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
-    #         ∂z_∂v∂z = D_cell * (∂v∂z .* (Ri .< 0.25f0))
-    #         return -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ν * τ / H ^2 .* ∂z_∂v∂z
-    #     else
-    #         return -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
-    #     end
-    # end
-
-    # function predict_T(NN, x, top_flux, bottom_flux)
-    #     wT = [top_flux; NN(x); bottom_flux]
-    #     if convective_adjustment
-    #         T = @view x[2Nz + 1:3Nz]
-    #         ∂T∂z = D_face * T
-    #         ∂z_κ∂T∂z = D_cell * min.(0f0, κ .* ∂T∂z)
-    #         return -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 .* ∂z_κ∂T∂z
-    #     else
-    #         return -τ / H * σ_wT / σ_T .* D_cell * wT
-    #     end
-    # end
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
@@ -126,37 +93,32 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         uw = [uw_top; uw_NN(x); uw_bottom]
         vw = [vw_top; vw_NN(x); vw_bottom]
         wT = [wT_top; wT_NN(x); wT_bottom]
-        # uw = [uw_top; ones(Float32, 31) .* uw_scaling(0f0); uw_bottom]
-        # vw = [uw_top; ones(Float32, 31) .* vw_scaling(0f0); uw_bottom]
-        # wT = [uw_top; ones(Float32, 31) .* wT_scaling(0f0); uw_bottom]
 
-        output = similar(x)
-        ∂u∂t = @view output[1:Nz]
-        ∂v∂t = @view output[Nz + 1:2Nz]
-        ∂T∂t = @view output[2Nz + 1:3Nz]
-
-        if viscosity
+        if modified_pacalowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
-            Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
-            ∂z_∂u∂z = D_cell * (∂u∂z .* (Ri .< 0.25f0))
-            ∂z_∂v∂z = D_cell * (∂v∂z .* (Ri .< 0.25f0))
-            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ν * τ / H ^2 .* ∂z_∂u∂z
-            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ν * τ / H ^2 .* ∂z_∂v∂z
-        else
-            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
-            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
-        end
-
-        if convective_adjustment
+            Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+            ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
+            ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
+            ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
+            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
+            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
+        elseif convective_adjustment
+            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
             ∂T∂z = D_face * T
             ∂z_∂T∂z = D_cell * min.(0f0, ∂T∂z)
-            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 * κ .* ∂z_∂T∂z
+            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 * κ .* ∂z_∂T∂z
         else
-            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT
+            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
+            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT
         end
-        return output
+
+        return [∂u∂t; ∂v∂t; ∂T∂t]
     end
 
     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
