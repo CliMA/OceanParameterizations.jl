@@ -41,7 +41,7 @@ using OceanParameterizations
 
 using DimensionalData: basetypeof
 using GeoData: AbstractGeoStack, window
-using Oceananigans: OceananigansLogger, Cell, Face
+using Oceananigans: OceananigansLogger, Center, Face
 
 @dim zC ZDim "z"
 @dim zF ZDim "z"
