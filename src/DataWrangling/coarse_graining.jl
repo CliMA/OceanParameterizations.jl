@@ -1,11 +1,11 @@
-using Oceananigans.Grids: Cell, Face
+using Oceananigans.Grids: Center, Face
 
 """
-    coarse_grain(Φ, n, ::Type{Cell})
+    coarse_grain(Φ, n, ::Type{Center})
 
-Average or coarse grain a `Cell`-centered field `Φ` down to size `n`. `Φ` is required to have evenly spaced points and `n` needs to evenly divide `length(Φ)`.
+Average or coarse grain a `Center`-centered field `Φ` down to size `n`. `Φ` is required to have evenly spaced points and `n` needs to evenly divide `length(Φ)`.
 """
-function coarse_grain(Φ, n, ::Type{Cell})
+function coarse_grain(Φ, n, ::Type{Center})
     N = length(Φ)
     Δ = Int(N / n)
     Φ̅ = similar(Φ, n)
@@ -27,7 +27,7 @@ function coarse_grain(Φ, n, ::Type{Face})
     Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
 
     if isinteger(Δ)
-        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Cell)
+        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Center)
     else
         for i in 2:n-1
             i1 = round(Int, 2 + (i-2)*Δ)

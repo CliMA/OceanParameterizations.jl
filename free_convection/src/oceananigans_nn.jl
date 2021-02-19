@@ -12,7 +12,7 @@ function convective_adjustment!(model, Δt, K)
     Nz, Δz = model.grid.Nz, model.grid.Δz
     T = model.tracers.T
 
-    ∂T∂z = ComputedField(@at (Cell, Cell, Cell) ∂z(T))
+    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
     compute!(∂T∂z)
 
     κ = zeros(Nz)
@@ -82,7 +82,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
         wT_field = ZFaceField(CPU(), grid)
         set!(wT_field, reshape(wT, (1, 1, Nz+1)))
         fill_halo_regions!(wT_field, CPU(), nothing, nothing)
-        ∂z_wT_field = ComputedField(@at (Cell, Cell, Cell) ∂z(wT_field))
+        ∂z_wT_field = ComputedField(@at (Center, Center, Center) ∂z(wT_field))
         compute!(∂z_wT_field)
         return interior(∂z_wT_field)[:]
     end
@@ -102,7 +102,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
         wT_NN_interior = inv(wT_scaling).(wT_NN_interior)
         wT_NN = enforce_fluxes(wT_NN_interior)
 
-        ∂T∂z = ComputedField(@at (Cell, Cell, Face) ∂z(model.tracers.T))
+        ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
         compute!(∂T∂z)
 
         κ = zeros(Nz+1)

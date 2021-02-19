@@ -192,7 +192,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
         animate_gif([T],  zC, t, "T",  directory=animate_dir)
     end
 
-    coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Cell) for i in 1:size(x,2))..., dims=2)
+    coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Center) for i in 1:size(x,2))..., dims=2)
     coarsify_face(x) = cat((coarse_grain(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
 
     u_coarse  = coarsify_cell(u)
@@ -205,7 +205,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     νₑ_∂z_v   = coarsify_face(νₑ_∂z_v)
     κₑ_∂z_T   = coarsify_face(κₑ_∂z_T)
 
-    zC_coarse = coarse_grain(zC, 32, Cell)
+    zC_coarse = coarse_grain(zC, 32, Center)
     zF_coarse = coarse_grain(zF, 33, Face)
 
     function get_scaling(name, coarse)
