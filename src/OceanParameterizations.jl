@@ -31,7 +31,7 @@ using NCDatasets
 using Plots
 using Oceananigans.Utils
 
-using Oceananigans.Grids: Cell, Face
+using Oceananigans.Grids: Center, Face
 
 import Base.inv
 

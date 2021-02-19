@@ -57,70 +57,50 @@ function prepare_BCs(𝒟, uw_scaling, vw_scaling, wT_scaling)
     return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
 end
 
-function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, α=1.67f-4, g=9.81f0, viscosity=false, convective_adjustment=false)
+function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
     f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
-    ν₀ = 1f-4
-    ν₁ = 1f-2
-    κ₀ = 1f-5
-    κ₁ = 1f-2
-    c = 5
-    n = 2
-
-    function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
-        u = @view x[1:Nz]
-        v = @view x[Nz + 1:2Nz]
-        T = @view x[2Nz + 1:3Nz]
-        uw = [uw_top; uw_NN(x); uw_bottom]
-        vw = [vw_top; vw_NN(x); vw_bottom]
-        wT = [wT_top; wT_NN(x); wT_bottom]
-        output = similar(x)
-        ∂u∂t = @view output[1:Nz]
-        ∂v∂t = @view output[Nz + 1:2Nz]
-        ∂T∂t = @view output[2Nz + 1:3Nz]
-
-        if viscosity || convective_adjustment
-            ∂u∂z = D_face * u
-            ∂v∂z = D_face * v
-            ∂T∂z = D_face * T
-            # @info "Uz $∂u∂z"
-            # @info "Vz $∂v∂z"
-            # @info "Tz $∂T∂z"
-
-            Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
-
-            for i in 1:length(Ri)
-                if isnan(Ri[i])
-                    Ri[i] = 0
-                end
+    function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage, n_simulations, maxiters=500; ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
+        f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
+    
+        @assert !modified_pacalowski_philander || !convective_adjustment
+    
+        function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+            u = @view x[1:Nz]
+            v = @view x[Nz + 1:2Nz]
+            T = @view x[2Nz + 1:3Nz]
+            uw = [uw_top; uw_NN(x); uw_bottom]
+            vw = [vw_top; vw_NN(x); vw_bottom]
+            wT = [wT_top; wT_NN(x); wT_bottom]
+    
+            if modified_pacalowski_philander
+                ∂u∂z = D_face * u
+                ∂v∂z = D_face * v
+                ∂T∂z = D_face * T
+                Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+                ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+                ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
+                ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
+                ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
+                ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
+                ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+                ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
+            elseif convective_adjustment
+                ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+                ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
+                ∂T∂z = D_face * T
+                ∂z_∂T∂z = D_cell * min.(0f0, ∂T∂z)
+                ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 * κ .* ∂z_∂T∂z
+            else
+                ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+                ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
+                ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT
             end
+    
+            return [∂u∂t; ∂v∂t; ∂T∂t]
         end
-
-        if viscosity
-            ν = ν₀ .+ ν₁ ./ (1 .+ c .* Ri) .^ n
-            ∂z_ν∂u∂z = D_cell * (∂u∂z .* ν)
-            ∂z_ν∂v∂z = D_cell * (∂v∂z .* ν)
-
-            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^2 .* ∂z_ν∂u∂z
-            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^2 .* ∂z_ν∂v∂z
-        else
-            ∂u∂t .= -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
-            ∂v∂t .= -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
-        end
-
-        if convective_adjustment
-            κ = κ₀ .+ κ₁ ./ (1 .+ c .* Ri) .^ (n + 1)
-            ∂z_κ∂T∂z = D_cell * (∂T∂z .* κ)
-
-            # ∂z_κ∂T∂z = D_cell * min.(0f0, ∂T∂z .* κ)
-            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 .* ∂z_κ∂T∂z
-        else
-            ∂T∂t .= -τ / H * σ_wT / σ_T .* D_cell * wT
-        end
-        return output
-    end
 
     function predict_flux(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
@@ -130,28 +110,25 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         vw = [vw_top; vw_NN(x); vw_bottom]
         wT = [wT_top; wT_NN(x); wT_bottom]
 
-        if viscosity || convective_adjustment
+        if modified_pacalowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
-            Ri = (H * g * α * σ_T .* ∂T∂z) ./ ((σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2)
-        end
-
-        if viscosity
-            ν = ν₀ .+ ν₁ ./ (1 .+ c .* Ri) .^ n
-            uw .= -τ / H * σ_uw / σ_u * uw .+ τ / H ^2 .* ∂u∂z .* ν
-            vw .= -τ / H * σ_vw / σ_v * vw .+ τ / H ^2 .* ∂v∂z .* ν
+            Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+            ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            uw .= -τ / H * σ_uw / σ_u .* uw .+ τ / H ^2 .* ∂u∂z .* ν
+            vw .= -τ / H * σ_vw / σ_v .* vw .+ τ / H ^2 .* ∂v∂z .* ν
+            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 .* ∂T∂z .* ν ./ Pr
+        elseif convective_adjustment
+            uw .= -τ / H * σ_uw / σ_u .* uw
+            vw .= -τ / H * σ_vw / σ_v .* vw
+            ∂T∂z = D_face * T
+            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 .* min.(0f0, ∂T∂z) .* κ
         else
-            uw .* -τ / H * σ_uw / σ_u
-            vw .* -τ / H * σ_vw / σ_v
-        end
+            uw .= -τ / H * σ_uw / σ_u .* uw
+            vw .= -τ / H * σ_vw / σ_v .* vw
+            wT .= -τ / H * σ_wT / σ_T .* wT
 
-        if convective_adjustment
-            κ = κ₀ .+ κ₁ ./ (1 .+ c .* Ri) .^ (n + 1)
-            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 * ∂T∂z .* κ
-        else
-            wT .* -τ / H * σ_wT / σ_T
-        end
         return uw, vw, wT
     end
 
@@ -185,16 +162,16 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
         output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
 
-        # test_uw = similar(output["truth_uw"])
-        # test_vw = similar(output["truth_vw"])
-        # test_wT = similar(output["truth_wT"])
+        test_uw = similar(output["truth_uw"])
+        test_vw = similar(output["truth_vw"])
+        test_wT = similar(output["truth_wT"])
 
-        # for i in 1:size(test_uw, 2)
-        #     uw = @view test_uw[:,i]
-        #     vw = @view test_vw[:,i]
-        #     wT = @view test_wT[:,i]
-        #     uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
-        # end
+        for i in 1:size(test_uw, 2)
+            uw = @view test_uw[:,i]
+            vw = @view test_vw[:,i]
+            wT = @view test_wT[:,i]
+            uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        end
 
         output["test_uw"] = test_uw
         output["test_vw"] = test_vw
@@ -215,23 +192,23 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         output["truth_v"] = 𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]
         output["truth_T"] = 𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange]
 
-        # test_uw = similar(output["truth_uw"])
-        # test_vw = similar(output["truth_vw"])
-        # test_wT = similar(output["truth_wT"])
+        test_uw = similar(output["truth_uw"])
+        test_vw = similar(output["truth_vw"])
+        test_wT = similar(output["truth_wT"])
 
-        # for i in 1:size(test_uw, 2)
-        #     uw = @view test_uw[:,i]
-        #     vw = @view test_vw[:,i]
-        #     wT = @view test_wT[:,i]
-        #     uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
-        #     uw .= inv(uw_scaling).(uw)
-        #     vw .= inv(vw_scaling).(vw)
-        #     wT .= inv(wT_scaling).(wT)
-        # end
+        for i in 1:size(test_uw, 2)
+            uw = @view test_uw[:,i]
+            vw = @view test_vw[:,i]
+            wT = @view test_wT[:,i]
+            uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+            uw .= inv(uw_scaling).(uw)
+            vw .= inv(vw_scaling).(vw)
+            wT .= inv(wT_scaling).(wT)
+        end
 
-        # output["test_uw"] = test_uw
-        # output["test_vw"] = test_vw
-        # output["test_wT"] = test_wT
+        output["test_uw"] = test_uw
+        output["test_vw"] = test_vw
+        output["test_wT"] = test_wT
 
         output["test_u"] = inv(u_scaling).(sol[1:Nz,:])
         output["test_v"] = inv(v_scaling).(sol[Nz + 1:2Nz, :])

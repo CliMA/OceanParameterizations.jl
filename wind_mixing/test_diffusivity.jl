@@ -8,9 +8,9 @@ using CairoMakie
 include("modified_pacalowski_philander_model.jl")
 # include("modified_diffusivity_model.jl")
 
-ds = jldopen(joinpath(pwd(), "2DaySuite", "three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2"))
-OUTPUT_NAME = "modified_diffusivity_tstep10_wind_mixing_no_rotation.mp4"
-SIMULATION_NAME = "Wind Mixing (No Rotation)"
+ds = jldopen(joinpath(pwd(), "2DaySuite", "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2"))
+OUTPUT_NAME = "modified_diffusivity_tstep10_wind_mixing_free_convection_params.mp4"
+SIMULATION_NAME = "Wind Mixing (Free Convection Tuned Parameters)"
 
 ## Load LES grid information, boundary conditions, and initial conditions
 Nz = ds["grid/Nz"]
@@ -25,7 +25,7 @@ f₀ = ds["parameters/coriolis_parameter"]
 ## Construct OceanTurb models
 
 # ΔRis = [0.5:0.1:1.0...]
-ΔRis = [0.1, 1., 10]
+ΔRis = [0.001, 0.01, 0.1, 1.]
 constants = OceanTurb.Constants(Float64, f=f₀)
 parameters = cat(PacanowskiPhilander.Parameters(), [ModifiedPacanowskiPhilanderParameters(ΔRi = ΔRi) for ΔRi in ΔRis]..., dims=1)
 models = cat(PacanowskiPhilander.Model(N=Nz, L=Lz, stepper=:BackwardEuler, constants=constants, parameters=parameters[1]), 

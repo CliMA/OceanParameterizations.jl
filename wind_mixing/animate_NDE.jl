@@ -11,7 +11,7 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_convective_adjustment_1sim_-1e-3_smallADAM_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_extracted.jld2")
 FILE_PATH = joinpath(pwd(), "Output")
 VIDEO_NAME = "u_v_T_viscosity_convective_adjustment_smallADAM"
 

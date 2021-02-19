@@ -12,7 +12,7 @@ export data, read_les_output,
        local_richardson
 
 using Flux, Plots
-using Oceananigans.Grids: Cell, Face
+using Oceananigans.Grids: Center, Face
 using Oceananigans: OceananigansLogger
 using OceanParameterizations
 using JLD2
