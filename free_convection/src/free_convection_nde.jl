@@ -56,10 +56,3 @@ function FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     FT = eltype(ds[:wT])
     return FT.([bottom_flux, top_flux, T_scaling.σ, wT_scaling.σ, H, τ])
 end
-
-function solve_nde(nde, NN, T₀, alg, nde_params)
-    nn_weights, _ = Flux.destructure(NN)
-    # See: https://github.com/SciML/DiffEqFlux.jl/blob/449efcecfc11f1eab65d0e467cf57db9f5a5dbec/src/neural_de.jl#L68
-    return solve(nde, alg, reltol=1e-4, u0=T₀, p=[nn_weights; nde_params],
-                 sense=InterpolatingAdjoint(autojacvec=ZygoteVJP(), checkpointing=true))
-end

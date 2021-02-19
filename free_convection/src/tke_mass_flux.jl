@@ -1,4 +1,6 @@
-function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
+import OceanTurb
+
+function free_convection_tke_mass_flux(ds; parameters=OceanTurb.TKEMassFlux.TKEParameters())
 
     ρ₀ = 1027.0
     cₚ = 4000.0
@@ -11,8 +13,14 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
     zf = dims(ds[:wT], ZDim)
     zc = dims(ds[:T], ZDim)
     N = length(zc)
-    L = abs(zf[1])
-    model = KPP.Model(N=N, H=L, stepper=:BackwardEuler, constants=constants, parameters=parameters)
+    H = abs(zf[1])
+
+    model = OceanTurb.TKEMassFlux.Model(
+                      grid = OceanTurb.UniformGrid(N=N, H=H),
+                   stepper = :BackwardEuler,
+        eddy_diffusivities = OceanTurb.TKEMassFlux.RiDependentDiffusivities(),
+                 constants = constants
+    )
 
     # Coarse grain initial condition from LES and set equal
     # to initial condition of parameterization.
@@ -21,19 +29,24 @@ function free_convection_kpp(ds; parameters=OceanTurb.KPP.Parameters())
     # Set boundary conditions
     FT = ds.metadata[:heat_flux]
     ∂T∂z = ds.metadata[:dθdz_deep]
-    model.bcs.T.top = FluxBoundaryCondition(FT)
-    model.bcs.T.bottom = GradientBoundaryCondition(∂T∂z)
+    model.bcs.T.top = OceanTurb.FluxBoundaryCondition(FT)
+    model.bcs.T.bottom = OceanTurb.GradientBoundaryCondition(∂T∂z)
 
     times = dims(ds[:T], Ti)
     Nt = length(times)
     solution = zeros(N, Nt)
+    flux = zeros(N+1, Nt)
 
     # loop the model
     Δt = ds.metadata[:interval]
     for n in 1:Nt
-        run_until!(model, Δt, times[n])
-        @. solution[:, n] = model.solution.T[1:N]
+        OceanTurb.run_until!(model, Δt, times[n])
+
+        solution[:, n] .= model.solution.T[1:N]
+
+        flux[:, n] .= OceanTurb.diffusive_flux(:T, model)[1:N+1]
+        flux[N+1, n] = FT
     end
 
-    return solution
+    return (T=solution, wT=flux)
 end

@@ -14,13 +14,13 @@ export
     FreeConvectionTrainingDataInput, rescale, wrangle_input_training_data, wrangle_output_training_data,
 
     # Neural differential equations
-    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!,
+    FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!, solve_nde,
 
-    # Other parameterizations
-    free_convection_kpp, optimize_kpp_parameters,
+    # Testing and comparisons
+    oceananigans_convective_adjustment_nn, free_convection_kpp, free_convection_tke_mass_flux, optimize_kpp_parameters,
 
     # Testing
-    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss
+    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss, plot_comparisons, plot_loss_matrix
 
 using Logging
 using Printf
@@ -36,7 +36,6 @@ using OrdinaryDiffEq
 using DiffEqSensitivity
 using DiffEqFlux
 using JLD2
-using OceanTurb
 using Oceananigans.Utils
 using OceanParameterizations
 
@@ -53,10 +52,13 @@ include("animations.jl")
 include("training_data.jl")
 include("free_convection_nde.jl")
 include("convective_adjustment_nde.jl")
+include("solve.jl")
 include("training.jl")
 include("testing.jl")
-include("kpp.jl")
+include("k_profile_parameterization.jl")
+include("tke_mass_flux.jl")
 include("optimize_kpp_parameters.jl")
+include("oceananigans_nn.jl")
 
 include("data_dependencies.jl")
 
