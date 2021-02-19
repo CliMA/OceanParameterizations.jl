@@ -1,6 +1,6 @@
 using OceanParameterizations
 using OceanTurb, Plots
-using Oceananigans.Grids: Cell, Face
+using Oceananigans.Grids: Center, Face
 
 include("lesbrary_data.jl")
 include("data_containers.jl")
