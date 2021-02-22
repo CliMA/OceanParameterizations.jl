@@ -15,7 +15,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_3.jld2")
 
 @assert !isfile(FILE_PATH)
 
@@ -43,10 +43,10 @@ wT_NN = file["neural_network/wT"]
 # train_epochs = [1 for i in 1:100]
 # train_tranges = [1:rand(10:1:40):1153 for i in 1:length(train_epochs)]
 
-train_epochs = [1 for i in 1:200]
-train_tranges = [1:rand(10:40):1153 for i in 1:length(train_epochs)]
+train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:700, 1:20:800, 1:20:900, 1:20:1153]
+train_epochs = [[6 for i in 1:6]; [200]]
 
-train_optimizers = [[ADAM()] for i in 1:length(train_epochs)]
+train_optimizers = [[ADAM(0.01) for i in 1:6]; [ADAM()]]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
