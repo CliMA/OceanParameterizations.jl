@@ -72,12 +72,12 @@ function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4,
 end
 
 function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
-    Bz = (H * g * α * σ_T .* ∂T∂z)
-    S² = (σ_u .* ∂u∂z) .^2 + (σ_v .* ∂v∂z) .^2
+    Bz = H * g * α * σ_T * ∂T∂z
+    S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
     if Bz == 0 && S² == 0
         return 0
     else
-        return Bz ./ S²
+        return Bz / S²
     end
 end
 

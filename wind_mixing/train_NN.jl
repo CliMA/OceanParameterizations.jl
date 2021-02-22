@@ -2,16 +2,16 @@ using Flux
 using OceanParameterizations
 using WindMixing
 
-train_files = ["-2.5e-4", "-7.5e-4"]
+train_files = ["-1e-3"]
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "testNN.jld2")
 
-FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
-FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
-FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-2.5e-4_-7.5e-4_large.jld2")
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_1sim_-1e-3_large.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_1sim_-1e-3_large.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_1sim_-1e-3_large.jld2")
 
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 

@@ -14,7 +14,7 @@ train_files = ["-1e-3"]
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
-# OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_3.jld2")
 
 @assert !isfile(FILE_PATH)
@@ -27,7 +27,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1s
 # vw_file = load(FILE_PATH_vw, "training_data/neural_network")
 # wT_file = load(FILE_PATH_wT, "training_data/neural_network")
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_extracted.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_convective_adjustment_1sim_-1e-3_smallADAM_extracted.jld2")
 @assert isfile(FILE_PATH_NN)
 
 # uw_file = jldopen(FILE_PATH_uw, "r")
@@ -46,7 +46,7 @@ wT_NN = file["neural_network/wT"]
 train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:700, 1:20:800, 1:20:900, 1:20:1153]
 train_epochs = [[6 for i in 1:6]; [200]]
 
-train_optimizers = [[ADAM(0.01) for i in 1:6]; [ADAM()]]
+train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM()]]]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
