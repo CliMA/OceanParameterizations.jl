@@ -62,8 +62,6 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
-    f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
-    
     @assert !modified_pacalowski_philander || !convective_adjustment
 
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
@@ -86,6 +84,9 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
             ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
+            # ∂u∂t = f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
+            # ∂v∂t = -f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+            # ∂T∂t = ∂z_ν∂T∂z
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -115,9 +116,9 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
             ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
-            uw .= -τ / H * σ_uw / σ_u .* uw .+ τ / H ^2 .* ∂u∂z .* ν
-            vw .= -τ / H * σ_vw / σ_v .* vw .+ τ / H ^2 .* ∂v∂z .* ν
-            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 .* ∂T∂z .* ν ./ Pr
+            uw .- ν ./ H .* σ_u ./ σ_uw .* ∂u∂z
+            vw .- ν ./ H .* σ_v ./ σ_vw .* ∂v∂z
+            wT .- ν ./ H .* σ_T ./ σ_wT .* ∂T∂z ./ Pr
         elseif convective_adjustment
             uw .= -τ / H * σ_uw / σ_u .* uw
             vw .= -τ / H * σ_vw / σ_v .* vw
@@ -167,10 +168,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         test_wT = similar(output["truth_wT"])
 
         for i in 1:size(test_uw, 2)
-            uw = @view test_uw[:,i]
-            vw = @view test_vw[:,i]
-            wT = @view test_wT[:,i]
-            uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         end
 
         output["test_uw"] = test_uw
@@ -197,22 +195,32 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         test_wT = similar(output["truth_wT"])
 
         for i in 1:size(test_uw, 2)
-            uw = @view test_uw[:,i]
-            vw = @view test_vw[:,i]
-            wT = @view test_wT[:,i]
-            uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
-            uw .= inv(uw_scaling).(uw)
-            vw .= inv(vw_scaling).(vw)
-            wT .= inv(wT_scaling).(wT)
+            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         end
 
-        output["test_uw"] = test_uw
-        output["test_vw"] = test_vw
-        output["test_wT"] = test_wT
+        output["test_uw"] = inv(uw_scaling).(test_uw)
+        output["test_vw"] = inv(vw_scaling).(test_vw)
+        output["test_wT"] = inv(wT_scaling).(test_wT)
 
         output["test_u"] = inv(u_scaling).(sol[1:Nz,:])
         output["test_v"] = inv(v_scaling).(sol[Nz + 1:2Nz, :])
         output["test_T"] = inv(T_scaling).(sol[2Nz + 1: 3Nz, :])
+
+        truth_Ri = similar(test_uw)
+
+        for i in 1:size(truth_Ri, 2)
+            truth_Ri[:,i] .= local_richardson.(D_face * 𝒟train.u.scaled[:,i], D_face * 𝒟train.v.scaled[:,i], D_face * 𝒟train.T.scaled[:,i], σ_u, σ_v, σ_T, H, g, α)
+        end
+
+        test_Ri = similar(truth_Ri)
+
+        for i in 1:size(test_Ri,2)
+            test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], σ_u, σ_v, σ_T, H, g, α)
+        end
+
+        output["truth_Ri"] = truth_Ri
+        output["test_Ri"] = test_Ri
+
         output["depth_profile"] = 𝒟test.u.z
         output["depth_flux"] = 𝒟test.uw.z
         output["t"] = 𝒟test.t[trange]
@@ -425,6 +433,127 @@ function animate_profiles(data, FILE_PATH; dimensionless=true, fps=30, gif=false
 
     if mp4
         Plots.mp4(anim, "$FILE_PATH.mp4", fps=fps)
+    end
+end
+
+function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gif=false, mp4=true, SIMULATION_NAME="")
+    times = data["t"]
+
+    frame = Node(1)
+
+    truth_u = @lift data["truth_u"][:,$frame]
+    truth_v = @lift data["truth_v"][:,$frame]
+    truth_T = @lift data["truth_T"][:,$frame]
+
+    test_u = @lift data["test_u"][:,$frame]
+    test_v = @lift data["test_v"][:,$frame]
+    test_T = @lift data["test_T"][:,$frame]
+
+    truth_uw = @lift data["truth_uw"][:,$frame]
+    truth_vw = @lift data["truth_vw"][:,$frame]
+    truth_wT = @lift data["truth_wT"][:,$frame]
+
+    test_uw = @lift data["test_uw"][:,$frame]
+    test_vw = @lift data["test_vw"][:,$frame]
+    test_wT = @lift data["test_wT"][:,$frame]
+
+
+    truth_Ri = @lift clamp.(data["truth_Ri"][:,$frame], -1, 2)
+    test_Ri = @lift clamp.(data["test_Ri"][:,$frame], -1, 2)
+
+    u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"])])
+    u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"])])
+
+    v_max = maximum([maximum(data["truth_v"]), maximum(data["test_v"])])
+    v_min = minimum([minimum(data["truth_v"]), minimum(data["test_v"])])
+
+    T_max = maximum([maximum(data["truth_T"]), maximum(data["test_T"])])
+    T_min = minimum([minimum(data["truth_T"]), minimum(data["test_T"])])
+
+    uw_max = maximum([maximum(data["truth_uw"]), maximum(data["test_uw"])])
+    uw_min = minimum([minimum(data["truth_uw"]), minimum(data["test_uw"])])
+
+    vw_max = maximum([maximum(data["truth_vw"]), maximum(data["test_vw"])])
+    vw_min = minimum([minimum(data["truth_vw"]), minimum(data["test_vw"])])
+    
+    wT_max = maximum([maximum(data["truth_wT"]), maximum(data["test_wT"])])
+    wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"])])
+
+    plot_title = @lift "$SIMULATION_NAME: time = $(round(times[$frame]/86400, digits=2)) days"
+    fig = Figure(resolution=(1920, 1080))
+    colors=["navyblue", "hotpink2"]
+
+    if dimensionless
+        u_str = "u"
+        v_str = "v"
+        T_str = "T"
+        uw_str = "uw"
+        vw_str = "vw"
+        wT_str = "wT"
+    else
+        u_str = "u / m s⁻¹"
+        v_str = "v / m s⁻¹"
+        T_str = "T / °C"
+        uw_str = "uw / m² s⁻²"
+        vw_str = "vw / m² s⁻²"
+        wT_str = "wT / m s⁻¹ °C"
+    end
+
+    zc = data["depth_profile"]
+    zf = data["depth_flux"]
+    z_str = "z / m"
+
+    ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
+    u_lines = [lines!(ax_u, truth_u, zc, linewidth=3, color=colors[1]), lines!(ax_u, test_u, zc, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.ylims!(ax_u, minimum(zc), 0)
+
+    ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
+    v_lines = [lines!(ax_v, truth_v, zc, linewidth=3, color=colors[1]), lines!(ax_v, test_v, zc, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.ylims!(ax_v, minimum(zc), 0)
+
+    ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
+    T_lines = [lines!(ax_T, truth_T, zc, linewidth=3, color=colors[1]), lines!(ax_T, test_T, zc, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+    CairoMakie.ylims!(ax_T, minimum(zc), 0)
+
+    ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
+    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=3, color=colors[1]), lines!(ax_uw, test_uw, zf, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
+
+    ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
+    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=3, color=colors[1]), lines!(ax_vw, test_vw, zf, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
+
+    ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
+    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=3, color=colors[1]), lines!(ax_wT, test_wT, zf, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
+
+    ax_Ri = fig[2, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
+    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=3, color=colors[1]), lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors[2])]
+    CairoMakie.xlims!(ax_Ri, -1, 2)
+    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
+
+    legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NDE Prediction"])
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
+    trim!(fig.layout)
+
+    if gif
+        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+            @info "Animating gif frame $n/$(length(times))..."
+            frame[] = n
+        end
+    end
+
+    if mp4
+        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+            @info "Animating mp4 frame $n/$(length(times))..."
+            frame[] = n
+        end
     end
 end
 

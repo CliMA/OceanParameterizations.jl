@@ -11,9 +11,9 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
 FILE_PATH = joinpath(pwd(), "Output")
-VIDEO_NAME = "u_v_T_viscosity_convective_adjustment_smallADAM"
+VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_test"
 
 file = jldopen(DATA_PATH, "r")
 
@@ -47,10 +47,12 @@ wT_NN = file["neural_network/wT"]
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-trange = 1:1:500
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, viscosity=true, convective_adjustment=true)
+trange = 1:1:1153
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true)
 
 keys(plot_data)
+
+plot_data["test_Ri"]
 
 # uvT_truth = [plot_data["truth_u"]; plot_data["truth_v"]; plot_data["truth_T"]]
 # Ris = local_richardson(uvT_truth, 𝒟test, unscale=true)
@@ -62,11 +64,11 @@ keys(plot_data)
 # ylabel!("z")
 
 
-# animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_convective_adjustment_viscosity_empty_viscosity"), gif=true, dimensionless=false)
-# animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_convective_adjustment_viscosity_empty_viscosity"), gif=true, dimensionless=false)
-# animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_convective_adjustment_viscosity_empty_viscosity"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
 
-animate_profiles(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false)
+# animate_profiles(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false)
 
 # animate_profile(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_convective_adjustment_viscosity_empty"), gif=true)
 # animate_profile(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_convective_adjustment_viscosity_empty"), gif=true)
@@ -75,4 +77,5 @@ animate_profiles(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false
 # animate_flux(plot_data, "uw", joinpath(FILE_PATH, "uw_test"))
 # animate_flux(plot_data, "vw", joinpath(FILE_PATH, "vw_test"))
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
-# κ = 1 m² s⁻¹
+
+animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, "profiles_fluxes_modified_pacalowski_philander_1sim_-1e-3_test"), dimensionless=false, SIMULATION_NAME="Modified Pacalowski Wind-Mixing, Training Data")
