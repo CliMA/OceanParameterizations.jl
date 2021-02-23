@@ -184,7 +184,7 @@ end
 
 wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=20minutes, max_change=1.1, max_Δt=1hour)
 
-simulation = Simulation(model, Δt=wizard, stop_time=2years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=20years, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
