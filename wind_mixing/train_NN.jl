@@ -13,7 +13,7 @@ FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_2sim_-1e-3_-8e-4_large.jld2
 FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_2sim_-1e-3_-8e-4_large.jld2")
 FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_2sim_-1e-3_-8e-4_large.jld2")
 
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 N_inputs = 96
 hidden_units = 400
