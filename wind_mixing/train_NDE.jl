@@ -15,13 +15,13 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN.jld2")
 
 @assert !isfile(FILE_PATH)
 
-FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_-1e-3_extracted.jld2")
+FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_small_extracted.jld2")
+FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_small_extracted.jld2")
+FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_-1e-3_small_extracted.jld2")
 
 # FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_convective_adjustment_1sim_-1e-3_smallADAM_extracted.jld2")
 # @assert isfile(FILE_PATH_NN)
@@ -38,7 +38,6 @@ wT_file = jldopen(FILE_PATH_wT, "r")
 uw_NN = uw_file["neural_network"]
 vw_NN = vw_file["neural_network"]
 wT_NN = wT_file["neural_network"]
-
 
 # train_epochs = [1 for i in 1:100]
 # train_tranges = [1:rand(10:1:40):1153 for i in 1:length(train_epochs)]
