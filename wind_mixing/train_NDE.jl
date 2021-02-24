@@ -9,7 +9,7 @@ using Random
 # Training data
 train_files = ["-1e-3"]
 
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
@@ -31,7 +31,6 @@ FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_
 # vw_NN = file["neural_network/vw"]
 # wT_NN = file["neural_network/wT"]
 
-
 uw_file = jldopen(FILE_PATH_uw, "r")
 vw_file = jldopen(FILE_PATH_vw, "r")
 wT_file = jldopen(FILE_PATH_wT, "r")
@@ -39,6 +38,7 @@ wT_file = jldopen(FILE_PATH_wT, "r")
 uw_NN = uw_file["neural_network"]
 vw_NN = vw_file["neural_network"]
 wT_NN = wT_file["neural_network"]
+
 
 # train_epochs = [1 for i in 1:100]
 # train_tranges = [1:rand(10:1:40):1153 for i in 1:length(train_epochs)]

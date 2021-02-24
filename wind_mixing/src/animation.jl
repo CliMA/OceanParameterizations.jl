@@ -557,6 +557,7 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     end
 end
 
+
 function animate_local_richardson_profile(uvT, 𝒟, FILE_PATH; α=1.67f-4, g=9.81f0, fps=30, gif=false, mp4=true, unscale=false)
     H = Float32(abs(𝒟.uw.z[end] - 𝒟.uw.z[1]))
     σ_u = Float32(𝒟.scalings["u"].σ)

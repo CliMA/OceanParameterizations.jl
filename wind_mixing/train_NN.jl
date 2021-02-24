@@ -9,14 +9,14 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "testNN.jld2")
 
-FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_1sim_-1e-3_large.jld2")
-FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_1sim_-1e-3_large.jld2")
-FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_1sim_-1e-3_large.jld2")
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_1sim_-1e-3_small.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_1sim_-1e-3_small.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_1sim_-1e-3_small.jld2")
 
 𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 N_inputs = 96
-hidden_units = 400
+hidden_units = 100
 N_outputs = 31
 uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
