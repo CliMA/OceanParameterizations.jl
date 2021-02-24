@@ -10,7 +10,8 @@ const nsol = 4
 Base.@kwdef struct ModifiedPacanowskiPhilanderParameters{T} <: AbstractParameters
     Cν₀ :: T = 1e-4
     # Cν₋ :: T = 1e-1
-    Cν₋ :: T = 10.
+    # Cν₋ :: T = 10.
+    Cν₋ :: T = 1.
     Pr  :: T = 1.0
     Riᶜ :: T = 0.25
     ΔRi :: T = 1.
