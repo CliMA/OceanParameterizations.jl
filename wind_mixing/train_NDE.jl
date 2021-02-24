@@ -14,7 +14,7 @@ train_files = ["-1e-3"]
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
-OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+# OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity.jld2")
 
 @assert !isfile(FILE_PATH)
