@@ -84,6 +84,7 @@ else
 
         @info "Writing NN"
         file["neural_network"] = NN
+    end
 end
 
 @info "End"
