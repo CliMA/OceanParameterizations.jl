@@ -63,7 +63,7 @@ else
 end
 
 @info "Writing file"
-jldopen(OUTPUT_PATH, "w") do file
+if type == "NDE"
     @info "Writing Training Info"
     file["training_info/train_files"] = train_files
 
@@ -71,7 +71,19 @@ jldopen(OUTPUT_PATH, "w") do file
     file["losses"] = losses
 
     @info "Writing NN"
-    file["neural_network"] = NN
+    file["neural_network/uw"] = uw_NN
+    file["neural_network/vw"] = vw_NN
+    file["neural_network/wT"] = wT_NN
+else
+    jldopen(OUTPUT_PATH, "w") do file
+        @info "Writing Training Info"
+        file["training_info/train_files"] = train_files
+
+        @info "Writing Loss"
+        file["losses"] = losses
+
+        @info "Writing NN"
+        file["neural_network"] = NN
 end
 
 @info "End"

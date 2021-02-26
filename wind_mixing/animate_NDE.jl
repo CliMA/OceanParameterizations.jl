@@ -11,9 +11,9 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_extracted.jld2")
 FILE_PATH = joinpath(pwd(), "Output")
-VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_test"
+VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_test"
 
 file = jldopen(DATA_PATH, "r")
 
