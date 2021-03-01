@@ -29,10 +29,10 @@ xlabel!("Iteration")
 ylabel!("Loss mse")
 # savefig(joinpath(PATH, "Output", "NDE_training_strong_convective_adjustment_1sim_-1e-3_loss.pdf"))
 
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 test_files = ["-1e-3"]
-𝒟test = data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
@@ -48,11 +48,11 @@ wT_NN = file["neural_network/wT"]
 # wT_NN = re_wT(uw_weights)
 
 trange = 1:1:1153
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true)
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true, ν₋=1f-1, ΔRi=1f-1)
 
 keys(plot_data)
 
-plot_data["test_Ri"]
+plot_data["truth_T"][:,1]
 
 # uvT_truth = [plot_data["truth_u"]; plot_data["truth_v"]; plot_data["truth_T"]]
 # Ris = local_richardson(uvT_truth, 𝒟test, unscale=true)
@@ -78,4 +78,4 @@ plot_data["test_Ri"]
 # animate_flux(plot_data, "vw", joinpath(FILE_PATH, "vw_test"))
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
 
-animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, "profiles_fluxes_modified_pacalowski_philander_1sim_-1e-3_test"), dimensionless=false, SIMULATION_NAME="Modified Pacalowski Wind-Mixing, Training Data")
+animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, "profiles_fluxes_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_test"), dimensionless=false, SIMULATION_NAME="Modified Pacalowski Wind-Mixing, Training Data")

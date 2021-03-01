@@ -64,6 +64,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
 
     @assert !modified_pacalowski_philander || !convective_adjustment
 
+    tanh_step(x) = (1 - tanh(x)) / 2
+
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
@@ -77,16 +79,13 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
-            ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
             ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
-            # ∂u∂t = f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
-            # ∂v∂t = -f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
-            # ∂T∂t = ∂z_ν∂T∂z
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -154,34 +153,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
 
     output = Dict()
 
-    if unscale == false
-        output["truth_uw"] = uw_scaling.(𝒟test.uw.coarse[:,trange])
-        output["truth_vw"] = vw_scaling.(𝒟test.vw.coarse[:,trange])
-        output["truth_wT"] = wT_scaling.(𝒟test.wT.coarse[:,trange])
-
-        output["truth_u"] = u_scaling.(𝒟test.uvT_unscaled[1:Nz, trange])
-        output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
-        output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
-
-        test_uw = similar(output["truth_uw"])
-        test_vw = similar(output["truth_vw"])
-        test_wT = similar(output["truth_wT"])
-
-        for i in 1:size(test_uw, 2)
-            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
-        end
-
-        output["test_uw"] = test_uw
-        output["test_vw"] = test_vw
-        output["test_wT"] = test_wT
-
-        output["test_u"] = sol[1:Nz,:]
-        output["test_v"] = sol[Nz + 1:2Nz, :]
-        output["test_T"] = sol[2Nz + 1: 3Nz, :]
-        output["depth_profile"] = 𝒟test.u.z
-        output["depth_flux"] = 𝒟test.uw.z
-        output["t"] = 𝒟test.t[trange]
-    else
+    if unscale
         output["truth_uw"] = 𝒟test.uw.coarse[:,trange]
         output["truth_vw"] = 𝒟test.vw.coarse[:,trange]
         output["truth_wT"] = 𝒟test.wT.coarse[:,trange]
@@ -224,7 +196,35 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         output["depth_profile"] = 𝒟test.u.z
         output["depth_flux"] = 𝒟test.uw.z
         output["t"] = 𝒟test.t[trange]
+    else
+        output["truth_uw"] = uw_scaling.(𝒟test.uw.coarse[:,trange])
+        output["truth_vw"] = vw_scaling.(𝒟test.vw.coarse[:,trange])
+        output["truth_wT"] = wT_scaling.(𝒟test.wT.coarse[:,trange])
+
+        output["truth_u"] = u_scaling.(𝒟test.uvT_unscaled[1:Nz, trange])
+        output["truth_v"] = v_scaling.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
+        output["truth_T"] = T_scaling.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
+
+        test_uw = similar(output["truth_uw"])
+        test_vw = similar(output["truth_vw"])
+        test_wT = similar(output["truth_wT"])
+
+        for i in 1:size(test_uw, 2)
+            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        end
+
+        output["test_uw"] = test_uw
+        output["test_vw"] = test_vw
+        output["test_wT"] = test_wT
+
+        output["test_u"] = sol[1:Nz,:]
+        output["test_v"] = sol[Nz + 1:2Nz, :]
+        output["test_T"] = sol[2Nz + 1: 3Nz, :]
+        output["depth_profile"] = 𝒟test.u.z
+        output["depth_flux"] = 𝒟test.uw.z
+        output["t"] = 𝒟test.t[trange]
     end
+        
 
     return output
 end
