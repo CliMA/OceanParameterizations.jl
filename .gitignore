@@ -44,6 +44,9 @@ docs/site/
 
 # Simulation log
 wind_mixing/simulation_output
+wind_mixing/logs
+wind_mixing/training_output
+
 
 # output gifs
 Output/
