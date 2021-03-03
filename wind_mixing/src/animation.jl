@@ -66,19 +66,25 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
 
     tanh_step(x) = (1 - tanh(x)) / 2
 
+    ϵ = 1f-7
+
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        uw = [uw_top; uw_NN(x); uw_bottom]
-        vw = [vw_top; vw_NN(x); vw_bottom]
-        wT = [wT_top; wT_NN(x); wT_bottom]
+        # uw = [uw_top; uw_NN(x); uw_bottom]
+        # vw = [vw_top; vw_NN(x); vw_bottom]
+        # wT = [wT_top; wT_NN(x); wT_bottom]
+
+        uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
+        vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
+        wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
         if modified_pacalowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
-            Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+            Ri = local_richardson.(∂u∂z.+ 1f-7, ∂v∂z.+ 1f-7, ∂T∂z.+ 1f-7, σ_u, σ_v, σ_T, H, g, α)
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
@@ -86,6 +92,11 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
             ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
+
+            # ∂u∂t = f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
+            # ∂v∂t = - f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+            # ∂T∂t = ∂z_ν∂T∂z
+
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -105,16 +116,21 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        uw = [uw_top; uw_NN(x); uw_bottom]
-        vw = [vw_top; vw_NN(x); vw_bottom]
-        wT = [wT_top; wT_NN(x); wT_bottom]
+        # uw = [uw_top; uw_NN(x); uw_bottom]
+        # vw = [vw_top; vw_NN(x); vw_bottom]
+        # wT = [wT_top; wT_NN(x); wT_bottom]
+
+        uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
+        vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
+        wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
         if modified_pacalowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
-            Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
-            ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
+            # ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             uw .- ν ./ H .* σ_u ./ σ_uw .* ∂u∂z
             vw .- ν ./ H .* σ_v ./ σ_vw .* ∂v∂z
             wT .- ν ./ H .* σ_T ./ σ_wT .* ∂T∂z ./ Pr
@@ -149,7 +165,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
     BC = [uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom]
     prob = ODEProblem(NDE, uvT₀, tspan_test)
 
-    sol = Array(solve(prob, ROCK4(), p=[weights; BC], sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_test))
+    sol = Array(solve(prob, ROCK4(), p=[weights; BC], saveat=t_test))
 
     output = Dict()
 

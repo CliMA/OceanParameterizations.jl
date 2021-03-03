@@ -74,11 +74,13 @@ end
 function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
     Bz = H * g * α * σ_T * ∂T∂z
     S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
-    if Bz == 0 && S² == 0
-        return 0
-    else
-        return Bz / S²
-    end
+    # if Bz == 0 && S² == 0
+    #     return 0
+    # else
+    #     return Bz / S²
+    # end
+    return Bz / S²
+
 end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
@@ -87,6 +89,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     @assert !modified_pacalowski_philander || !convective_adjustment
 
     tanh_step(x) = (1 - tanh(x)) / 2
+
+    ϵ = 1f-7
 
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
@@ -100,8 +104,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
-            Ri = local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+            Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+            # ν = rand(0:0.01:0.1, 33)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
@@ -152,6 +157,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     function loss(weights, BCs)
         sols = [Float32.(Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train))) for i in 1:n_simulations]
+        # sols = [Float32.(Array(solve(prob_NDEs[i], alg_hints=[:stiff], p=[weights; BCs[i]], reltol=1f-3, saveat=t_train))) for i in 1:n_simulations]
+        
         return mean(Flux.mse.(sols, uvT_trains))
     end
 

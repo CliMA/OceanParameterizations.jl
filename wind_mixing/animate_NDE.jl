@@ -11,8 +11,10 @@ using FileIO
 
 PATH = pwd()
 
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_extracted.jld2")
-FILE_PATH = joinpath(pwd(), "Output")
+# DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_extracted.jld2")
+# FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+FILE_PATH = joinpath(PATH, "Output")
 VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_test"
 
 file = jldopen(DATA_PATH, "r")
@@ -48,11 +50,17 @@ wT_NN = file["neural_network/wT"]
 # wT_NN = re_wT(uw_weights)
 
 trange = 1:1:1153
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true, ν₋=1f-1, ΔRi=1f-1)
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true, ν₋=0f0, ΔRi=1f-1, ν₀=0f0)
 
-keys(plot_data)
+animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, "profiles_fluxes_modified_pacalowski_philander_1sim_-1e-3_empty_test_3"), dimensionless=false, SIMULATION_NAME="Modified Pacalowski-Philander Wind-Mixing, Training Data")
 
-plot_data["truth_T"][:,1]
+
+# VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_test2"
+
+
+# keys(plot_data)
+
+# plot_data["truth_T"][:,1]
 
 # uvT_truth = [plot_data["truth_u"]; plot_data["truth_v"]; plot_data["truth_T"]]
 # Ris = local_richardson(uvT_truth, 𝒟test, unscale=true)
@@ -77,5 +85,3 @@ plot_data["truth_T"][:,1]
 # animate_flux(plot_data, "uw", joinpath(FILE_PATH, "uw_test"))
 # animate_flux(plot_data, "vw", joinpath(FILE_PATH, "vw_test"))
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
-
-animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, "profiles_fluxes_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_small_NN_test"), dimensionless=false, SIMULATION_NAME="Modified Pacalowski Wind-Mixing, Training Data")
