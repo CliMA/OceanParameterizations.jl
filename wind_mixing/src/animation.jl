@@ -72,13 +72,13 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        # uw = [uw_top; uw_NN(x); uw_bottom]
-        # vw = [vw_top; vw_NN(x); vw_bottom]
-        # wT = [wT_top; wT_NN(x); wT_bottom]
+        uw = [uw_top; uw_NN(x); uw_bottom]
+        vw = [vw_top; vw_NN(x); vw_bottom]
+        wT = [wT_top; wT_NN(x); wT_bottom]
 
-        uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
-        vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
-        wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
+        # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
+        # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
+        # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
         if modified_pacalowski_philander
             ∂u∂z = D_face * u
@@ -116,13 +116,13 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        # uw = [uw_top; uw_NN(x); uw_bottom]
-        # vw = [vw_top; vw_NN(x); vw_bottom]
-        # wT = [wT_top; wT_NN(x); wT_bottom]
+        uw = [uw_top; uw_NN(x); uw_bottom]
+        vw = [vw_top; vw_NN(x); vw_bottom]
+        wT = [wT_top; wT_NN(x); wT_bottom]
 
-        uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
-        vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
-        wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
+        # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
+        # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
+        # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
         if modified_pacalowski_philander
             ∂u∂z = D_face * u
