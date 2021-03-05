@@ -49,7 +49,7 @@ train_tranges = [1:20:1153]
 # train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM()]]]
 # timestepper = ROCK4()
 
-train_optimizers = [[ADAM(5e-4), ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
+train_optimizers = [[ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
@@ -58,7 +58,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimi
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
         # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
-        uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=1, maxiters=200, modified_pacalowski_philander=true, ν₀=1f-4, ν₋=1f0, ΔRi=1f-1, convective_adjustment=false)
+        uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=1, maxiters=100, modified_pacalowski_philander=true, ν₀=1f-4, ν₋=1f0, ΔRi=1f-1, convective_adjustment=false)
         # uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 5, modified_pacalowski_philander=true)
     end
 
