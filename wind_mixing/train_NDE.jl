@@ -16,7 +16,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_4e-1_Ri_1e-1_extracted.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_5e-1_Ri_1e-1_extracted.jld2")
 
 @assert !isfile(FILE_PATH)
 
@@ -53,7 +53,7 @@ train_iterations = [20, 20, 30, 30, 40, 50, 50]
 train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(0.01), ADAM(1e-3), ADAM(5e-4), ADAM(2e-4), ADAM(1e-4), RMSProp(1e-4)]]]
 timestepper = ROCK4()
 
-train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.4f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
+train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.5f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
 
 # train_optimizers = [[ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
 # train_optimizers=[[ADAM(5e-4)]]
