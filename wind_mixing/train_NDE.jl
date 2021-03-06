@@ -26,8 +26,8 @@ FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_
 
 # FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_extracted.jld2")
 
-@assert isfile(FILE_PATH_NN)
-file = jldopen(FILE_PATH_NN, "r")
+# @assert isfile(FILE_PATH_NN)
+# file = jldopen(FILE_PATH_NN, "r")
 
 # uw_NN = file["neural_network/uw"]
 # vw_NN = file["neural_network/vw"]
@@ -53,19 +53,27 @@ train_iterations = [20, 20, 30, 30, 40, 50, 50]
 train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(0.01), ADAM(1e-3), ADAM(5e-4), ADAM(2e-4), ADAM(1e-4), RMSProp(1e-4)]]]
 timestepper = ROCK4()
 
+train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.3f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
+
 # train_optimizers = [[ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
 # train_optimizers=[[ADAM(5e-4)]]
 
-function train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
-    write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, uw_NN, vw_NN, wT_NN)
+function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+    write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
 
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
         # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
-        uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=1, maxiters=train_iterations[i], modified_pacalowski_philander=true, ν₀=1f-4, ν₋=3f-1, ΔRi=1f-1, convective_adjustment=false)
+        if train_parameters["modified_pacalowski_philander"]
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
+            modified_pacalowski_philander=train_parameters["modified_pacalowski_philander"], ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"])
         # uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 5, modified_pacalowski_philander=true)
+        else
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
+            modified_pacalowski_philander=train_parameters["modified_pacalowski_philander"], convective_adjustment=train_parameters["convective_adjustment"])
+        end
     end
 
 end
 
-train(FILE_PATH, train_files, train_epochs, train_tranges, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
