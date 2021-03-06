@@ -14,7 +14,7 @@ directories = Dict(
     )
 
 function read_les_output(filename::String)
-    filename = pwd() * "/" * directories[filename]
+    filename = joinpath(pwd(), directories[filename])
     return ReadJLD2_LESbraryData(filename)
 end
 

@@ -12,10 +12,10 @@ using FileIO
 PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_smaller_learning_rate_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_smaller_learning_rate_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_smaller_learning_rate_test_-9e-4"
+VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_higher_diffusivity_smaller_learning_rate"
 
 file = jldopen(DATA_PATH, "r")
 
@@ -26,10 +26,10 @@ size = length(losses)
 
 train_files = file["training_info/train_files"]
 
-plot(1:1:size, losses, yscale=:log10)
-xlabel!("Iteration")
-ylabel!("Loss mse")
-savefig(joinpath(PATH, "Output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
+Plots.plot(1:1:size, losses, yscale=:log10)
+Plots.xlabel!("Iteration")
+Plots.ylabel!("Loss mse")
+# savefig(joinpath(PATH, "Output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
@@ -50,7 +50,7 @@ wT_NN = file["neural_network/wT"]
 # wT_NN = re_wT(uw_weights)
 
 trange = 1:1:1153
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0)
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true, ν₀=1f-4, ν₋=1f0, ΔRi=1f-1)
 
 animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME="Modified Pacalowski-Philander Wind-Mixing, Training Data")
 
