@@ -12,10 +12,10 @@ using FileIO
 PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_5e-1_Ri_1e-1_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_2e-1_Ri_1e-1_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_diffusivity_5e-1_Ri_1e-1_test"
+VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_diffusivity_2e-1_Ri_1e-1_2_test"
 
 file = jldopen(DATA_PATH, "r")
 
