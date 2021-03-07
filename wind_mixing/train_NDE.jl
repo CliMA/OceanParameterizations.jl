@@ -16,7 +16,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_3e-1_Ri_1e-1_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_2e-1_Ri_1e-1_2.jld2")
 
 @assert !isfile(FILE_PATH)
 
@@ -32,7 +32,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1s
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_3e-1_Ri_1e-1_extracted.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_2e-1_Ri_1e-1_extracted.jld2")
 
 @assert isfile(FILE_PATH_NN)
 file = jldopen(FILE_PATH_NN, "r")
@@ -41,7 +41,7 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.3f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
+train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.2f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
 
 train_epochs = [1]
 train_tranges = [1:20:1153]
