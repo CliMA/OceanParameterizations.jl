@@ -32,7 +32,7 @@ if type == "NDE"
         N_data = length(keys(file["training_data/loss/$N_stages"]))
         losses = Array{Float32}(undef, N_data)
         
-        if haskey("parameters", file["training_info"])
+        if "parameters" in keys(file["training_info"])
             train_parameters = file["training_info/train_parameters"]
         else
             train_parameters = nothing
