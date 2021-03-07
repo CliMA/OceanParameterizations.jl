@@ -33,7 +33,7 @@ if type == "NDE"
         losses = Array{Float32}(undef, N_data)
         
         if "parameters" in keys(file["training_info"])
-            train_parameters = file["training_info/train_parameters"]
+            train_parameters = file["training_info/parameters"]
         else
             train_parameters = nothing
         end
