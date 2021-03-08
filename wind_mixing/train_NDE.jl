@@ -8,21 +8,21 @@ using Random
 using GalacticOptim
 
 # Training data
-train_files = ["-1e-3"]
+train_files = ["-1e-3", "-8e-4"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
-
+# 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_2e-1_Ri_5e-2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1.jld2")
 
 @assert !isfile(FILE_PATH)
 
-FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_-1e-3_extracted.jld2")
+FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_2sim_-1e-3_-8e-4_large_extracted.jld2")
+FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_2sim_-1e-3_-8e-4_large_extracted.jld2")
+FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_2sim_-1e-3_-8e-4_large_extracted.jld2")
 
 uw_file = jldopen(FILE_PATH_uw, "r")
 vw_file = jldopen(FILE_PATH_vw, "r")
@@ -41,7 +41,7 @@ wT_NN = wT_file["neural_network"]
 # vw_NN = file["neural_network/vw"]
 # wT_NN = file["neural_network/wT"]
 
-train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.2f0, "Riᶜ" => 0.25f0, "ΔRi" => 5f-2, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
+train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 0.1f0, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
 
 # train_epochs = [1]
 # train_tranges = [1:20:1153]
@@ -51,7 +51,7 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.2f0, "Riᶜ" => 0.25f0, "�
 
 train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:700, 1:20:800, 1:20:900, 1:20:1153]
 train_epochs = [1 for i in 1:length(train_tranges)]
-train_iterations = [20, 20, 30, 30, 40, 50, 100]
+train_iterations = [50, 20, 30, 30, 40, 50, 100]
 
 train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(0.01), ADAM(1e-3), ADAM(5e-4), ADAM(2e-4), ADAM(1e-4), RMSProp(5e-4), RMSProp(2e-4), RMSProp(1e-4)]]]
 timestepper = ROCK4()
@@ -74,7 +74,6 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
             modified_pacalowski_philander=train_parameters["modified_pacalowski_philander"], convective_adjustment=train_parameters["convective_adjustment"])
         end
     end
-
 end
 
 train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
