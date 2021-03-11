@@ -46,7 +46,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_2s
 # vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 # wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_extracted.jld2.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_extracted.jld2")
 
 @assert isfile(FILE_PATH_NN)
 file = jldopen(FILE_PATH_NN, "r")
