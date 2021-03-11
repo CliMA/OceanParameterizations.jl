@@ -16,7 +16,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1_Ri_1e-2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1.jld2")
 
 @assert !isfile(FILE_PATH)
 
