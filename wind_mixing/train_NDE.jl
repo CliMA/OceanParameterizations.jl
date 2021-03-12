@@ -46,14 +46,14 @@ wT_NN = wT_file["neural_network"]
 # vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 # wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_extracted.jld2")
+# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_extracted.jld2")
 
-@assert isfile(FILE_PATH_NN)
-file = jldopen(FILE_PATH_NN, "r")
+# @assert isfile(FILE_PATH_NN)
+# file = jldopen(FILE_PATH_NN, "r")
 
-uw_NN = file["neural_network/uw"]
-vw_NN = file["neural_network/vw"]
-wT_NN = file["neural_network/wT"]
+# uw_NN = file["neural_network/uw"]
+# vw_NN = file["neural_network/vw"]
+# wT_NN = file["neural_network/wT"]
 
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "modified_pacalowski_philander" => true, "convective_adjustment" => false)
 
