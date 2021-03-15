@@ -8,7 +8,7 @@ using Random
 using GalacticOptim
 
 # Training data
-train_files = ["-1e-3"]
+train_files = ["-1e-3", "-8e-4"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -17,7 +17,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_3.jld2")
 @assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_diamond_extracted.jld2")
@@ -46,7 +46,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacalowski_philander_1s
 # vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 # wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_extracted.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_extracted.jld2")
 
 @assert isfile(FILE_PATH_NN)
 file = jldopen(FILE_PATH_NN, "r")
@@ -59,8 +59,8 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 
 train_epochs = [1]
 train_tranges = [1:20:1153]
-train_iterations = [300]
-train_optimizers = [[ADAM(1e-3), ADAM(5e-4), ADAM(2e-4)]]
+train_iterations = [500]
+train_optimizers = [[ADAM(5e-4), ADAM(2e-4)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:20:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
