@@ -83,10 +83,10 @@ function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, 
 
 end
 
-function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
+function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacanowski_philander=false, convective_adjustment=false)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
-    @assert !modified_pacalowski_philander || !convective_adjustment
+    @assert !modified_pacanowski_philander || !convective_adjustment
 
     tanh_step(x) = (1 - tanh(x)) / 2
 
@@ -100,18 +100,17 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         vw = [vw_top; vw_NN(x); vw_bottom]
         wT = [wT_top; wT_NN(x); wT_bottom]
 
-        if modified_pacalowski_philander
+        if modified_pacanowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
-            # ν = rand(0:0.01:0.1, 33)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
-            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
-            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
+            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
             ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)

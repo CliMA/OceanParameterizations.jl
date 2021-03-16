@@ -1093,6 +1093,12 @@ git-tree-sha1 = "9844fb807d3760ca131b89e99367e363799a7e6c"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 version = "0.52.0"
 
+[[Oceanostics]]
+deps = ["KernelAbstractions", "Oceananigans", "Test"]
+git-tree-sha1 = "9a3d333e0cf28927166cae6848c2ce34ed630704"
+uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
+version = "0.1.4"
+
 [[OffsetArrays]]
 deps = ["Adapt"]
 git-tree-sha1 = "f64fbf703e7f5af5d82ea7b7385b443bb7765ce9"

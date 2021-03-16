@@ -12,10 +12,10 @@ using FileIO
 PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_2_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_modified_pacalowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-1_-8e-4_test"
+VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_2_test"
 
 file = jldopen(DATA_PATH, "r")
 
@@ -34,7 +34,7 @@ Plots.ylabel!("Loss mse")
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-test_files = ["-8e-4"]
+test_files = ["-1e-3"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
