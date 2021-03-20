@@ -8,7 +8,7 @@ using Random
 using GalacticOptim
 
 # Training data
-train_files = ["-1e-3", "-8e-4"]
+train_files = ["-1e-3"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -17,7 +17,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-2_new_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_5e-1_Ri_1e-2_new_2.jld2")
 @assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_2sim_-1e-3_-8e-4_large_extracted.jld2")
@@ -32,7 +32,7 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_2s
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_2sim_-1e-3_-8e-4_diffusivity_1e-1_Ri_1e-2_new_extracted.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_5e-1_Ri_1e-2_new_extracted.jld2")
 
 @assert isfile(FILE_PATH_NN)
 file = jldopen(FILE_PATH_NN, "r")
@@ -41,7 +41,7 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-2, "Pr" => 1f0, "modified_pacanowski_philander" => true, "convective_adjustment" => false)
+train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.5f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-2, "Pr" => 1f0, "modified_pacanowski_philander" => true, "convective_adjustment" => false)
 
 train_epochs = [1]
 train_tranges = [1:30:1153]
