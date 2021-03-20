@@ -8,7 +8,7 @@ using Random
 using GalacticOptim
 
 # Training data
-train_files = ["-1e-3"]
+train_files = ["-1e-3", "-8e-4"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
