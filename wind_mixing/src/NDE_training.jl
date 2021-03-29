@@ -83,7 +83,9 @@ function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, 
 
 end
 
-function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false)
+function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
+                    n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
+                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     @assert !modified_pacanowski_philander || !convective_adjustment
@@ -98,6 +100,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     if smooth_NN
        filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+    end
+
+    if smooth_Ri
+        filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
     end
 
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
@@ -130,6 +136,11 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
+
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+            
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
