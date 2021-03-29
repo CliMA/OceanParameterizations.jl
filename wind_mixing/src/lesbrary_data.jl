@@ -151,10 +151,10 @@ function ReadJLD2_LESbraryData(filename)
     push!(container, t, zC, zF)
 
     # now grab boundary condition data
-    θ_top = les_data["boundary_conditions"]["θ_top"]
-    u_top = les_data["boundary_conditions"]["u_top"]
-    θ_bottom = les_data["boundary_conditions"]["θ_bottom"]
-    u_bottom = les_data["boundary_conditions"]["u_bottom"]
+    θ_top = les_data["parameters/boundary_condition_θ_top"]
+    u_top = les_data["parameters/boundary_condition_u_top"]
+    θ_bottom = les_data["parameters/boundary_condition_θ_bottom"]
+    u_bottom = les_data["parameters/boundary_condition_u_bottom"]
 
     # push to container
     push!(container, θ_top, u_top, θ_bottom, u_bottom)

@@ -8,7 +8,8 @@ directories = Dict(
     "-5e-4"                    => "Data/three_layer_constant_fluxes_hr192_Qu5.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
     "-2.5e-4"                  => "Data/three_layer_constant_fluxes_hr192_Qu2.5e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
     "-7.5e-4"                  => "Data/three_layer_constant_fluxes_hr192_Qu7.5e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
-    "-1e-3"                    => "Data/three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
+    # "-1e-3"                    => "Data/three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
+    "-1e-3"                    => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
     "-8e-4"                    => "Data/three_layer_constant_fluxes_hr192_Qu8.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2",
     "-9e-4"                    => "Data/three_layer_constant_fluxes_hr192_Qu9.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2"
     )

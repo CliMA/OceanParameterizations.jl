@@ -6,11 +6,13 @@ export data, read_les_output,
        predict_NDE, predict_NDE_convective_adjustment,
        train_NDE, train_NDE_convective_adjustment, train_NN, 
        NDE_profile, animate_NN, animate_profile, animate_flux, animate_profile_flux, animate_profiles, animate_local_richardson_profile,
-       animate_profiles_fluxes,
+       NDE_profile_oceananigans,
+       nimate_profiles_fluxes,
        write_metadata_NDE_training, write_data_NDE_training,
        write_metadata_NN_training, write_data_NN_training, write_data_NN,
        train_NDE_convective_adjustment_nonmutating,
-       local_richardson
+       local_richardson,
+       smoothing_filter
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face
@@ -38,6 +40,7 @@ include("NN_training.jl")
 include("animation.jl")
 include("training_data.jl")
 include("richardson_number.jl")
+include("filtering_operators.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())

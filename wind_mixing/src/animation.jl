@@ -57,12 +57,12 @@ function prepare_BCs(𝒟, uw_scaling, vw_scaling, wT_scaling)
     return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
 end
 
-function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacalowski_philander=false, convective_adjustment=false)
+function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacanowski_philander=false, convective_adjustment=false)
     f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
-    @assert !modified_pacalowski_philander || !convective_adjustment
+    @assert !modified_pacanowski_philander || !convective_adjustment
 
     tanh_step(x) = (1 - tanh(x)) / 2
 
@@ -80,7 +80,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
         # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
-        if modified_pacalowski_philander
+        if modified_pacanowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
@@ -89,8 +89,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
-            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
-            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
+            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
+            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
             ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
 
             # ∂u∂t = f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
@@ -124,7 +124,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
         # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
 
-        if modified_pacalowski_philander
+        if modified_pacanowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
@@ -241,6 +241,43 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         output["t"] = 𝒟test.t[trange]
     end
         
+
+    return output
+end
+
+function NDE_profile_oceananigans(baseline_sol, NDE_sol)
+    output = Dict()
+    t = parse.(Float64, keys(baseline_sol["timeseries/t"])) .* 60
+    zC = baseline_sol["grid/zC"][2:end-1]
+    output["depth_profile"] = zC
+    # output["depth_flux"] = 𝒟test.uw.z
+    output["t"] = t
+    
+    truth_u = zeros(length(zC), length(t))
+    truth_v = similar(truth_u)
+    truth_T = similar(truth_u)
+
+    test_u = similar(truth_u)
+    test_v = similar(truth_u)
+    test_T = similar(truth_u)
+
+    for i in 1:size(truth_u,2)
+        truth_u[:,i] .= baseline_sol["timeseries/u/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+        truth_v[:,i] .= baseline_sol["timeseries/v/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+        truth_T[:,i] .= baseline_sol["timeseries/T/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+        test_u[:,i] .= NDE_sol["timeseries/u/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+        test_v[:,i] .= NDE_sol["timeseries/v/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+        test_T[:,i] .= NDE_sol["timeseries/T/$(keys(baseline_sol["timeseries/t"])[i])"][:]
+    end
+
+    output["truth_u"] = truth_u
+    output["truth_v"] = truth_v
+    output["truth_T"] = truth_T
+
+    output["test_u"] = test_u
+    output["test_v"] = test_v
+    output["test_T"] = test_T
+
 
     return output
 end
@@ -413,34 +450,34 @@ function animate_profiles(data, FILE_PATH; dimensionless=true, fps=30, gif=false
             @info "Animating frame $i/$(length(t))"
         end
         l = @layout [a b c]
-        fig₁ = plot(truth_u[:,i], z, xlim=(u_min, u_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
-        plot!(fig₁, test_u[:,i], z, label = "NN")
-        ylabel!(fig₁, "z /m")
+        fig₁ = Plots.plot(truth_u[:,i], z, xlim=(u_min, u_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
+        Plots.plot!(fig₁, test_u[:,i], z, label = "NN")
+        Plots.ylabel!(fig₁, "z /m")
         if dimensionless
-            xlabel!(fig₁, "u")
+            Plots.xlabel!(fig₁, "u")
         else
-            xlabel!(fig₁, "u /m s⁻¹")
+            Plots.xlabel!(fig₁, "u /m s⁻¹")
         end
 
-        fig₂ = plot(truth_v[:,i], z, xlim=(v_min, v_max), ylim=(z_min, z_max), label="Truth", legend=:bottomleft)
-        plot!(fig₂, test_v[:,i], z, label = "NN")
-        ylabel!(fig₂, "z /m")
+        fig₂ = Plots.plot(truth_v[:,i], z, xlim=(v_min, v_max), ylim=(z_min, z_max), label="Truth", legend=:bottomleft)
+        Plots.plot!(fig₂, test_v[:,i], z, label = "NN")
+        Plots.ylabel!(fig₂, "z /m")
         if dimensionless
-            xlabel!(fig₂, "v")
+            Plots.xlabel!(fig₂, "v")
         else
-            xlabel!(fig₂, "v /m s⁻¹")
+            Plots.xlabel!(fig₂, "v /m s⁻¹")
         end
 
-        fig₃ = plot(truth_T[:,i], z, xlim=(T_min, T_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
-        plot!(fig₃, test_T[:,i], z, label = "NN")
-        ylabel!(fig₃, "z /m")
+        fig₃ = Plots.plot(truth_T[:,i], z, xlim=(T_min, T_max), ylim=(z_min, z_max), label="Truth", legend=:bottomright)
+        Plots.plot!(fig₃, test_T[:,i], z, label = "NN")
+        Plots.ylabel!(fig₃, "z /m")
         if dimensionless
-            xlabel!(fig₃, "T")
+            Plots.xlabel!(fig₃, "T")
         else
-            xlabel!(fig₃, "T /°C")
+            Plots.xlabel!(fig₃, "T /°C")
         end
 
-        fig = plot(fig₁, fig₂, fig₃, layout=l, title="$(round(t[i]/86400, digits=2)) days")
+        fig = Plots.plot(fig₁, fig₂, fig₃, layout=l, title="$(round(t[i]/86400, digits=2)) days")
     end
 
     if gif

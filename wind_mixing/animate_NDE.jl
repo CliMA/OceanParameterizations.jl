@@ -11,11 +11,11 @@ using FileIO
 
 PATH = pwd()
 
-# DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_2_extracted.jld2")
-DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_2_extracted.jld2")
+# DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
+DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_2_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_diamond_2_test"
+VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_2_test"
 
 file = jldopen(DATA_PATH, "r")
 
@@ -30,7 +30,7 @@ train_parameters = file["training_info/parameters"]
 Plots.plot(1:1:size, losses, yscale=:log10)
 Plots.xlabel!("Iteration")
 Plots.ylabel!("Loss mse")
-# savefig(joinpath(PATH, "Output", "NDE_training_modified_pacalowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
+# savefig(joinpath(PATH, "Output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
@@ -52,14 +52,14 @@ wT_NN = file["neural_network/wT"]
 
 trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, 
-                        modified_pacalowski_philander=train_parameters["modified_pacalowski_philander"], 
+                        modified_pacanowski_philander=train_parameters["modified_pacalowski_philander"], 
                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"])
 
-animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME="Modified Pacalowski-Philander Wind-Mixing, Training Data")
+WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME="Modified Pacanowski-Philander Wind-Mixing, Training Data")
 
 
-# VIDEO_NAME = "u_v_T_modified_pacalowski_philander_1sim_-1e-3_test2"
+# VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_test2"
 
 
 # keys(plot_data)
@@ -76,9 +76,9 @@ animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionles
 # ylabel!("z")
 
 
-# animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
-# animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
-# animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_modified_pacalowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_modified_pacanowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_modified_pacanowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
+# animate_profile_flux(plot_data, "T", "wT", joinpath(FILE_PATH, "w_wT_modified_pacanowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
 
 # animate_profiles(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false)
 
