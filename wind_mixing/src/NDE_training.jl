@@ -1,23 +1,9 @@
-# function predict_NDE(NN, x, top, bottom)
-#     interior = NN(x)
-#     return [top; interior; bottom]
-# end
-
-# function predict_NDE_convective_adjustment(NN, x, top, bottom, D_face, D_cell, κ, Nz)
-#     interior = NN(x)
-#     T = @view x[2Nz + 1:3Nz]
-#     wT = [top; interior; bottom]
-#     ∂T∂z = D_face * T
-#     ∂z_κ∂T∂z = D_cell * min.(0f0, κ .* ∂T∂z)
-#     return - D_cell * wT .+ ∂z_κ∂T∂z
-# end
-
 function prepare_time_window(t, trange)
-    return Float32.(t[trange])
+    return t[trange]
 end
 
 function prepare_training_data(uvT, trange)
-    return Float32.(uvT[:,trange])
+    return uvT[:,trange]
 end
 
 function save_NDE_weights(weights, size_uw_NN, size_vw_NN, size_wT_NN, FILE_PATH=pwd(), filename="weights")
@@ -40,22 +26,22 @@ function cb(args...)
 end
 
 function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
-    H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
-    τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
+    H = abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1])
+    τ = abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1])
     u_scaling = 𝒟train.scalings["u"]
     v_scaling = 𝒟train.scalings["v"]
     T_scaling = 𝒟train.scalings["T"]
     uw_scaling = 𝒟train.scalings["uw"]
     vw_scaling = 𝒟train.scalings["vw"]
     wT_scaling = 𝒟train.scalings["wT"]
-    μ_u = Float32(u_scaling.μ)
-    μ_v = Float32(v_scaling.μ)
-    σ_u = Float32(u_scaling.σ)
-    σ_v = Float32(v_scaling.σ)
-    σ_T = Float32(T_scaling.σ)
-    σ_uw = Float32(uw_scaling.σ)
-    σ_vw = Float32(vw_scaling.σ)
-    σ_wT = Float32(wT_scaling.σ)
+    μ_u = u_scaling.μ
+    μ_v = v_scaling.μ
+    σ_u = u_scaling.σ
+    σ_v = v_scaling.σ
+    σ_T = T_scaling.σ
+    σ_uw = uw_scaling.σ
+    σ_vw = vw_scaling.σ
+    σ_wT = wT_scaling.σ
     uw_weights, re_uw = Flux.destructure(uw_NN)
     vw_weights, re_vw = Flux.destructure(vw_NN)
     wT_weights, re_wT = Flux.destructure(wT_NN)
@@ -147,7 +133,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
-            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
+            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -179,19 +165,19 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     uvT₀s = [Float32.(𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]]) for i in 0:n_simulations - 1]
     t_train = prepare_time_window(𝒟train.t[:,1], tsteps)
     uvT_trains = [prepare_training_data(𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)], tsteps) for i in 0:n_simulations - 1]
-    t_train = Float32.(t_train ./ τ)
+    t_train = t_train ./ τ
     tspan_train = (t_train[1], t_train[end])
-    BCs = [[Float32.(𝒟train.uw.scaled[1,n_steps * i + tsteps[1]]),
-            Float32.(𝒟train.uw.scaled[end,n_steps * i + tsteps[1]]),
-            Float32.(𝒟train.vw.scaled[1,n_steps * i + tsteps[1]]),
-            Float32.(𝒟train.vw.scaled[end,n_steps * i + tsteps[1]]),
-            Float32.(𝒟train.wT.scaled[1,n_steps * i + tsteps[1]]),
-            Float32.(𝒟train.wT.scaled[end,n_steps * i + tsteps[1]])] for i in 0:n_simulations - 1]
+    BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
 
     prob_NDEs = [ODEProblem(NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
 
     function loss(weights, BCs)
-        sols = [Float32.(Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train))) for i in 1:n_simulations]
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
         # sols = [Float32.(Array(solve(prob_NDEs[i], alg_hints=[:stiff], p=[weights; BCs[i]], reltol=1f-3, saveat=t_train))) for i in 1:n_simulations]
         
         return mean(Flux.mse.(sols, uvT_trains))

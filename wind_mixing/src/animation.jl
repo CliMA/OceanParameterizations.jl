@@ -16,22 +16,22 @@ end
 
 
 function prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4, Nz=32)
-    H = Float32(abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1]))
-    τ = Float32(abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1]))
+    H = abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1])
+    τ = abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1])
     u_scaling = 𝒟train.scalings["u"]
     v_scaling = 𝒟train.scalings["v"]
     T_scaling = 𝒟train.scalings["T"]
     uw_scaling = 𝒟train.scalings["uw"]
     vw_scaling = 𝒟train.scalings["vw"]
     wT_scaling = 𝒟train.scalings["wT"]
-    μ_u = Float32(u_scaling.μ)
-    μ_v = Float32(v_scaling.μ)
-    σ_u = Float32(u_scaling.σ)
-    σ_v = Float32(v_scaling.σ)
-    σ_T = Float32(T_scaling.σ)
-    σ_uw = Float32(uw_scaling.σ)
-    σ_vw = Float32(vw_scaling.σ)
-    σ_wT = Float32(wT_scaling.σ)
+    μ_u = u_scaling.μ
+    μ_v = v_scaling.μ
+    σ_u = u_scaling.σ
+    σ_v = v_scaling.σ
+    σ_T = T_scaling.σ
+    σ_uw = uw_scaling.σ
+    σ_vw = vw_scaling.σ
+    σ_wT = wT_scaling.σ
     uw_weights, re_uw = Flux.destructure(uw_NN)
     vw_weights, re_vw = Flux.destructure(vw_NN)
     wT_weights, re_wT = Flux.destructure(wT_NN)
@@ -57,12 +57,23 @@ function prepare_BCs(𝒟, uw_scaling, vw_scaling, wT_scaling)
     return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
 end
 
-function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, modified_pacanowski_philander=false, convective_adjustment=false)
+function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; 
+                    unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
+                    modified_pacanowski_philander=false, convective_adjustment=false,
+                    smooth_NN=false, smooth_Ri=false)
     f, H, τ, Nz, u_scaling, v_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_animation(𝒟train, uw_NN, vw_NN, wT_NN)
 
     uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs(𝒟test, uw_scaling, vw_scaling, wT_scaling)
 
     @assert !modified_pacanowski_philander || !convective_adjustment
+
+    if smooth_NN
+        filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+     end
+ 
+    if smooth_Ri
+        filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
+    end
 
     tanh_step(x) = (1 - tanh(x)) / 2
 
@@ -72,9 +83,20 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        uw = [uw_top; uw_NN(x); uw_bottom]
-        vw = [vw_top; vw_NN(x); vw_bottom]
-        wT = [wT_top; wT_NN(x); wT_bottom]
+
+        uw_interior = uw_NN(x)
+        vw_interior = vw_NN(x)
+        wT_interior = wT_NN(x)
+        
+        if smooth_NN
+            uw_interior = filter_interior * uw_interior
+            vw_interior = filter_interior * vw_interior
+            wT_interior = filter_interior * wT_interior
+        end
+
+        uw = [uw_top; uw_interior; uw_bottom]
+        vw = [vw_top; vw_interior; vw_bottom]
+        wT = [wT_top; wT_interior; wT_bottom]
 
         # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
         # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
@@ -85,18 +107,18 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z.+ 1f-7, ∂v∂z.+ 1f-7, ∂T∂z.+ 1f-7, σ_u, σ_v, σ_T, H, g, α)
+
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
             ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
             ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
-            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ ∂z_ν∂T∂z
-
-            # ∂u∂t = f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ ∂z_ν∂u∂z
-            # ∂v∂t = - f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ ∂z_ν∂v∂z
-            # ∂T∂t = ∂z_ν∂T∂z
-
+            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -116,9 +138,20 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
         u = @view x[1:Nz]
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
-        uw = [uw_top; uw_NN(x); uw_bottom]
-        vw = [vw_top; vw_NN(x); vw_bottom]
-        wT = [wT_top; wT_NN(x); wT_bottom]
+
+        uw_interior = uw_NN(x)
+        vw_interior = vw_NN(x)
+        wT_interior = wT_NN(x)
+        
+        if smooth_NN
+            uw_interior = filter_interior * uw_interior
+            vw_interior = filter_interior * vw_interior
+            wT_interior = filter_interior * wT_interior
+        end
+
+        uw = [uw_top; uw_interior; uw_bottom]
+        vw = [vw_top; vw_interior; vw_bottom]
+        wT = [wT_top; wT_interior; wT_bottom]
 
         # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
         # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
@@ -130,6 +163,11 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; unscale=f
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
             # ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
+            
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             uw .- ν ./ H .* σ_u ./ σ_uw .* ∂u∂z
             vw .- ν ./ H .* σ_v ./ σ_vw .* ∂v∂z
