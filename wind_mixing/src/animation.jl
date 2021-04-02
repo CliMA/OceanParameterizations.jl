@@ -3,12 +3,12 @@ function animate_NN(xs, y, t, x_str, x_label=["" for i in length(xs)], filename=
         x_max = maximum(maximum(x) for x in xs)
         x_min = minimum(minimum(x) for x in xs)
         @info "$x_str frame of $n/$(size(xs[1], 2))"
-        fig = plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom)
+        fig = Plots.plot(xlim=(x_min, x_max), ylim=(minimum(y), maximum(y)), legend=:bottom)
         for i in 1:length(xs)
-            plot!(fig, xs[i][:,n], y, label=x_label[i], title="t = $(round(t[n] / 86400, digits=2)) days")
+            Plots.plot!(fig, xs[i][:,n], y, label=x_label[i], title="t = $(round(t[n] / 86400, digits=2)) days")
         end
-        xlabel!(fig, "$x_str")
-        ylabel!(fig, "z")
+        Plots.xlabel!(fig, "$x_str")
+        Plots.ylabel!(fig, "z")
     end
     # gif(anim, joinpath(PATH, "$(filename).gif"), fps=30)
     mp4(anim, joinpath(PATH, "$(filename).mp4"), fps=30)

@@ -2,13 +2,26 @@ using Plots
 using Flux
 using WindMixing
 using OceanParameterizations
+using JLD2
 
-train_files = ["strong_wind"]
-uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NN_large.bson"))[:neural_network]
-vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NN_large.bson"))[:neural_network]
-wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NN_large.bson"))[:neural_network]
+# train_files = ["strong_wind"]
+# uw_NN = BSON.load(joinpath(PATH, "NDEs", "uw_NN_large.bson"))[:neural_network]
+# vw_NN = BSON.load(joinpath(PATH, "NDEs", "vw_NN_large.bson"))[:neural_network]
+# wT_NN = BSON.load(joinpath(PATH, "NDEs", "wT_NN_large.bson"))[:neural_network]
 
-𝒟train = data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
+FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
+FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_-1e-3_extracted.jld2")
+
+uw_file = jldopen(FILE_PATH_uw, "r")
+vw_file = jldopen(FILE_PATH_vw, "r")
+wT_file = jldopen(FILE_PATH_wT, "r")
+
+uw_NN = uw_file["neural_network"]
+vw_NN = vw_file["neural_network"]
+wT_NN = wT_file["neural_network"]
+
+𝒟train = WindMixing.data(uw_file["training_info/train_files"], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 function predict_NN(NN, x, y)
     interior = NN(x)
