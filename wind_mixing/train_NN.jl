@@ -1,26 +1,32 @@
 using Flux
 using OceanParameterizations
 using WindMixing
+using LinearAlgebra
 
-train_files = ["-1e-3"]
+BLAS.set_num_threads(16)
+
+train_files = ["-1e-3", "-8e-4", "-5e-4"]
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "testNN.jld2")
 
-FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_1sim_-1e-3_diamond.jld2")
-FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_1sim_-1e-3_diamond.jld2")
-FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_1sim_-1e-3_diamond.jld2")
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 N_inputs = 96
 hidden_units = 400
 N_outputs = 31
-uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, 100, relu), Dense(100, hidden_units, relu), Dense(hidden_units, N_outputs))
-vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, 100, relu), Dense(100, hidden_units, relu), Dense(hidden_units, N_outputs))
-wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, 100, relu), Dense(100, hidden_units, relu), Dense(hidden_units, N_outputs))
+
+filter_interior = WindMixing.smoothing_filter(N_outputs, 3)
+
+uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
+vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
+wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs))
 
 train_optimizers = [ADAM(0.01), Descent()]
 train_epochs = [50,100]

@@ -98,10 +98,6 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         vw = [vw_top; vw_interior; vw_bottom]
         wT = [wT_top; wT_interior; wT_bottom]
 
-        # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
-        # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
-        # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
-
         if modified_pacanowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
@@ -153,16 +149,11 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         vw = [vw_top; vw_interior; vw_bottom]
         wT = [wT_top; wT_interior; wT_bottom]
 
-        # uw = [uw_top; ones(31) .* uw_scaling(0f0); uw_bottom]
-        # vw = [vw_top; ones(31) .* vw_scaling(0f0); vw_bottom]
-        # wT = [wT_top; ones(31) .* wT_scaling(0f0); wT_bottom]
-
         if modified_pacanowski_philander
             ∂u∂z = D_face * u
             ∂v∂z = D_face * v
             ∂T∂z = D_face * T
             Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, σ_u, σ_v, σ_T, H, g, α)
-            # ν = ν₀ .+ ν₋ .* (1 .- tanh.(Ri .- Riᶜ)) ./ 2
             
             if smooth_Ri
                 Ri = filter_face * Ri
@@ -173,14 +164,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
             vw .- ν ./ H .* σ_v ./ σ_vw .* ∂v∂z
             wT .- ν ./ H .* σ_T ./ σ_wT .* ∂T∂z ./ Pr
         elseif convective_adjustment
-            uw .= -τ / H * σ_uw / σ_u .* uw
-            vw .= -τ / H * σ_vw / σ_v .* vw
             ∂T∂z = D_face * T
-            wT .= -τ / H * σ_wT / σ_T .* wT .+ τ / H ^2 .* min.(0f0, ∂T∂z) .* κ
-        else
-            uw .= -τ / H * σ_uw / σ_u .* uw
-            vw .= -τ / H * σ_vw / σ_v .* vw
-            wT .= -τ / H * σ_wT / σ_T .* wT
+            wT .- σ_T / (σ_wT * H) .* min.(0f0, ∂T∂z) .* κ
         end
 
         return uw, vw, wT
@@ -220,7 +205,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_vw = similar(output["truth_vw"])
         test_wT = similar(output["truth_wT"])
 
-        for i in 1:size(test_uw, 2)
+        Threads.@threads for i in 1:size(test_uw, 2)
             test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         end
 
@@ -263,7 +248,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_vw = similar(output["truth_vw"])
         test_wT = similar(output["truth_wT"])
 
-        for i in 1:size(test_uw, 2)
+        Threads.@threads for i in 1:size(test_uw, 2)
             test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         end
 

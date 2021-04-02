@@ -6,9 +6,12 @@ using OceanParameterizations
 using OrdinaryDiffEq
 using Random
 using GalacticOptim
+using LinearAlgebra
+
+BLAS.set_num_threads(16)
 
 # Training data
-train_files = ["-1e-3"]
+train_files = ["-1e-3", "-8e-4", "-5e-4"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -43,7 +46,7 @@ wT_NN = wT_file["neural_network"]
 # wT_NN = file["neural_network/wT"]
 
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f0, "Pr" => 1f0, "κ" => 10f0,
-                        "modified_pacanowski_philander" => true, "convective_adjustment" => false,
+                        "modified_pacanowski_philander" => false, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => true, "smooth_Ri" => false)
 
 # train_epochs = [1]
