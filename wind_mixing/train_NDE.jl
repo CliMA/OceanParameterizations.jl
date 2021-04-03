@@ -20,12 +20,12 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e0_smooth_NN.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_3sim_-1e-3_-8e-4_-5e-4_smooth_NN.jld2")
 @assert !isfile(FILE_PATH)
 
-FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
-FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_1sim_-1e-3_extracted.jld2")
+FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_3sim_-1e-3_-8e-4_-5e-4_extracted.jld2")
+FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_3sim_-1e-3_-8e-4_-5e-4_extracted.jld2")
+FILE_PATH_wT = joinpath(PATH, "extracted_training_output", "wT_NN_training_3sim_-1e-3_-8e-4_-5e-4_extracted.jld2")
 
 uw_file = jldopen(FILE_PATH_uw, "r")
 vw_file = jldopen(FILE_PATH_vw, "r")
