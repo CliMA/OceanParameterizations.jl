@@ -57,16 +57,22 @@ function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4,
     return f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range
 end
 
-function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
-    Bz = H * g * α * σ_T * ∂T∂z
-    S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
-    # if Bz == 0 && S² == 0
-    #     return 0
-    # else
-    #     return Bz / S²
-    # end
-    return Bz / S²
-
+function prepare_parameters_NDE_training_unscaled(𝒟train, uw_NN, vw_NN, wT_NN, f=1f-4)
+    uw_weights, re_uw = Flux.destructure(uw_NN)
+    vw_weights, re_vw = Flux.destructure(vw_NN)
+    wT_weights, re_wT = Flux.destructure(wT_NN)
+    weights = Float32[uw_weights; vw_weights; wT_weights]
+    Nz = length(𝒟train.u.z)
+    Δz =  𝒟train.u.z[2] - 𝒟train.u.z[1]
+    D_cell = Float32.(Dᶜ(length(𝒟train.u.z), Δz))
+    D_face = Float32.(Dᶠ(length(𝒟train.u.z), Δz))
+    size_uw_NN = length(uw_weights)
+    size_vw_NN = length(vw_weights)
+    size_wT_NN = length(wT_weights)
+    uw_range = 1:size_uw_NN
+    vw_range = size_uw_NN + 1:size_uw_NN + size_vw_NN
+    wT_range = size_uw_NN + size_vw_NN + 1:size_uw_NN + size_vw_NN + size_wT_NN
+    return f, Nz, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range
 end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
@@ -90,6 +96,18 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     if smooth_Ri
         filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
+    end
+
+    function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+        Bz = H * g * α * σ_T * ∂T∂z
+        S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
+        # if Bz == 0 && S² == 0
+        #     return 0
+        # else
+        #     return Bz / S²
+        # end
+        return Bz / S²
+    
     end
 
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
@@ -243,69 +261,162 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
 end
 
-# function train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, FILE_PATH; epochs, stage, n_simulations, convective_adjustment=false, viscosity=false,κ=10f0, maxiters=500)
-#     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
+function train_NDE_unscaled(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
+                    n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
+                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false)
+    
+    f, Nz, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training_unscaled(𝒟train, uw_NN, vw_NN, wT_NN)
 
-#     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+    @assert !modified_pacanowski_philander || !convective_adjustment
 
-#     function NDE!(dx, x, p, t)
-#         uw_weights = p[uw_range]
-#         vw_weights = p[vw_range]
-#         wT_weights = p[wT_range]
-#         uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
-#         uw_NN = re_uw(uw_weights)
-#         vw_NN = re_vw(vw_weights)
-#         wT_NN = re_wT(wT_weights)
-#         A = - τ / H
-#         B = f * τ
-#         u = x[1:Nz]
-#         v = x[Nz + 1:2Nz]
-#         T = x[2Nz + 1:3Nz]
-#         dx[1:Nz] .= A .* σ_uw ./ σ_u .* D_cell * predict_NDE(uw_NN, x, uw_top, uw_bottom) .+ B ./ σ_u .* (σ_v .* v .+ μ_v) # nondimensional gradient
-#         dx[Nz + 1:2Nz] .= A .* σ_vw ./ σ_v .* D_cell * predict_NDE(vw_NN, x, vw_top, vw_bottom) .- B ./ σ_v .* (σ_u .* u .+ μ_u)
-#         if convective_adjustment
-#             dx[2Nz + 1:3Nz] .= -A .* σ_wT ./ σ_T .* predict_NDE_convective_adjustment(wT_NN, x, wT_top, wT_bottom, D_face, D_cell, κ, Nz)
-#         else
-#             dx[2Nz + 1:3Nz] .= A .* σ_wT ./ σ_T .* predict_NDE(wT_NN, x, wT_top, wT_bottom)
-#         end
-#     end
+    tanh_step(x) = (1 - tanh(x)) / 2
 
+    ϵ = 1f-7
 
-#     uvT₀s = [Float32.(𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]]) for i in 0:n_simulations - 1]
-#     t_train = prepare_time_window(𝒟train.t[:,1], tsteps)
-#     uvT_trains = [prepare_training_data(𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)], tsteps) for i in 0:n_simulations - 1]
-#     t_train = Float32.(t_train ./ τ)
-#     tspan_train = (t_train[1], t_train[end])
-#     BCs = [[Float32.(𝒟train.uw.scaled[1,n_steps * i + tsteps[1]]),
-#             Float32.(𝒟train.uw.scaled[end,n_steps * i + tsteps[1]]),
-#             Float32.(𝒟train.vw.scaled[1,n_steps * i + tsteps[1]]),
-#             Float32.(𝒟train.vw.scaled[end,n_steps * i + tsteps[1]]),
-#             Float32.(𝒟train.wT.scaled[1,n_steps * i + tsteps[1]]),
-#             Float32.(𝒟train.wT.scaled[end,n_steps * i + tsteps[1]])] for i in 0:n_simulations - 1]
+    if smooth_profile
+        filter_cell = WindMixing.smoothing_filter(Nz, 3)
+    end
 
-#     prob_NDEs = [ODEProblem(NDE!, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+    if smooth_NN
+       filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+    end
 
-#     function loss(weights, BCs)
-#         sols = [Float32.(Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(), saveat=t_train))) for i in 1:n_simulations]
-#         return mean(Flux.mse.(sols, uvT_trains))
-#     end
+    if smooth_Ri
+        filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
+    end
 
-#     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-#     prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, g, α)
+        Bz = g * α * ∂T∂z
+        S² = ∂u∂z ^2 + ∂v∂z ^2
+        return Bz / S²
+    end
 
-#     for i in 1:length(optimizers), epoch in 1:epochs
-#         iter = 1
-#         opt = optimizers[i]
-#         function cb(args...)
-#             if iter <= maxiters
-#                 @info "loss = $(args[2]), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
-#                 write_data_NDE_training(FILE_PATH, args[2], re_uw(args[1][uw_range]), re_vw(args[1][vw_range]), re_wT(args[1][wT_range]), stage)
-#             end
-#             iter += 1
-#             false
-#         end
-#         res = solve(prob_loss, opt, cb=cb, maxiters=maxiters)
-#         weights .= res.minimizer
-#     end
-#     return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
-# end
+    function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        if smooth_profile
+            x[1:Nz] = filter_cell * x[1:Nz]
+            x[Nz + 1:2Nz] = filter_cell * x[Nz + 1:2Nz]
+            x[2Nz + 1:3Nz] = filter_cell * x[2Nz + 1:3Nz]
+        end
+
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:3Nz]
+        
+        uw_interior = uw_NN(x)
+        vw_interior = vw_NN(x)
+        wT_interior = wT_NN(x)
+
+        if smooth_NN
+            uw_interior = filter_interior * uw_interior
+            vw_interior = filter_interior * vw_interior
+            wT_interior = filter_interior * wT_interior
+        end
+
+        uw = [uw_top; uw_interior; uw_bottom]
+        vw = [vw_top; vw_interior; vw_bottom]
+        wT = [wT_top; wT_interior; wT_bottom]
+
+        if modified_pacanowski_philander
+            ∂u∂z = D_face * u
+            ∂v∂z = D_face * v
+            ∂T∂z = D_face * T
+            Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, g, α)
+
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+
+            ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+            ν∂u∂z = ν .* ∂u∂z
+            ν∂v∂z = ν .* ∂v∂z
+            ν∂T∂z = ν .* ∂T∂z ./ Pr
+            ∂u∂t = - D_cell * (uw .- ν∂u∂z) .+ f .* v
+            ∂v∂t = - D_cell * (vw .- ν∂v∂z) .- f .* u
+            ∂T∂t = - D_cell * (wT .- ν∂T∂z)
+        elseif convective_adjustment
+            ∂u∂t = - D_cell * uw .+ f .* v
+            ∂v∂t = - D_cell * vw .- f .* u
+
+            ∂T∂z = D_face * T
+            κ∂T∂z = κ .* min.(0f0, ∂T∂z)
+            ∂T∂t = - D_cell * (wT .- ∂z_κ∂T∂z)
+        else
+            ∂u∂t = - D_cell * uw .+ f .* v
+            ∂v∂t = - D_cell * vw .- f .* u
+            ∂T∂t = - D_cell * wT
+        end
+
+        return [∂u∂t; ∂v∂t; ∂T∂t]
+    end
+
+    n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+
+    function NDE(x, p, t)
+        uw_weights = p[uw_range]
+        vw_weights = p[vw_range]
+        wT_weights = p[wT_range]
+        uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
+        uw_NN = re_uw(uw_weights)
+        vw_NN = re_vw(vw_weights)
+        wT_NN = re_wT(wT_weights)
+        return predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+    end
+
+    uvT₀s = [Float32.(𝒟train.uvT_unscaled[:,n_steps * i + tsteps[1]]) for i in 0:n_simulations - 1]
+    t_train = prepare_time_window(𝒟train.t[:,1], tsteps)
+    uvT_trains = [prepare_training_data(𝒟train.uvT_unscaled[:,n_steps * i + 1:n_steps * (i + 1)], tsteps) for i in 0:n_simulations - 1]
+
+    function calculate_gradient(uvTs)
+        return cat([cat([[D_face * uvT[1:Nz, i]; D_face * uvT[Nz+1:2Nz, i]; D_face * uvT[2Nz+1:3Nz, i]] for i in 1:size(uvT, 2)]..., dims=2) for uvT in uvTs]..., dims=2)
+    end
+
+    if train_gradient
+        uvT_gradients = calculate_gradient(uvT_trains)
+    end
+
+    tspan_train = (t_train[1], t_train[end])
+    BCs = [[𝒟train.uw.coarse[1,n_steps * i + tsteps[1]],
+            𝒟train.uw.coarse[end,n_steps * i + tsteps[1]],
+            𝒟train.vw.coarse[1,n_steps * i + tsteps[1]],
+            𝒟train.vw.coarse[end,n_steps * i + tsteps[1]],
+            𝒟train.wT.coarse[1,n_steps * i + tsteps[1]],
+            𝒟train.wT.coarse[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
+
+    prob_NDEs = [ODEProblem(NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+
+    function loss(weights, BCs)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+        return mean(Flux.mse.(sols, uvT_trains))
+    end
+
+    function loss_gradient(weights, BCs)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        loss_profile = mean(Flux.mse.(sols, uvT_trains))
+        loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients))
+        return mean([loss_profile, loss_gradient])
+    end
+
+    if train_gradient
+        f_loss = OptimizationFunction(loss_gradient, GalacticOptim.AutoZygote())
+        prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    else
+        f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
+        prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    end
+
+    for i in 1:length(optimizers), epoch in 1:epochs
+        iter = 1
+        opt = optimizers[i]
+        function cb(args...)
+            if iter <= maxiters
+                @info "NDE, loss = $(args[2]), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
+                write_data_NDE_training(FILE_PATH, args[2], re_uw(args[1][uw_range]), re_vw(args[1][vw_range]), re_wT(args[1][wT_range]), stage)
+            end
+            iter += 1
+            false
+        end
+        res = solve(prob_loss, opt, cb=cb, maxiters=maxiters)
+        weights .= res.minimizer
+    end
+    return re_uw(weights[uw_range]), re_vw(weights[vw_range]), re_wT(weights[wT_range])
+end

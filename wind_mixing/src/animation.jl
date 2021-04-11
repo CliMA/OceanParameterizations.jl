@@ -84,10 +84,14 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
 
-        uw_interior = uw_NN(x)
-        vw_interior = vw_NN(x)
-        wT_interior = wT_NN(x)
+        # uw_interior = uw_NN(x)
+        # vw_interior = vw_NN(x)
+        # wT_interior = wT_NN(x)
         
+        uw_interior = fill(uw_scaling(0f0), 31)
+        vw_interior = fill(vw_scaling(0f0), 31)
+        wT_interior = fill(wT_scaling(0f0), 31)
+
         if smooth_NN
             uw_interior = filter_interior * uw_interior
             vw_interior = filter_interior * vw_interior
@@ -135,9 +139,12 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
 
-        uw_interior = uw_NN(x)
-        vw_interior = vw_NN(x)
-        wT_interior = wT_NN(x)
+        # uw_interior = uw_NN(x)
+        # vw_interior = vw_NN(x)
+        # wT_interior = wT_NN(x)
+        uw_interior = fill(uw_scaling(0f0), 31)
+        vw_interior = fill(vw_scaling(0f0), 31)
+        wT_interior = fill(wT_scaling(0f0), 31)
         
         if smooth_NN
             uw_interior = filter_interior * uw_interior
