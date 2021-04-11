@@ -13,10 +13,10 @@ PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, "extracted_training_output", 
-                    "NDE_training_2sim_-1e-3_-8e-4_smooth_NN_2_extracted.jld2")
+                    "NDE_training_2sim_-1e-3_-8e-4_smooth_NN_3_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_2sim_-1e-3_-8e-4_smooth_NN_test_-1e-3_CA"
+VIDEO_NAME = "u_v_T_2sim_-1e-3_-8e-4_smooth_NN_test_-7e-4_CA_2"
 # VIDEO_NAME = "test_flux"
 SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
 
@@ -36,7 +36,7 @@ Plots.ylabel!("Loss mse")
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-test_files = ["-1e-3"]
+test_files = ["-7e-4"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
@@ -78,7 +78,6 @@ WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), d
 # plot(Ris[:,3], plot_data["depth_flux"])
 # xlabel!("Ri")
 # ylabel!("z")
-
 
 # animate_profile_flux(plot_data, "u", "uw", joinpath(FILE_PATH, "u_uw_modified_pacanowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)
 # animate_profile_flux(plot_data, "v", "vw", joinpath(FILE_PATH, "v_vw_modified_pacanowski_philander_1sim_-1e-3_test"), gif=true, dimensionless=false)

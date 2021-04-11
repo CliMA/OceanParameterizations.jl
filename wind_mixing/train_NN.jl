@@ -3,18 +3,18 @@ using OceanParameterizations
 using WindMixing
 using LinearAlgebra
 
-BLAS.set_num_threads(16)
+BLAS.set_num_threads(32)
 
-train_files = ["-1e-3", "-8e-4", "-5e-4"]
+train_files = ["-1e-3", "-8e-4", "-5e-4", "-3e-4"]
 
 PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 
 # FILE_PATH = joinpath("D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output", "testNN.jld2")
 
-FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
-FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
-FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_3sim_-1e-3_-8e-4_-5e-4.jld2")
+FILE_PATH_uw = joinpath(OUTPUT_PATH, "uw_NN_training_4sim_-1e-3_-8e-4_-5e-4_-3e-4.jld2")
+FILE_PATH_vw = joinpath(OUTPUT_PATH, "vw_NN_training_4sim_-1e-3_-8e-4_-5e-4_-3e-4.jld2")
+FILE_PATH_wT = joinpath(OUTPUT_PATH, "wT_NN_training_4sim_-1e-3_-8e-4_-5e-4_-3e-4.jld2")
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 

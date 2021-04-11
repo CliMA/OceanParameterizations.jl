@@ -71,7 +71,7 @@ end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
-                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false)
+                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     @assert !modified_pacanowski_philander || !convective_adjustment
@@ -165,6 +165,36 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     uvT₀s = [Float32.(𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]]) for i in 0:n_simulations - 1]
     t_train = prepare_time_window(𝒟train.t[:,1], tsteps)
     uvT_trains = [prepare_training_data(𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)], tsteps) for i in 0:n_simulations - 1]
+
+    # D_face_uvT = [D_face; D_face; D_face]
+    # function calculate_gradient(uvTs)
+    #     Nzf = Nz + 1
+    #     gradients = [zeros(Float32, size(uvT, 1) + 3, size(uvT, 2)) for uvT in uvTs]
+    #     for i in 1:length(gradients)
+    #         gradient = gradients[i]
+    #         uvT = uvTs[i]
+    #         for j in 1:size(gradient, 2)
+    #             # ∂u∂z = @view gradient[1:Nzf, j]
+    #             # ∂v∂z = @view gradient[Nzf+1:2Nzf, j]
+    #             # ∂T∂z = @view gradient[2Nzf+1:end, j]
+
+    #             # gradient[1:Nzf, j] = D_face * uvT[1:Nz, j]
+    #             # gradient[Nzf+1:2Nzf, j] = D_face * uvT[Nz+1:2Nz, j]
+    #             # gradient[2Nzf+1:end, j] = D_face * uvT[2Nz+1:3Nz, j]
+    #             gradient[:,j] = D_face_uvT * uvT[:,j]
+    #         end
+    #     end
+    #     return gradients
+    # end
+
+    function calculate_gradient(uvTs)
+        return cat([cat([[D_face * uvT[1:Nz, i]; D_face * uvT[Nz+1:2Nz, i]; D_face * uvT[2Nz+1:3Nz, i]] for i in 1:size(uvT, 2)]..., dims=2) for uvT in uvTs]..., dims=2)
+    end
+
+    if train_gradient
+        uvT_gradients = calculate_gradient(uvT_trains)
+    end
+
     t_train = t_train ./ τ
     tspan_train = (t_train[1], t_train[end])
     BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
@@ -177,14 +207,24 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     prob_NDEs = [ODEProblem(NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
 
     function loss(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
-        # sols = [Float32.(Array(solve(prob_NDEs[i], alg_hints=[:stiff], p=[weights; BCs[i]], reltol=1f-3, saveat=t_train))) for i in 1:n_simulations]
-        
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
         return mean(Flux.mse.(sols, uvT_trains))
     end
 
-    f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-    prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    function loss_gradient(weights, BCs)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        loss_profile = mean(Flux.mse.(sols, uvT_trains))
+        loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients))
+        return mean([loss_profile, loss_gradient])
+    end
+
+    if train_gradient
+        f_loss = OptimizationFunction(loss_gradient, GalacticOptim.AutoZygote())
+        prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    else
+        f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
+        prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    end
 
     for i in 1:length(optimizers), epoch in 1:epochs
         iter = 1
