@@ -77,10 +77,15 @@ end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
-                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false)
+                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
+                    zero_weights=false)
     f, H, τ, Nz, u_scaling, T_scaling, uw_scaling, vw_scaling, wT_scaling, μ_u, μ_v, σ_u, σ_v, σ_T, σ_uw, σ_vw, σ_wT, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN)
 
     @assert !modified_pacanowski_philander || !convective_adjustment
+
+    if zero_weights
+        @assert modified_pacanowski_philander
+    end
 
     tanh_step(x) = (1 - tanh(x)) / 2
 
@@ -91,7 +96,11 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     end
 
     if smooth_NN
-       filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+        if zero_weights
+            filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
+        else
+            filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+        end
     end
 
     if smooth_Ri
@@ -121,19 +130,35 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         v = @view x[Nz + 1:2Nz]
         T = @view x[2Nz + 1:3Nz]
         
-        uw_interior = uw_NN(x)
-        vw_interior = vw_NN(x)
-        wT_interior = wT_NN(x)
+        if zero_weights
+            uw = uw_NN(x)
+            vw = vw_NN(x)
+            wT = wT_NN(x)
 
-        if smooth_NN
-            uw_interior = filter_interior * uw_interior
-            vw_interior = filter_interior * vw_interior
-            wT_interior = filter_interior * wT_interior
+            if smooth_NN
+                uw = filter_face * uw
+                vw = filter_face * vw
+                wT = filter_face * wT
+            end
+        else
+            # uw_interior = uw_NN(x)
+            # vw_interior = vw_NN(x)
+            # wT_interior = wT_NN(x)
+
+            uw_interior = fill(uw_scaling(0f0), 31)
+            vw_interior = fill(vw_scaling(0f0), 31)
+            wT_interior = fill(wT_scaling(0f0), 31)
+
+            if smooth_NN
+                uw_interior = filter_interior * uw_interior
+                vw_interior = filter_interior * vw_interior
+                wT_interior = filter_interior * wT_interior
+            end
+
+            uw = [uw_bottom; uw_interior; uw_top]
+            vw = [vw_bottom; vw_interior; vw_top]
+            wT = [wT_bottom; wT_interior; wT_top]
         end
-
-        uw = [uw_top; uw_interior; uw_bottom]
-        vw = [vw_top; vw_interior; vw_bottom]
-        wT = [wT_top; wT_interior; wT_bottom]
 
         if modified_pacanowski_philander
             ∂u∂z = D_face * u
@@ -146,12 +171,28 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             end
 
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
-            ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
-            ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
-            ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
-            ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
-            ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
-            ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
+
+            if zero_weights
+
+                ν∂u∂z = [[-H * σ_uw / σ_u * (uw_bottom - uw_scaling(0f0))]; ν[2:end-1] .* ∂u∂z[2:end-1]; [-H * σ_uw / σ_u * (uw_top - uw_scaling(0f0))]]
+                ν∂v∂z = [[-H * σ_vw / σ_v * (vw_bottom - vw_scaling(0f0))]; ν[2:end-1] .* ∂v∂z[2:end-1]; [-H * σ_vw / σ_v * (vw_top - vw_scaling(0f0))]]
+                ν∂T∂z = [[-H * σ_wT / σ_T * (wT_bottom - wT_scaling(0f0))]; ν[2:end-1] ./ Pr .* ∂T∂z[2:end-1]; [-H * σ_wT / σ_T * (wT_top - wT_scaling(0f0))]]
+
+                ∂z_ν∂u∂z = D_cell * ν∂u∂z
+                ∂z_ν∂v∂z = D_cell * ν∂v∂z
+                ∂z_ν∂T∂z = D_cell * ν∂T∂z
+
+                ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
+                ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
+                ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
+            else
+                ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
+                ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
+                ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ Pr)
+                ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
+                ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
+                ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
+            end
         elseif convective_adjustment
             ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
             ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -173,7 +214,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         uw_weights = p[uw_range]
         vw_weights = p[vw_range]
         wT_weights = p[wT_range]
-        uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
+        uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom, wT_top = p[wT_range[end] + 1:end]
         uw_NN = re_uw(uw_weights)
         vw_NN = re_vw(vw_weights)
         wT_NN = re_wT(wT_weights)
@@ -263,7 +304,8 @@ end
 
 function train_NDE_unscaled(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
-                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false)
+                    modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, 
+                    train_gradient=false, zero_weights=true)
     
     f, Nz, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training_unscaled(𝒟train, uw_NN, vw_NN, wT_NN)
 
@@ -328,6 +370,7 @@ function train_NDE_unscaled(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper,
 
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
             ν∂u∂z = ν .* ∂u∂z
+            # ν∂u∂z[1] = uw_top 
             ν∂v∂z = ν .* ∂v∂z
             ν∂T∂z = ν .* ∂T∂z ./ Pr
             ∂u∂t = - D_cell * (uw .- ν∂u∂z) .+ f .* v

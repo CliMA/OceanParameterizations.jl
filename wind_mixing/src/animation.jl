@@ -57,6 +57,16 @@ function prepare_BCs(𝒟, uw_scaling, vw_scaling, wT_scaling)
     return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
 end
 
+function prepare_BCs_unscaled(𝒟)
+    uw_top = 𝒟.uw.coarse[1,1]
+    uw_bottom = 𝒟.uw.coarse[end,1]
+    vw_top = 𝒟.vw.coarse[1,1]
+    vw_bottom = 𝒟.vw.coarse[end,1]
+    wT_top = 𝒟.wT.coarse[1,1]
+    wT_bottom = 𝒟.wT.coarse[end,1]
+    return uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom
+end
+
 function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; 
                     unscale=false, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false,
@@ -78,6 +88,18 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     tanh_step(x) = (1 - tanh(x)) / 2
 
     ϵ = 1f-7
+
+    function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, σ_u, σ_v, σ_T, H, g, α)
+        Bz = H * g * α * σ_T * ∂T∂z
+        S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
+        # if Bz == 0 && S² == 0
+        #     return 0
+        # else
+        #     return Bz / S²
+        # end
+        return Bz / S²
+    
+    end
 
     function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
         u = @view x[1:Nz]
@@ -227,7 +249,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         truth_Ri = similar(test_uw)
 
         for i in 1:size(truth_Ri, 2)
-            truth_Ri[:,i] .= local_richardson.(D_face * 𝒟train.u.scaled[:,i], D_face * 𝒟train.v.scaled[:,i], D_face * 𝒟train.T.scaled[:,i], σ_u, σ_v, σ_T, H, g, α)
+            truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.scaled[:,i], D_face * 𝒟test.v.scaled[:,i], D_face * 𝒟test.T.scaled[:,i], σ_u, σ_v, σ_T, H, g, α)
         end
 
         test_Ri = similar(truth_Ri)
@@ -270,7 +292,203 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         output["depth_flux"] = 𝒟test.uw.z
         output["t"] = 𝒟test.t[trange]
     end
+    return output
+end
+
+function NDE_profile_unscaled(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; 
+                    ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, 
+                    modified_pacanowski_philander=false, convective_adjustment=false,
+                    smooth_NN=false, smooth_Ri=false)
+    f, Nz, weights, re_uw, re_vw, re_wT, D_cell, D_face, size_uw_NN, size_vw_NN, size_wT_NN, uw_range, vw_range, wT_range = prepare_parameters_NDE_training_unscaled(𝒟train, uw_NN, vw_NN, wT_NN)
+
+    uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = prepare_BCs_unscaled(𝒟test)
+
+    @assert !modified_pacanowski_philander || !convective_adjustment
+
+    if smooth_NN
+        filter_interior = WindMixing.smoothing_filter(Nz-1, 3) 
+     end
+ 
+    if smooth_Ri
+        filter_face = WindMixing.smoothing_filter(Nz+1, 3) 
+    end
+
+    tanh_step(x) = (1 - tanh(x)) / 2
+
+    ϵ = 1f-7
+
+    function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, g, α)
+        Bz = g * α * ∂T∂z
+        S² = ∂u∂z ^2 + ∂v∂z ^2
+        return Bz / S²
+    end
+
+    function predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:3Nz]
+
+        uw_interior = uw_NN(x)
+        vw_interior = vw_NN(x)
+        wT_interior = wT_NN(x)
         
+        # uw_interior = fill(0f0, 31)
+        # vw_interior = fill(0f0, 31)
+        # wT_interior = fill(0f0, 31)
+
+        if smooth_NN
+            uw_interior = filter_interior * uw_interior
+            vw_interior = filter_interior * vw_interior
+            wT_interior = filter_interior * wT_interior
+        end
+
+        uw = [uw_top; uw_interior; uw_bottom]
+        vw = [vw_top; vw_interior; vw_bottom]
+        wT = [wT_top; wT_interior; wT_bottom]
+
+        if modified_pacanowski_philander
+            ∂u∂z = D_face * u
+            ∂v∂z = D_face * v
+            ∂T∂z = D_face * T
+            Ri = local_richardson.(∂u∂z.+ ϵ, ∂v∂z.+ ϵ, ∂T∂z.+ ϵ, g, α)
+
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+
+            ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+            ν∂u∂z = ν .* ∂u∂z
+            ν∂v∂z = ν .* ∂v∂z
+            ν∂T∂z = ν .* ∂T∂z ./ Pr
+            ∂u∂t = - D_cell * (uw .- ν∂u∂z) .+ f .* v
+            ∂v∂t = - D_cell * (vw .- ν∂v∂z) .- f .* u
+            ∂T∂t = - D_cell * (wT .- ν∂T∂z)
+        elseif convective_adjustment
+            ∂u∂t = - D_cell * uw .+ f .* v
+            ∂v∂t = - D_cell * vw .- f .* u
+
+            ∂T∂z = D_face * T
+            κ∂T∂z = κ .* min.(0f0, ∂T∂z)
+            ∂T∂t = - D_cell * (wT .- ∂z_κ∂T∂z)
+        else
+            ∂u∂t = - D_cell * uw .+ f .* v
+            ∂v∂t = - D_cell * vw .- f .* u
+            ∂T∂t = - D_cell * wT
+        end
+
+        return [∂u∂t; ∂v∂t; ∂T∂t]
+    end
+
+    function predict_flux(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:3Nz]
+
+        uw_interior = uw_NN(x)
+        vw_interior = vw_NN(x)
+        wT_interior = wT_NN(x)
+        # uw_interior = fill(0f0, 31)
+        # vw_interior = fill(0f0, 31)
+        # wT_interior = fill(0f0, 31)
+        
+        if smooth_NN
+            uw_interior = filter_interior * uw_interior
+            vw_interior = filter_interior * vw_interior
+            wT_interior = filter_interior * wT_interior
+        end
+
+        uw = [uw_top; uw_interior; uw_bottom]
+        vw = [vw_top; vw_interior; vw_bottom]
+        wT = [wT_top; wT_interior; wT_bottom]
+
+        if modified_pacanowski_philander
+            ∂u∂z = D_face * u
+            ∂v∂z = D_face * v
+            ∂T∂z = D_face * T
+            Ri = local_richardson.(∂u∂z.+ ϵ, ∂v∂z.+ ϵ, ∂T∂z.+ ϵ, g, α)
+
+            if smooth_Ri
+                Ri = filter_face * Ri
+            end
+
+            ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+            ν∂u∂z = ν .* ∂u∂z
+            ν∂v∂z = ν .* ∂v∂z
+            ν∂T∂z = ν .* ∂T∂z ./ Pr
+            uw .- ν∂u∂z
+            vw .- ν∂v∂z
+            wT .- ν∂T∂z ./ Pr
+        elseif convective_adjustment
+            ∂T∂z = D_face * T
+            wT .- min.(0f0, ∂T∂z) .* κ
+        end
+
+        return uw, vw, wT
+    end
+
+    function NDE(x, p, t)
+        uw_weights = p[uw_range]
+        vw_weights = p[vw_range]
+        wT_weights = p[wT_range]
+        uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom = p[wT_range[end] + 1:end]
+        uw_NN = re_uw(uw_weights)
+        vw_NN = re_vw(vw_weights)
+        wT_NN = re_wT(wT_weights)
+        return predict_NDE(uw_NN, vw_NN, wT_NN, x, uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+    end
+
+    t_test = 𝒟test.t[trange]
+    tspan_test = (t_test[1], t_test[end])
+    uvT₀ = 𝒟test.uvT_unscaled[:,1]
+    BC = [uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom]
+    prob = ODEProblem(NDE, uvT₀, tspan_test)
+
+    sol = Array(solve(prob, ROCK4(), p=[weights; BC], saveat=t_test))
+
+    output = Dict()
+
+    output["truth_uw"] = 𝒟test.uw.coarse[:,trange]
+    output["truth_vw"] = 𝒟test.vw.coarse[:,trange]
+    output["truth_wT"] = 𝒟test.wT.coarse[:,trange]
+
+    output["truth_u"] = 𝒟test.uvT_unscaled[1:Nz, trange]
+    output["truth_v"] = 𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]
+    output["truth_T"] = 𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange]
+
+    test_uw = similar(output["truth_uw"])
+    test_vw = similar(output["truth_vw"])
+    test_wT = similar(output["truth_wT"])
+
+    Threads.@threads for i in 1:size(test_uw, 2)
+        test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), uw_top, uw_bottom, vw_top, vw_bottom, wT_top, wT_bottom)
+    end
+
+    output["test_uw"] = test_uw
+    output["test_vw"] = test_vw
+    output["test_wT"] = test_wT
+
+    output["test_u"] = sol[1:Nz,:]
+    output["test_v"] = sol[Nz + 1:2Nz, :]
+    output["test_T"] = sol[2Nz + 1: 3Nz, :]
+
+    truth_Ri = similar(test_uw)
+
+    for i in 1:size(truth_Ri, 2)
+        truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.coarse[:,i], D_face * 𝒟test.v.coarse[:,i], D_face * 𝒟test.T.coarse[:,i], g, α)
+    end
+
+    test_Ri = similar(truth_Ri)
+
+    for i in 1:size(test_Ri,2)
+        test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], g, α)
+    end
+
+    output["truth_Ri"] = truth_Ri
+    output["test_Ri"] = test_Ri
+
+    output["depth_profile"] = 𝒟test.u.z
+    output["depth_flux"] = 𝒟test.uw.z
+    output["t"] = 𝒟test.t[trange]
 
     return output
 end
@@ -637,39 +855,5 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
             @info "Animating mp4 frame $n/$(length(times))..."
             frame[] = n
         end
-    end
-end
-
-
-function animate_local_richardson_profile(uvT, 𝒟, FILE_PATH; α=1.67f-4, g=9.81f0, fps=30, gif=false, mp4=true, unscale=false)
-    H = Float32(abs(𝒟.uw.z[end] - 𝒟.uw.z[1]))
-    σ_u = Float32(𝒟.scalings["u"].σ)
-    σ_v = Float32(𝒟.scalings["v"].σ)
-    σ_T = Float32(𝒟.scalings["T"].σ)
-    Ris = local_richardson(uvT, 𝒟, unscale=unscale)
-    t = 𝒟.t
-    z = 𝒟.uw.z
-
-    z_max = maximum(z)
-    z_min = minimum(z)
-
-    Ri_max = maximum(Ris)
-    Ri_min = minimum(Ris)
-
-    @info "$Ri_min, $Ri_max"
-    
-    anim = @animate for i in 1:length(t)
-        @info "Animating local Richardson number frame $i/$(length(t))"
-        fig = plot(Ris[:,i], z, xlim=(Ri_min, Ri_max), ylim=(z_min, z_max), label=nothing, title="$(round(t[i]/86400, digits=2)) days", scale=:log10)
-        ylabel!(fig, "z /m")
-        xlabel!(fig, "Local Richardson Number")
-    end
-
-    if gif
-        Plots.gif(anim, "$FILE_PATH.gif", fps=fps)
-    end
-
-    if mp4
-        Plots.mp4(anim, "$FILE_PATH.mp4", fps=fps)
     end
 end
