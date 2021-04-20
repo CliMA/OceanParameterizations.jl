@@ -61,7 +61,7 @@ function NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constan
     return predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
 end
 
-function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
     Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
     uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
     σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
@@ -71,32 +71,26 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     u = @view x[1:Nz]
     v = @view x[Nz + 1:2Nz]
     T = @view x[2Nz + 1:3Nz]
+
+    uw_interior = uw_NN(x)
+    vw_interior = vw_NN(x)
+    wT_interior = wT_NN(x)
+
+    # uw_interior = fill(scalings.uw(0f0), 31)
+    # vw_interior = fill(scalings.vw(0f0), 31)
+    # wT_interior = fill(scalings.wT(0f0), 31)
+
+    if conditions.smooth_NN
+        uw_interior = filters.interior * uw_interior
+        vw_interior = filters.interior * vw_interior
+        wT_interior = filters.interior * wT_interior
+    end
     
     if conditions.zero_weights
-        uw = uw_NN(x)
-        vw = vw_NN(x)
-        wT = wT_NN(x)
-
-        if conditions.smooth_NN
-            uw = filters.face * uw
-            vw = filters.face * vw
-            wT = filters.face * wT
-        end
+        uw = [0f0; uw_interior; 0f0]
+        vw = [0f0; vw_interior; 0f0]
+        wT = [0f0; wT_interior; 0f0]
     else
-        # uw_interior = uw_NN(x)
-        # vw_interior = vw_NN(x)
-        # wT_interior = wT_NN(x)
-
-        uw_interior = fill(uw_scaling(0f0), Nz-1)
-        vw_interior = fill(vw_scaling(0f0), Nz-1)
-        wT_interior = fill(wT_scaling(0f0), Nz-1)
-
-        if conditions.smooth_NN
-            uw_interior = filters.interior * uw_interior
-            vw_interior = filters.interior * vw_interior
-            wT_interior = filters.interior * wT_interior
-        end
-
         uw = [BCs.uw.bottom; uw_interior; BCs.uw.top]
         vw = [BCs.vw.bottom; vw_interior; BCs.vw.top]
         wT = [BCs.wT.bottom; wT_interior; BCs.wT.top]
@@ -116,33 +110,39 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
         ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
 
         if conditions.zero_weights
-            ν∂u∂z = [[-H * σ_uw / σ_u * (BCs.uw.bottom - scalings.uw(0f0))]; ν[2:end-1] .* ∂u∂z[2:end-1]; [-H * σ_uw / σ_u * (BCs.uw.top - scalings.uw(0f0))]]
-            ν∂v∂z = [[-H * σ_vw / σ_v * (BCs.vw.bottom - scalings.vw(0f0))]; ν[2:end-1] .* ∂v∂z[2:end-1]; [-H * σ_vw / σ_v * (BCs.vw.top - scalings.vw(0f0))]]
-            ν∂T∂z = [[-H * σ_wT / σ_T * (BCs.wT.bottom - scalings.wT(0f0))]; ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; [-H * σ_wT / σ_T * (BCs.wT.top - scalings.wT(0f0))]]
-
-            ∂z_ν∂u∂z = D_cell * ν∂u∂z
-            ∂z_ν∂v∂z = D_cell * ν∂v∂z
-            ∂z_ν∂T∂z = D_cell * ν∂T∂z
+            ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
+            ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); σ_v / σ_vw / H .* ν[2:end-1] .* ∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
+            ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); σ_T / σ_wT / H .* ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
         else
-            ∂z_ν∂u∂z = D_cell * (ν .* ∂u∂z)
-            ∂z_ν∂v∂z = D_cell * (ν .* ∂v∂z)
-            ∂z_ν∂T∂z = D_cell * (ν .* ∂T∂z ./ constants.Pr)
+            ν∂u∂z = σ_u / σ_uw / H .* ν .* ∂u∂z
+            ν∂v∂z = σ_v / σ_vw / H .* ν .* ∂v∂z
+            ν∂T∂z = σ_T / σ_wT / H .* ν .* ∂T∂z ./ constants.Pr
         end
 
-        ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v) .+ τ / H ^ 2 .* ∂z_ν∂u∂z
-        ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u) .+ τ / H ^ 2 .* ∂z_ν∂v∂z
-        ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^ 2 .* ∂z_ν∂T∂z
+        return uw .- ν∂u∂z, vw .- ν∂v∂z, wT .- ν∂T∂z
     elseif conditions.convective_adjustment
-        ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
-        ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
         ∂T∂z = D_face * T
-        ∂z_κ∂T∂z = D_cell * (κ .* min.(0f0, ∂T∂z))
-        ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT .+ τ / H ^2 .* ∂z_κ∂T∂z
+        κ∂T∂z = σ_T / σ_wT / H .* κ .* min.(0f0, ∂T∂z)
+        return uw, vw, wT .- κ∂T∂z
     else
-        ∂u∂t = -τ / H * σ_uw / σ_u .* D_cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
-        ∂v∂t = -τ / H * σ_vw / σ_v .* D_cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
-        ∂T∂t = -τ / H * σ_wT / σ_T .* D_cell * wT
+        return uw, vw, wT
     end
+end
+
+function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
+    σ_uw, σ_vw, σ_wT = scalings.uw.σ, scalings.vw.σ, scalings.wT.σ
+    μ_u, μ_v, σ_u, σ_v, σ_T = scalings.u.μ, scalings.v.μ, scalings.u.σ, scalings.v.σ, scalings.T.σ
+
+    u = @view x[1:Nz]
+    v = @view x[Nz + 1:2Nz]
+    T = @view x[2Nz + 1:3Nz]
+
+    uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    
+    ∂u∂t = -τ / H * σ_uw / σ_u .* derivatives.cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
+    ∂v∂t = -τ / H * σ_vw / σ_v .* derivatives.cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
+    ∂T∂t = -τ / H * σ_wT / σ_T .* derivatives.cell * wT
 
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
@@ -192,13 +192,21 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     #     return gradients
     # end
 
-    function calculate_gradient(uvTs)
-        return cat([cat([[D_face * uvT[1:Nz, i]; D_face * uvT[Nz+1:2Nz, i]; D_face * uvT[2Nz+1:3Nz, i]] for i in 1:size(uvT, 2)]..., dims=2) for uvT in uvTs]..., dims=2)
-    end
+    D_face = derivatives.face
+
+    @inline ∂u∂z(uvT, i) = D_face * uvT[1:Nz, i]
+    @inline ∂v∂z(uvT, i) = D_face * uvT[Nz+1:2Nz, i]
+    @inline ∂T∂z(uvT, i) = D_face * uvT[2Nz+1:3Nz, i]
+
+    @inline ∂uvT∂z(uvT, i) = [∂u∂z(uvT, i); ∂v∂z(uvT, i); ∂T∂z(uvT, i)]
+    @inline ∂uvT∂z(uvT) = cat([∂uvT∂z(uvT, i) for i in 1:size(uvT, 2)]..., dims=2)
+
+    @inline calculate_gradient(uvTs) = [∂uvT∂z(uvT) for uvT in uvTs]
+    # @inline calculate_gradient(uvTs) = cat([∂uvT∂z(uvT) for uvT in uvTs]..., dims=2)
 
     if train_gradient
         uvT_gradients = calculate_gradient(uvT_trains)
-    end
+    end    
 
     prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
 
@@ -218,20 +226,21 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         return mean(Flux.mse.(sols, uvT_trains))
     end
 
+    gradient_scaling = 1f-2
     function loss_gradient(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
         loss_profile = mean(Flux.mse.(sols, uvT_trains))
-        loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients))
+        loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients)) * gradient_scaling
         return mean([loss_profile, loss_gradient])
     end
 
     if train_gradient
         f_loss = OptimizationFunction(loss_gradient, GalacticOptim.AutoZygote())
-        prob_loss = OptimizationProblem(f_loss, weights, BCs)
     else
         f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-        prob_loss = OptimizationProblem(f_loss, weights, BCs)
     end
+
+    prob_loss = OptimizationProblem(f_loss, weights, BCs)
 
     for i in 1:length(optimizers), epoch in 1:epochs
         iter = 1

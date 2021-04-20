@@ -13,7 +13,7 @@ PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, "extracted_training_output", 
-                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zero_weights_extracted.jld2")
+                    "NDE_training_2sim_-1e-3_-8e-4_smooth_NN_3_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
 VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_before_training_test"
