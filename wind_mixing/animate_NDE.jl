@@ -13,10 +13,10 @@ PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, "extracted_training_output", 
-                    "NDE_training_2sim_-1e-3_-8e-4_smooth_NN_3_extracted.jld2")
+                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zero_weights_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1_zero_weights_test"
+VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_before_training_test"
 # VIDEO_NAME = "test_flux"
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
 SIMULATION_NAME = "Modified Pacanowski Philander"
@@ -74,11 +74,12 @@ wT_NN = file["training_data/neural_network/wT/1/10"]
 
 
 
-trange = 1:20:100
+trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         modified_pacanowski_philander=true, 
                         # modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
+                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=1f-1, 
+                        # ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
                         # Riᶜ=train_parameters["Riᶜ"], convective_adjustment=true,
                         smooth_NN=false, smooth_Ri=train_parameters["smooth_Ri"],

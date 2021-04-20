@@ -134,9 +134,9 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
             ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
 
             if zero_weights 
-                uw .- τ / H ^ 2 .* [[-H * scalings.uw.σ / scalings.u.σ * (BCs.uw.bottom - scalings.uw(0f0))]; ν[2:end-1] .* ∂u∂z[2:end-1]; [-H * scalings.uw.σ / scalings.u.σ * (BCs.uw.top - scalings.uw(0f0))]]
-                vw .- τ / H ^ 2 .* [[-H * scalings.vw.σ / scalings.v.σ * (BCs.vw.bottom - scalings.vw(0f0))]; ν[2:end-1] .* ∂v∂z[2:end-1]; [-H * scalings.vw.σ / scalings.v.σ * (BCs.vw.top - scalings.vw(0f0))]]
-                wT .- τ / H ^ 2 .* [[-H * scalings.wT.σ / scalings.T.σ * (BCs.wT.bottom - scalings.wT(0f0))]; ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; [-H * scalings.wT.σ / scalings.T.σ * (BCs.wT.top - scalings.wT(0f0))]]
+                uw .- τ / H ^ 2 .* [[-H * scalings.uw.σ / scalings.u.σ * (uw_bottom - scalings.uw(0f0))]; ν[2:end-1] .* ∂u∂z[2:end-1]; [-H * scalings.uw.σ / scalings.u.σ * (uw_top - scalings.uw(0f0))]]
+                vw .- τ / H ^ 2 .* [[-H * scalings.vw.σ / scalings.v.σ * (vw_bottom - scalings.vw(0f0))]; ν[2:end-1] .* ∂v∂z[2:end-1]; [-H * scalings.vw.σ / scalings.v.σ * (vw_top - scalings.vw(0f0))]]
+                wT .- τ / H ^ 2 .* [[-H * scalings.wT.σ / scalings.T.σ * (wT_bottom - scalings.wT(0f0))]; ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; [-H * scalings.wT.σ / scalings.T.σ * (wT_top - scalings.wT(0f0))]]
             else
                 uw .- ν ./ H .* scalings.u.σ ./ scalings.uw.σ .* ∂u∂z
                 vw .- ν ./ H .* scalings.v.σ ./ scalings.vw.σ .* ∂v∂z
