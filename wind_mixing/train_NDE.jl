@@ -60,26 +60,26 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => false,
                         "zero_weights" => true, "unscaled" => false)
 
-# train_epochs = [1]
-# train_tranges = [1:31:1153]
-# train_iterations = [1000]
-# train_optimizers = [[ADAM(1e-5)]]
+train_epochs = [1]
+train_tranges = [1:31:1153]
+train_iterations = [300]
+train_optimizers = [[ADAM(0.01), ADAM(0.001)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:100]
-# train_iterations = [5]
-# train_optimizers = [[ADAM(0.01)]]
+# train_iterations = [10]
+# train_optimizers = [[ADAM(0.1)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
 # train_iterations = [50, 50, 100, 30, 20, 50, 150]
 # train_optimizers = [[ADAM(0.1), ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01), ADAM(0.001), ADAM(5e-4), ADAM(2e-4)]]
 
-train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:800, 1:35:1153]
-train_epochs = [1 for i in 1:length(train_tranges)]
-train_iterations = [30, 30, 50, 30, 200]
-train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(1e-3)]]]
-# train_optimizers = [[ADAM(1e-5)] for i in 1:6]
+# train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:800, 1:35:1153]
+# train_epochs = [1 for i in 1:length(train_tranges)]
+# train_iterations = [30, 30, 50, 30, 200]
+# train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(0.01), ADAM(1e-3)]]]
+# # train_optimizers = [[ADAM(1e-5)] for i in 1:6]
 
 
 timestepper = ROCK4()
