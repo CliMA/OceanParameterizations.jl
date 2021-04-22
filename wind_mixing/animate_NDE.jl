@@ -13,10 +13,10 @@ PATH = pwd()
 
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, "extracted_training_output", 
-                    "NDE_training_2sim_-1e-3_-8e-4_smooth_NN_3_extracted.jld2")
+                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zero_weights_gradient_smallNN_extracted.jld2")
 # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
-VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_before_training_test"
+VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_smallNN_gradient"
 # VIDEO_NAME = "test_flux"
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
 SIMULATION_NAME = "Modified Pacanowski Philander"
@@ -43,15 +43,15 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 33
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 33
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-uw_NN = re(zeros(Float32, size(weights)))
-vw_NN = re(zeros(Float32, size(weights)))
-wT_NN = re(zeros(Float32, size(weights)))
+# uw_NN = re(zeros(Float32, size(weights)))
+# vw_NN = re(zeros(Float32, size(weights)))
+# wT_NN = re(zeros(Float32, size(weights)))
 
 # uw_weights, re_uw = Flux.destructure(uw_NN)
 # vw_weights, re_vw = Flux.destructure(vw_NN)
@@ -63,29 +63,18 @@ wT_NN = re(zeros(Float32, size(weights)))
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-
-FILE_PATH_2 = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zero_weights.jld2")
-file = jldopen(FILE_PATH_2, "r")
-
-uw_NN = file["training_data/neural_network/uw/1/10"]
-vw_NN = file["training_data/neural_network/vw/1/10"]
-wT_NN = file["training_data/neural_network/wT/1/10"]
-
-
-
 trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
-                        modified_pacanowski_philander=true, 
-                        # modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=1f-1, 
-                        # ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
+                        # modified_pacanowski_philander=true, 
+                        modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+                        # ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=1f-1, 
+                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
                         # Riᶜ=train_parameters["Riᶜ"], convective_adjustment=true,
-                        smooth_NN=false, smooth_Ri=train_parameters["smooth_Ri"],
-                        # smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
-                        # zero_weights=train_parameters["zero_weights"])
-                        zero_weights=true)
+                        # smooth_NN=false, smooth_Ri=train_parameters["smooth_Ri"],
+                        smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+                        zero_weights=train_parameters["zero_weights"])
+                        # zero_weights=true)
 plot_data["test_uw"]
 
 

@@ -226,7 +226,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         return mean(Flux.mse.(sols, uvT_trains))
     end
 
-    gradient_scaling = 1f-2
+    gradient_scaling = 5f-3
     function loss_gradient(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
         loss_profile = mean(Flux.mse.(sols, uvT_trains))

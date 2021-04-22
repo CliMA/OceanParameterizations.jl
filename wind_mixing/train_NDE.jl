@@ -20,7 +20,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zero_weights_smallNN.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3.jld2")
 @assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -58,12 +58,12 @@ wT_NN = re(zeros(Float32, size(weights)))
 
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
-                        "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => false,
+                        "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false)
 
 train_epochs = [1]
 train_tranges = [1:31:1153]
-train_iterations = [600]
+train_iterations = [1200]
 train_optimizers = [[ADAM(1e-3)]]
 
 # train_epochs = [1]
