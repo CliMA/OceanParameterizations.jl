@@ -18,7 +18,7 @@ train_files = ["-1e-3"]
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-# OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3.jld2")
 @assert !isfile(FILE_PATH)
@@ -66,10 +66,10 @@ train_tranges = [1:31:1153]
 train_iterations = [1200]
 train_optimizers = [[ADAM(1e-3)]]
 
-# train_epochs = [1]
-# train_tranges = [1:35:1153]
-# train_iterations = [5]
-# train_optimizers = [[ADAM(1e-3)]]
+train_epochs = [1]
+train_tranges = [1:35:1153]
+train_iterations = [5]
+train_optimizers = [[ADAM(1e-3)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
