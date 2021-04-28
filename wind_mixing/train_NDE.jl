@@ -18,9 +18,9 @@ train_files = ["-1e-3"]
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+# OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3.jld2")
 @assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -52,9 +52,9 @@ N_outputs = 31
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
 weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-uw_NN = re(zeros(Float32, size(weights)))
-vw_NN = re(zeros(Float32, size(weights)))
-wT_NN = re(zeros(Float32, size(weights)))
+uw_NN = re(fill(eps(Float32), size(weights)))
+vw_NN = re(fill(eps(Float32), size(weights)))
+wT_NN = re(fill(eps(Float32), size(weights)))
 
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
@@ -62,14 +62,14 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "zero_weights" => true, "unscaled" => false)
 
 train_epochs = [1]
-train_tranges = [1:31:1153]
-train_iterations = [1200]
-train_optimizers = [[ADAM(1e-3)]]
+train_tranges = [1:20:1153]
+train_iterations = [600]
+train_optimizers = [[ADAM(2e-3)]]
 
-train_epochs = [1]
-train_tranges = [1:35:1153]
-train_iterations = [5]
-train_optimizers = [[ADAM(1e-3)]]
+# train_epochs = [1]
+# train_tranges = [1:20:300]
+# train_iterations = [10]
+# train_optimizers = [[ADAM(1e-3)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
@@ -130,4 +130,3 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
 end
 
 train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
-

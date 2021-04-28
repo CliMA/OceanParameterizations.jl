@@ -30,7 +30,7 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
     ∂T∂z = D_face * T
     Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, H, g, α, σ_u, σ_v, σ_T)
 
-    ν = ν₀ .+ ν₋ .* tanh_step.((zeros(Float32, 33) .- Riᶜ) ./ ΔRi)
+    ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
     # ν = zeros(Float32, 33)
 
     Pr = constants.Pr
@@ -58,7 +58,7 @@ function optimise_modified_pacanowski_philander(𝒟, tsteps, timestepper, optim
         vw_scaling = 𝒟.scalings["vw"]
         wT_scaling = 𝒟.scalings["wT"]
 
-        ν₀ = 1f-4
+        ν₀ = 1f-3
         ν₋ = 1f-1
         Riᶜ = 0.25f0
         ΔRi = 1f-1
@@ -101,7 +101,7 @@ function optimise_modified_pacanowski_philander(𝒟, tsteps, timestepper, optim
     # loss(parameters, nothing)
 
     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-    prob_loss = OptimizationProblem(f_loss, parameters, lb=[0f0, 0f0, -1, 0f0], ub=[10f0, 10f0, 10f0, 10f0])
+    prob_loss = OptimizationProblem(f_loss, parameters, lb=[0f0, 0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0, 10f0])
 
     for i in 1:length(optimizers)
         iter = 1

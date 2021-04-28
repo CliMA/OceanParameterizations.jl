@@ -92,11 +92,25 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
 
+
+    if modified_pacanowski_philander
+        constants_NN_only = (H=constants.H, τ=constants.τ, f=constants.f, Nz=constants.Nz, g=constants.g, α=constants.α, ν₀=0f0, ν₋=0f0, Riᶜ=constants.Riᶜ, ΔRi=constants.ΔRi, Pr=constants.Pr)
+        prob_NDE_NN_only(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants_NN_only, derivatives, filters)
+    end
+
+
     t_test = Float32.(𝒟test.t[trange] ./ constants.τ)
     tspan_test = (t_test[1], t_test[end])
     uvT₀ = [scalings.u(𝒟test.uvT_unscaled[1:Nz, 1]); scalings.v(𝒟test.uvT_unscaled[Nz + 1:2Nz, 1]); scalings.T(𝒟test.uvT_unscaled[2Nz + 1:3Nz, 1])]
     prob = ODEProblem(prob_NDE, uvT₀, tspan_test)
     sol = Array(solve(prob, ROCK4(), p=[weights; uw_bottom; uw_top; vw_bottom; vw_top; wT_bottom; wT_top], saveat=t_test))
+
+    if modified_pacanowski_philander
+        sol_modified_pacanowski_philander = Array(solve(prob, ROCK4(), p=[zeros(Float32, length(weights)); uw_bottom; uw_top; vw_bottom; vw_top; wT_bottom; wT_top], saveat=t_test))
+        
+        prob_NN_only = ODEProblem(prob_NDE_NN_only, uvT₀, tspan_test)
+        sol_NN_only = Array(solve(prob_NN_only, ROCK4(), p=[weights; uw_bottom; uw_top; vw_bottom; vw_top; wT_bottom; wT_top], saveat=t_test))
+    end
 
     output = Dict()
 
@@ -144,6 +158,64 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     output["truth_Ri"] = truth_Ri
     output["test_Ri"] = test_Ri
 
+    if modified_pacanowski_philander
+        test_uw_modified_pacanowski_philander = similar(truth_uw)
+        test_vw_modified_pacanowski_philander = similar(truth_vw)
+        test_wT_modified_pacanowski_philander = similar(truth_wT)
+
+        for i in 1:size(test_uw_modified_pacanowski_philander, 2)
+            test_uw_modified_pacanowski_philander[:,i], test_vw_modified_pacanowski_philander[:,i], test_wT_modified_pacanowski_philander[:,i] = 
+                                    predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
+                                                NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
+                                                NN_constructions.wT(zeros(Float32, NN_sizes.wT)), 
+                                     @view(sol_modified_pacanowski_philander[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+        end
+
+        test_uw_modified_pacanowski_philander .= inv(scalings.uw).(test_uw_modified_pacanowski_philander)
+        test_vw_modified_pacanowski_philander .= inv(scalings.vw).(test_vw_modified_pacanowski_philander)
+        test_wT_modified_pacanowski_philander .= inv(scalings.wT).(test_wT_modified_pacanowski_philander)
+        test_u_modified_pacanowski_philander = inv(scalings.u).(sol_modified_pacanowski_philander[1:Nz,:])
+        test_v_modified_pacanowski_philander = inv(scalings.v).(sol_modified_pacanowski_philander[Nz + 1:2Nz, :])
+        test_T_modified_pacanowski_philander = inv(scalings.T).(sol_modified_pacanowski_philander[2Nz + 1: 3Nz, :])
+
+        test_Ri_modified_pacanowski_philander = similar(truth_Ri)
+
+        for i in 1:size(test_Ri_modified_pacanowski_philander,2)
+            test_Ri_modified_pacanowski_philander[:,i] .= 
+            local_richardson.(D_face * sol_modified_pacanowski_philander[1:Nz,i], 
+                            D_face * sol_modified_pacanowski_philander[Nz + 1:2Nz, i], 
+                            D_face * sol_modified_pacanowski_philander[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+        end
+
+        test_uw_NN_only = similar(truth_uw)
+        test_vw_NN_only = similar(truth_vw)
+        test_wT_NN_only = similar(truth_wT)
+
+        for i in 1:size(test_uw_NN_only, 2)
+            test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
+            predict_flux(uw_NN, vw_NN, wT_NN, @view(sol_NN_only[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
+        end
+
+        test_uw_NN_only .= inv(scalings.uw).(test_uw_NN_only)
+        test_vw_NN_only .= inv(scalings.vw).(test_vw_NN_only)
+        test_wT_NN_only .= inv(scalings.wT).(test_wT_NN_only)
+        test_u_NN_only = inv(scalings.u).(sol_NN_only[1:Nz,:])
+        test_v_NN_only = inv(scalings.v).(sol_NN_only[Nz + 1:2Nz, :])
+        test_T_NN_only = inv(scalings.T).(sol_NN_only[2Nz + 1: 3Nz, :])
+
+        test_Ri_NN_only = similar(truth_Ri)
+
+        for i in 1:size(test_Ri_NN_only,2)
+            test_Ri_NN_only[:,i] .= 
+            local_richardson.(D_face * sol_NN_only[1:Nz,i], 
+                            D_face * sol_NN_only[Nz + 1:2Nz, i], 
+                            D_face * sol_NN_only[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+        end
+
+        output["test_Ri_modified_pacanowski_philander"] = test_Ri_modified_pacanowski_philander
+        output["test_Ri_NN_only"] = test_Ri_NN_only
+    end
+
     if !unscale
         truth_uw .= scalings.uw.(𝒟test.uw.coarse[:,trange])
         truth_vw .= scalings.vw.(𝒟test.vw.coarse[:,trange])
@@ -153,10 +225,6 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         truth_v .= scalings.v.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
         truth_T .= scalings.T.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
 
-        for i in 1:size(test_uw, 2)
-            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
-        end
-
         test_uw .= scalings.uw.(test_uw)
         test_vw .= scalings.vw.(test_vw)
         test_wT .= scalings.wT.(test_wT)
@@ -164,12 +232,41 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_u .= scalings.u.(test_u)
         test_v .= scalings.v.(test_v)
         test_T .= scalings.w.(test_T)
+
+        if modified_pacanowski_philander
+            test_uw_modified_pacanowski_philander .= scalings.uw.(test_uw_modified_pacanowski_philander)
+            test_vw_modified_pacanowski_philander .= scalings.vw.(test_vw_modified_pacanowski_philander)
+            test_wT_modified_pacanowski_philander .= scalings.wT.(test_wT_modified_pacanowski_philander)
+    
+            test_u_modified_pacanowski_philander .= scalings.u.(test_u_modified_pacanowski_philander)
+            test_v_modified_pacanowski_philander .= scalings.v.(test_v_modified_pacanowski_philander)
+            test_T_modified_pacanowski_philander .= scalings.w.(test_T_modified_pacanowski_philander)
+
+            test_uw_NN_only .= scalings.uw.(test_uw_NN_only)
+            test_vw_NN_only .= scalings.vw.(test_vw_NN_only)
+            test_wT_NN_only .= scalings.wT.(test_wT_NN_only)
+    
+            test_u_NN_only .= scalings.u.(test_u_NN_only)
+            test_v_NN_only .= scalings.v.(test_v_NN_only)
+            test_T_NN_only .= scalings.w.(test_T_NN_only)
+
+        end
     end
 
-    if zero_weights
+    if unscale
         test_uw .= test_uw .- test_uw[1, 1]
         test_vw .= test_vw .- test_vw[1, 1] 
-        test_wT .= test_wT .- test_wT[1, 1] 
+        test_wT .= test_wT .- test_wT[1, 1]
+
+        if modified_pacanowski_philander
+            test_uw_modified_pacanowski_philander .= test_uw_modified_pacanowski_philander .- test_uw_modified_pacanowski_philander[1, 1]
+            test_vw_modified_pacanowski_philander .= test_vw_modified_pacanowski_philander .- test_vw_modified_pacanowski_philander[1, 1] 
+            test_wT_modified_pacanowski_philander .= test_wT_modified_pacanowski_philander .- test_wT_modified_pacanowski_philander[1, 1]
+
+            test_uw_NN_only .= test_uw_NN_only .- test_uw_NN_only[1, 1]
+            test_vw_NN_only .= test_vw_NN_only .- test_vw_NN_only[1, 1] 
+            test_wT_NN_only .= test_wT_NN_only .- test_wT_NN_only[1, 1]
+        end
     end
 
     output["truth_uw"] = truth_uw
@@ -191,6 +288,25 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     output["depth_profile"] = 𝒟test.u.z
     output["depth_flux"] = 𝒟test.uw.z
     output["t"] = 𝒟test.t[trange]
+
+    if modified_pacanowski_philander
+        output["test_uw_modified_pacanowski_philander"] = test_uw_modified_pacanowski_philander
+        output["test_vw_modified_pacanowski_philander"] = test_vw_modified_pacanowski_philander
+        output["test_wT_modified_pacanowski_philander"] = test_wT_modified_pacanowski_philander
+    
+        output["test_u_modified_pacanowski_philander"] = test_u_modified_pacanowski_philander
+        output["test_v_modified_pacanowski_philander"] = test_v_modified_pacanowski_philander
+        output["test_T_modified_pacanowski_philander"] = test_T_modified_pacanowski_philander
+
+        output["test_uw_NN_only"] = test_uw_NN_only
+        output["test_vw_NN_only"] = test_vw_NN_only
+        output["test_wT_NN_only"] = test_wT_NN_only
+    
+        output["test_u_NN_only"] = test_u_NN_only
+        output["test_v_NN_only"] = test_v_NN_only
+        output["test_T_NN_only"] = test_T_NN_only
+    end
+
     return output
 end
 
@@ -739,6 +855,168 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
 
     legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NDE Prediction"])
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
+    trim!(fig.layout)
+
+    if gif
+        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+            @info "Animating gif frame $n/$(length(times))..."
+            frame[] = n
+        end
+    end
+
+    if mp4
+        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+            @info "Animating mp4 frame $n/$(length(times))..."
+            frame[] = n
+        end
+    end
+end
+
+function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true, fps=30, gif=false, mp4=true, SIMULATION_NAME="")
+    times = data["t"]
+
+    frame = Node(1)
+
+    truth_u = @lift data["truth_u"][:,$frame]
+    truth_v = @lift data["truth_v"][:,$frame]
+    truth_T = @lift data["truth_T"][:,$frame]
+
+    test_u = @lift data["test_u"][:,$frame]
+    test_v = @lift data["test_v"][:,$frame]
+    test_T = @lift data["test_T"][:,$frame]
+
+    truth_uw = @lift data["truth_uw"][:,$frame]
+    truth_vw = @lift data["truth_vw"][:,$frame]
+    truth_wT = @lift data["truth_wT"][:,$frame]
+
+    test_uw = @lift data["test_uw"][:,$frame]
+    test_vw = @lift data["test_vw"][:,$frame]
+    test_wT = @lift data["test_wT"][:,$frame]
+
+    test_u_modified_pacanowski_philander = @lift data["test_u_modified_pacanowski_philander"][:,$frame]
+    test_v_modified_pacanowski_philander = @lift data["test_v_modified_pacanowski_philander"][:,$frame]
+    test_T_modified_pacanowski_philander = @lift data["test_T_modified_pacanowski_philander"][:,$frame]
+
+    test_uw_modified_pacanowski_philander = @lift data["test_uw_modified_pacanowski_philander"][:,$frame]
+    test_vw_modified_pacanowski_philander = @lift data["test_vw_modified_pacanowski_philander"][:,$frame]
+    test_wT_modified_pacanowski_philander = @lift data["test_wT_modified_pacanowski_philander"][:,$frame]
+
+    test_u_NN_only = @lift data["test_u_NN_only"][:,$frame]
+    test_v_NN_only = @lift data["test_v_NN_only"][:,$frame]
+    test_T_NN_only = @lift data["test_T_NN_only"][:,$frame]
+
+    test_uw_NN_only = @lift data["test_uw_NN_only"][:,$frame]
+    test_vw_NN_only = @lift data["test_vw_NN_only"][:,$frame]
+    test_wT_NN_only = @lift data["test_wT_NN_only"][:,$frame]
+
+
+    truth_Ri = @lift clamp.(data["truth_Ri"][:,$frame], -1, 2)
+    test_Ri = @lift clamp.(data["test_Ri"][:,$frame], -1, 2)
+    test_Ri_modified_pacanowski_philander = @lift clamp.(data["test_Ri_modified_pacanowski_philander"][:,$frame], -1, 2)
+    test_Ri_NN_only = @lift clamp.(data["test_Ri_NN_only"][:,$frame], -1, 2)
+
+
+    u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"]), maximum(data["test_u_modified_pacanowski_philander"])])
+    u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"]), minimum(data["test_u_modified_pacanowski_philander"])])
+
+    v_max = maximum([maximum(data["truth_v"]), maximum(data["test_v"]), maximum(data["test_v_modified_pacanowski_philander"])])
+    v_min = minimum([minimum(data["truth_v"]), minimum(data["test_v"]), minimum(data["test_v_modified_pacanowski_philander"])])
+
+    T_max = maximum([maximum(data["truth_T"]), maximum(data["test_T"]), maximum(data["test_T_modified_pacanowski_philander"])])
+    T_min = minimum([minimum(data["truth_T"]), minimum(data["test_T"]), minimum(data["test_T_modified_pacanowski_philander"])])
+
+    uw_max = maximum([maximum(data["truth_uw"]), maximum(data["test_uw"]), maximum(data["test_uw_modified_pacanowski_philander"]), maximum(data["test_uw_NN_only"])])
+    uw_min = minimum([minimum(data["truth_uw"]), minimum(data["test_uw"]), minimum(data["test_uw_modified_pacanowski_philander"]), minimum(data["test_uw_NN_only"])])
+
+    vw_max = maximum([maximum(data["truth_vw"]), maximum(data["test_vw"]), maximum(data["test_vw_modified_pacanowski_philander"]), maximum(data["test_vw_NN_only"])])
+    vw_min = minimum([minimum(data["truth_vw"]), minimum(data["test_vw"]), minimum(data["test_vw_modified_pacanowski_philander"]), minimum(data["test_vw_NN_only"])])
+    
+    wT_max = maximum([maximum(data["truth_wT"]), maximum(data["test_wT"]), maximum(data["test_wT_modified_pacanowski_philander"]), maximum(data["test_wT_NN_only"])])
+    wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"]), minimum(data["test_wT_modified_pacanowski_philander"]), minimum(data["test_wT_NN_only"])])
+
+    plot_title = @lift "$SIMULATION_NAME: time = $(round(times[$frame]/86400, digits=2)) days, loss = $(round(data["loss"], sigdigits=3))"
+    fig = Figure(resolution=(1920, 1080))
+    colors=["navyblue", "hotpink2", "darkgoldenrod1", "forestgreen"]
+
+    if dimensionless
+        u_str = "u"
+        v_str = "v"
+        T_str = "T"
+        uw_str = "uw"
+        vw_str = "vw"
+        wT_str = "wT"
+    else
+        u_str = "u / m s⁻¹"
+        v_str = "v / m s⁻¹"
+        T_str = "T / °C"
+        uw_str = "uw / m² s⁻²"
+        vw_str = "vw / m² s⁻²"
+        wT_str = "wT / m s⁻¹ °C"
+    end
+
+    zc = data["depth_profile"]
+    zf = data["depth_flux"]
+    z_str = "z / m"
+
+    ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
+    u_lines = [lines!(ax_u, truth_u, zc, linewidth=3, color=colors[1]), 
+                lines!(ax_u, test_u, zc, linewidth=3, color=colors[2]),
+                lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+                # lines!(ax_u, test_u_NN_only, zc, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.ylims!(ax_u, minimum(zc), 0)
+
+    ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
+    v_lines = [lines!(ax_v, truth_v, zc, linewidth=3, color=colors[1]), 
+                lines!(ax_v, test_v, zc, linewidth=3, color=colors[2]),
+                lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+                # lines!(ax_v, test_v_NN_only, zc, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.ylims!(ax_v, minimum(zc), 0)
+
+    ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
+    T_lines = [lines!(ax_T, truth_T, zc, linewidth=3, color=colors[1]), 
+                lines!(ax_T, test_T, zc, linewidth=3, color=colors[2]), 
+                lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+                # lines!(ax_T, test_T_NN_only, zc, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+    CairoMakie.ylims!(ax_T, minimum(zc), 0)
+
+    ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
+    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=3, color=colors[1]), 
+                lines!(ax_uw, test_uw, zf, linewidth=3, color=colors[2]), 
+                lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
+                lines!(ax_uw, test_uw_NN_only, zf, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
+
+    ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
+    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=3, color=colors[1]), 
+                lines!(ax_vw, test_vw, zf, linewidth=3, color=colors[2]), 
+                lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
+                lines!(ax_vw, test_vw_NN_only, zf, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
+
+    ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
+    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=3, color=colors[1]), 
+                lines!(ax_wT, test_wT, zf, linewidth=3, color=colors[2]), 
+                lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
+                lines!(ax_wT, test_wT_NN_only, zf, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
+
+    ax_Ri = fig[2, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
+    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=3, color=colors[1]), 
+                lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors[2]),
+                lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors[3])]
+                # lines!(ax_Ri, test_Ri_NN_only, zf, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_Ri, -1, 2)
+    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
+
+    legend = fig[1, 4] = Legend(fig, uw_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only", "NN Only"])
+    # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
     trim!(fig.layout)
 
