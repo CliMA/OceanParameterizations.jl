@@ -147,6 +147,27 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
+function calculate_gradient(uvT, derivatives, constants)
+    Nz = constants.Nz
+    D_face = derivatives.face
+    @inline ∂u∂z(uvT, i) = D_face * uvT[1:Nz, i]
+    @inline ∂v∂z(uvT, i) = D_face * uvT[Nz+1:2Nz, i]
+    @inline ∂T∂z(uvT, i) = D_face * uvT[2Nz+1:3Nz, i]
+
+    @inline ∂uvT∂z(uvT, i) = [∂u∂z(uvT, i); ∂v∂z(uvT, i); ∂T∂z(uvT, i)]
+    @inline ∂uvT∂z(uvT) = cat([∂uvT∂z(uvT, i) for i in 1:size(uvT, 2)]..., dims=2)
+
+    return ∂uvT∂z(uvT)
+end
+
+function loss(data, sol)
+    return Flux.mse(data, sol)    
+end
+
+function loss_gradient(data, sol, data_gradient, sol_gradient, gradient_scale)
+    return mean([Flux.mse(data, sol), gradient_scale * Flux.mse(data_gradient, sol_gradient)])
+end
+
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
@@ -171,41 +192,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     t_train = 𝒟train.t[:,1][tsteps]
     uvT_trains = [𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)][:, tsteps] for i in 0:n_simulations - 1]
 
-    # D_face_uvT = [D_face; D_face; D_face]
-    # function calculate_gradient(uvTs)
-    #     Nzf = Nz + 1
-    #     gradients = [zeros(Float32, size(uvT, 1) + 3, size(uvT, 2)) for uvT in uvTs]
-    #     for i in 1:length(gradients)
-    #         gradient = gradients[i]
-    #         uvT = uvTs[i]
-    #         for j in 1:size(gradient, 2)
-    #             # ∂u∂z = @view gradient[1:Nzf, j]
-    #             # ∂v∂z = @view gradient[Nzf+1:2Nzf, j]
-    #             # ∂T∂z = @view gradient[2Nzf+1:end, j]
-
-    #             # gradient[1:Nzf, j] = D_face * uvT[1:Nz, j]
-    #             # gradient[Nzf+1:2Nzf, j] = D_face * uvT[Nz+1:2Nz, j]
-    #             # gradient[2Nzf+1:end, j] = D_face * uvT[2Nz+1:3Nz, j]
-    #             gradient[:,j] = D_face_uvT * uvT[:,j]
-    #         end
-    #     end
-    #     return gradients
-    # end
-
     D_face = derivatives.face
 
-    @inline ∂u∂z(uvT, i) = D_face * uvT[1:Nz, i]
-    @inline ∂v∂z(uvT, i) = D_face * uvT[Nz+1:2Nz, i]
-    @inline ∂T∂z(uvT, i) = D_face * uvT[2Nz+1:3Nz, i]
-
-    @inline ∂uvT∂z(uvT, i) = [∂u∂z(uvT, i); ∂v∂z(uvT, i); ∂T∂z(uvT, i)]
-    @inline ∂uvT∂z(uvT) = cat([∂uvT∂z(uvT, i) for i in 1:size(uvT, 2)]..., dims=2)
-
-    @inline calculate_gradient(uvTs) = [∂uvT∂z(uvT) for uvT in uvTs]
-    # @inline calculate_gradient(uvTs) = cat([∂uvT∂z(uvT) for uvT in uvTs]..., dims=2)
-
     if train_gradient
-        uvT_gradients = calculate_gradient(uvT_trains)
+        uvT_gradients = [calculate_gradient(uvT, derivatives, constants) for uvT in uvT_trains]
     end    
 
     prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
@@ -221,23 +211,35 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
 
-    function loss(weights, BCs)
+    # function loss(weights, BCs)
+    #     sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+    #     return mean(Flux.mse.(sols, uvT_trains))
+    # end
+
+    # gradient_scaling = 5f-3
+    # function loss_gradient(weights, BCs)
+    #     sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+    #     loss_profile = mean(Flux.mse.(sols, uvT_trains))
+    #     loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients)) * gradient_scaling
+    #     return mean([loss_profile, loss_gradient])
+    # end
+
+    function loss_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
-        return mean(Flux.mse.(sols, uvT_trains))
+        return mean(loss.(uvT_trains, sols))
     end
 
     gradient_scaling = 5f-3
-    function loss_gradient(weights, BCs)
+    function loss_gradient_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
-        loss_profile = mean(Flux.mse.(sols, uvT_trains))
-        loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients)) * gradient_scaling
-        return mean([loss_profile, loss_gradient])
+        sol_gradients = [calculate_gradient(sol, derivatives, constants) for sol in sols]
+        return mean(loss_gradient.(uvT_trains, sols, uvT_gradients, sol_gradients, gradient_scaling))
     end
 
     if train_gradient
-        f_loss = OptimizationFunction(loss_gradient, GalacticOptim.AutoZygote())
+        f_loss = OptimizationFunction(loss_gradient_NDE, GalacticOptim.AutoZygote())
     else
-        f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
+        f_loss = OptimizationFunction(loss_NDE, GalacticOptim.AutoZygote())
     end
 
     prob_loss = OptimizationProblem(f_loss, weights, BCs)

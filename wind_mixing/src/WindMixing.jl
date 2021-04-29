@@ -12,7 +12,8 @@ export data, read_les_output,
        write_metadata_NDE_training, write_data_NDE_training,
        write_metadata_NN_training, write_data_NN_training, write_data_NN,
        local_richardson,
-       smoothing_filter
+       smoothing_filter,
+       loss, loss_gradient
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face

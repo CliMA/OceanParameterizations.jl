@@ -11,7 +11,8 @@ using Flux
 tanh_step(x) = (1 - tanh(x)) / 2
 
 function DE(x, p, t, derivatives, scalings, constants, BCs)
-    ν₀, ν₋, Riᶜ, ΔRi = p
+    ν₀, ν₋, ΔRi = p
+    Riᶜ = constants.Riᶜ
 
     Nz, H, τ, f, g, α  = constants.Nz, constants.H, constants.τ, constants.f, constants.g, constants.α
     σ_uw, σ_vw, σ_wT = scalings.uw.σ, scalings.vw.σ, scalings.wT.σ
@@ -63,10 +64,10 @@ function optimise_modified_pacanowski_philander(𝒟, tsteps, timestepper, optim
         Riᶜ = 0.25f0
         ΔRi = 1f-1
 
-        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=1.67f-4, g=9.81f0, Pr=1f0)
+        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=1.67f-4, g=9.81f0, Pr=1f0, Riᶜ=0.25f0)
         scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
         derivatives = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)))
-        parameters = [ν₀, ν₋, Riᶜ, ΔRi]
+        parameters = [ν₀, ν₋, ΔRi]
 
         return constants, scalings, derivatives, parameters
     end
@@ -98,10 +99,8 @@ function optimise_modified_pacanowski_philander(𝒟, tsteps, timestepper, optim
         return mean(Flux.mse.(sols, uvT_trains))
     end
 
-    # loss(parameters, nothing)
-
     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-    prob_loss = OptimizationProblem(f_loss, parameters, lb=[0f0, 0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0, 10f0])
+    prob_loss = OptimizationProblem(f_loss, parameters, lb=[0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0])
 
     for i in 1:length(optimizers)
         iter = 1
@@ -118,7 +117,7 @@ function optimise_modified_pacanowski_philander(𝒟, tsteps, timestepper, optim
         parameters .= res.minimizer
     end
 
-    @info "ν₀ = $(parameters[1]), ν₋ = $(parameters[2]), Riᶜ = $(parameters[3]), ΔRi = $(parameters[4])"
+    @info "ν₀ = $(parameters[1]), ν₋ = $(parameters[2]), ΔRi = $(parameters[3])"
     return parameters
 end
 
@@ -128,6 +127,14 @@ timestepper = ROCK4()
 
 optimizers = [ADAM()]
 
-tsteps = 1:20:100
-maxiters = 5
-optimise_modified_pacanowski_philander(𝒟train, tsteps, timestepper, optimizers, maxiters; n_simulations=length(train_files))
+tsteps = 1:25:1153
+maxiters = 600
+parameters = optimise_modified_pacanowski_philander(𝒟train, tsteps, timestepper, optimizers, maxiters; n_simulations=length(train_files))
+
+OUTPUT_PATH = joinpath(pwd(), "extracted_training_output")
+# OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+FILE_PATH = joinpath(OUTPUT_PATH, "parameter_optimisation_modified_pacanowski_philander.jld2")
+
+jldopen(FILE_PATH, "w") do file
+    file["parameters"] = (ν₀=parameters[1], ν₋=parameters[2], ΔRi=parameters[3])
+end

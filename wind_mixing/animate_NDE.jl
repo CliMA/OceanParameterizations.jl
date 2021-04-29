@@ -10,7 +10,7 @@ using JLD2
 using FileIO
 
 PATH = joinpath(pwd(), "extracted_training_output")
-# PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, 
                     "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3_2_extracted.jld2")
@@ -44,24 +44,6 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-# NN = Chain(Dense(96, 400, relu), Dense(400,31))
-
-# [NN(uvT[:,100]) NN(ones(96))]
-
-Flux.destructure(uw_NN)[1][end-31:end]
-
-Flux.destructure(uw_NN)[1][1:end-31] .== 0
-
-uvT = 𝒟train.uvT_scaled
-
-[uw_NN(uvT[:,100]) uw_NN(zeros(96)) uw_NN(rand(96)) Flux.destructure(uw_NN)[1][end-30:end]]
-
-NN_PATH = joinpath(PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3.jld2")
-
-NN_data = jldopen(NN_PATH, "r")
-
-Flux.destructure(NN_data["training_data/neural_network/uw/1/500"])[1][end-50:end]
-
 # N_inputs = 96
 # hidden_units = 400
 # N_outputs = 33
@@ -82,7 +64,7 @@ Flux.destructure(NN_data["training_data/neural_network/uw/1/500"])[1][end-50:end
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-trange = 1:1:1153
+trange = 1:1:100
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
