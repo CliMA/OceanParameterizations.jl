@@ -704,7 +704,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
 
     frame = Node(1)
 
-    times_days = @lift times[1:$frame]
+    time_point = @lift [times[$frame]]
 
     truth_u = @lift data["truth_u"][:,$frame]
     truth_v = @lift data["truth_v"][:,$frame]
@@ -730,9 +730,9 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     test_vw_modified_pacanowski_philander = @lift data["test_vw_modified_pacanowski_philander"][:,$frame]
     test_wT_modified_pacanowski_philander = @lift data["test_wT_modified_pacanowski_philander"][:,$frame]
 
-    test_u_NN_only = @lift data["test_u_NN_only"][:,$frame]
-    test_v_NN_only = @lift data["test_v_NN_only"][:,$frame]
-    test_T_NN_only = @lift data["test_T_NN_only"][:,$frame]
+    # test_u_NN_only = @lift data["test_u_NN_only"][:,$frame]
+    # test_v_NN_only = @lift data["test_v_NN_only"][:,$frame]
+    # test_T_NN_only = @lift data["test_T_NN_only"][:,$frame]
 
     test_uw_NN_only = @lift data["test_uw_NN_only"][:,$frame]
     test_vw_NN_only = @lift data["test_vw_NN_only"][:,$frame]
@@ -741,25 +741,25 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     truth_Ri = @lift clamp.(data["truth_Ri"][:,$frame], -1, 2)
     test_Ri = @lift clamp.(data["test_Ri"][:,$frame], -1, 2)
     test_Ri_modified_pacanowski_philander = @lift clamp.(data["test_Ri_modified_pacanowski_philander"][:,$frame], -1, 2)
-    test_Ri_NN_only = @lift clamp.(data["test_Ri_NN_only"][:,$frame], -1, 2)
+    # test_Ri_NN_only = @lift clamp.(data["test_Ri_NN_only"][:,$frame], -1, 2)
 
-    losses_data = data["losses"]
-    losses_gradient_data = data["losses_gradient"]
-    losses_modified_pacanowski_philander_data = data["losses_modified_pacanowski_philander"]
-    losses_modified_pacanowski_philander_gradient_data = data["losses_modified_pacanowski_philander_gradient"]
+    losses = data["losses"]
+    losses_gradient = data["losses_gradient"]
+    losses_modified_pacanowski_philander = data["losses_modified_pacanowski_philander"]
+    losses_modified_pacanowski_philander_gradient = data["losses_modified_pacanowski_philander_gradient"]
 
-    losses_data .= losses_data .+ (losses_data .== 0) .* eps(Float32)
-    losses_gradient_data .= losses_gradient_data .+ (losses_gradient_data .== 0) .* eps(Float32)
-    losses_modified_pacanowski_philander_data .= losses_modified_pacanowski_philander_data .+ (
-                                                 losses_modified_pacanowski_philander_data .== 0) .* eps(Float32)
-    losses_modified_pacanowski_philander_gradient_data .= losses_modified_pacanowski_philander_gradient_data .+ (
-                                                          losses_modified_pacanowski_philander_gradient_data .== 0) .* eps(Float32)
+    losses .= losses .+ (losses .== 0) .* eps(Float32)
+    losses_gradient .= losses_gradient .+ (losses_gradient .== 0) .* eps(Float32)
+    losses_modified_pacanowski_philander .= losses_modified_pacanowski_philander .+ (
+                                                 losses_modified_pacanowski_philander .== 0) .* eps(Float32)
+    losses_modified_pacanowski_philander_gradient .= losses_modified_pacanowski_philander_gradient .+ (
+                                                          losses_modified_pacanowski_philander_gradient .== 0) .* eps(Float32)
 
-    losses = @lift losses_data[1:$frame]
-    losses_gradient = @lift losses_gradient_data[1:$frame]
+    loss_point = @lift [losses[$frame]]
 
-    losses_modified_pacanowski_philander = @lift losses_modified_pacanowski_philander_data[1:$frame]
-    losses_modified_pacanowski_philander_gradient = @lift losses_modified_pacanowski_philander_gradient_data[1:$frame]
+    loss_gradient_point = @lift [losses_gradient[$frame]]
+    loss_modified_pacanowski_philander_point = @lift [losses_modified_pacanowski_philander[$frame]]
+    loss_modified_pacanowski_philander_gradient_point = @lift [losses_modified_pacanowski_philander_gradient[$frame]]
 
     u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"]), maximum(data["test_u_modified_pacanowski_philander"])])
     u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"]), minimum(data["test_u_modified_pacanowski_philander"])])
@@ -863,11 +863,16 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     CairoMakie.xlims!(ax_Ri, -1, 2)
     CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
 
-    ax_losses = fig[1, 4] = Axis(fig, xlabel="Time / days", ylabel="Loss", yscale = log10)
-    losses_lines = [lines!(ax_losses, losses, times_days, linewidth=3, color=colors_losses[1]), 
-                lines!(ax_losses, losses_modified_pacanowski_philander, times_days, linewidth=3, color=colors_losses[2]),
-                lines!(ax_losses, losses_gradient, times_days, linewidth=3, color=colors_losses[3]),
-                lines!(ax_losses, losses_modified_pacanowski_philander_gradient, times_days, linewidth=3, color=colors_losses[4])]
+    ax_losses = fig[1, 4] = Axis(fig, xlabel="Time / days", ylabel="Loss", yscale=CairoMakie.log10)
+    losses_lines = [lines!(ax_losses, times, losses, linewidth=3, color=colors_losses[1]),
+                    lines!(ax_losses, times, losses_modified_pacanowski_philander, linewidth=3, color=colors_losses[2]),
+                    lines!(ax_losses, times, losses_gradient, linewidth=3, color=colors_losses[3]),
+                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses[4])]
+    losses_point = [CairoMakie.scatter!(ax_losses, time_point, loss_point, linewidth=3, color=colors_losses[1]),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_gradient_point, linewidth=3, color=colors_losses[2]),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_point, linewidth=3, color=colors_losses[3]),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, linewidth=3, color=colors_losses[4]),]                
+    
     CairoMakie.xlims!(ax_losses, times[1], times[end])
     CairoMakie.ylims!(ax_losses, losses_min, losses_max)
 

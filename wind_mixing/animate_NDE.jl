@@ -44,15 +44,15 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-# N_inputs = 96
-# hidden_units = 400
-# N_outputs = 33
+N_inputs = 96
+hidden_units = 400
+N_outputs = 31
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-# uw_NN = re(zeros(Float32, size(weights)))
-# vw_NN = re(zeros(Float32, size(weights)))
-# wT_NN = re(zeros(Float32, size(weights)))
+uw_NN = re(zeros(Float32, size(weights)))
+vw_NN = re(zeros(Float32, size(weights)))
+wT_NN = re(zeros(Float32, size(weights)))
 
 # uw_weights, re_uw = Flux.destructure(uw_NN)
 # vw_weights, re_vw = Flux.destructure(vw_NN)
@@ -81,7 +81,7 @@ plot_data["test_Ri_NN_only"]
 
 WindMixing.animate_profiles_fluxes(plot_data, joinpath(PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
 
-WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
+WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME, fps=30)
 
 # VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_test2"
 
