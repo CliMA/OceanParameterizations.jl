@@ -20,7 +20,7 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_2.jld2")
+FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3.jld2")
 @assert !isfile(FILE_PATH)
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -35,26 +35,26 @@ FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_modified_pacanowski_philander_1s
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-                        "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
+# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
+#                         "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
 
-@assert isfile(FILE_PATH_NN)
-file = jldopen(FILE_PATH_NN, "r")
+# @assert isfile(FILE_PATH_NN)
+# file = jldopen(FILE_PATH_NN, "r")
 
-uw_NN = file["neural_network/uw"]
-vw_NN = file["neural_network/vw"]
-wT_NN = file["neural_network/wT"]
+# uw_NN = file["neural_network/uw"]
+# vw_NN = file["neural_network/vw"]
+# wT_NN = file["neural_network/wT"]
 
-# N_inputs = 96
-# hidden_units = 400
-# N_outputs = 31
+N_inputs = 96
+hidden_units = 400
+N_outputs = 31
 
-# # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-# uw_NN = re(fill(eps(Float32), size(weights)))
-# vw_NN = re(fill(eps(Float32), size(weights)))
-# wT_NN = re(fill(eps(Float32), size(weights)))
+uw_NN = re(fill(eps(Float32), size(weights)))
+vw_NN = re(fill(eps(Float32), size(weights)))
+wT_NN = re(fill(eps(Float32), size(weights)))
 
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
@@ -63,7 +63,7 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 
 train_epochs = [1]
 train_tranges = [1:25:1153]
-train_iterations = [1200]
+train_iterations = [2000]
 train_optimizers = [[ADAM(5e-3)]]
 
 # train_epochs = [1]
