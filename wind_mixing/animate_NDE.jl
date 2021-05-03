@@ -13,7 +13,8 @@ PATH = joinpath(pwd(), "extracted_training_output")
 PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 # DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
 DATA_PATH = joinpath(PATH, 
-                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_zeroweights_gradient_smallNN_scale_5e-3_2_extracted.jld2")
+                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
+DATA_PATH = joinpath(PATH, readdir(PATH)[1])
 
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
@@ -22,8 +23,11 @@ VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_s
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
 SIMULATION_NAME = "Modified Pacanowski Philander"
 
+# file = jldopen(DATA_PATH, "r")
 file = jldopen(DATA_PATH, "r")
 
+
+close(file)
 losses = file["losses"]
 
 minimum(losses)
@@ -44,15 +48,19 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+weights, re = Flux.destructure(uw_NN)
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+weights
+[uw_NN(rand(96)) uw_NN(rand(96)) weights[end-30:end]]
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-uw_NN = re(zeros(Float32, size(weights)))
-vw_NN = re(zeros(Float32, size(weights)))
-wT_NN = re(zeros(Float32, size(weights)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+
+# uw_NN = re(zeros(Float32, size(weights)))
+# vw_NN = re(zeros(Float32, size(weights)))
+# wT_NN = re(zeros(Float32, size(weights)))
 
 # uw_weights, re_uw = Flux.destructure(uw_NN)
 # vw_weights, re_vw = Flux.destructure(vw_NN)
@@ -64,7 +72,7 @@ wT_NN = re(zeros(Float32, size(weights)))
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-trange = 1:1:100
+trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
