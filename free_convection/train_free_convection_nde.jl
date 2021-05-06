@@ -3,6 +3,7 @@ using Statistics
 using Printf
 using Logging
 
+using Debugger
 using ArgParse
 using LoggingExtras
 using DataDeps
@@ -10,6 +11,7 @@ using GeoData
 using Flux
 using JLD2
 using OrdinaryDiffEq
+using Zygote
 
 using OceanParameterizations
 using FreeConvection
@@ -41,13 +43,23 @@ function parse_command_line_arguments()
 
         "--name"
             help = "Experiment name (also determines name of output directory)."
-            default = "layers3_depth4_relu"
+            default = "layers3_depth12_relu_ROCK4_250epochs_softDSC"
             arg_type = String
 
         "--epochs"
             help = "Number of epochs per optimizer to train on the full time series."
             default = 10
             arg_type = Int
+
+        "--conv"
+            help = "Toggles filter dim/if a convolutional layer is included in the NN architecture. conv > 1 --> layer is added"
+            default = 2
+            arg_type = Int
+
+        "--spatial_causality"
+            help = "Toggles how/if spatial causality is enforced in dense layer models. Empty string -> not enforced."
+            default = "soft"
+            arg_type = String
     end
 
     return parse_args(settings)
@@ -68,6 +80,8 @@ NDEType = nde_type[args["nde"]]
 algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 experiment_name = args["name"]
 full_epochs = args["epochs"]
+conv = args["conv"]
+spatial_causality = args["spatial_causality"]
 
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
@@ -82,9 +96,19 @@ TeeLogger(
 
 ## Neural network architecture
 
-NN = Chain(Dense( Nz, 4Nz, relu),
+if conv > 1
+    NN = Chain(
+           x -> reshape(x, Nz, 1, 1, 1),
+           Conv((conv, 1), 1 => 1, relu),
+           x -> reshape(x, Nz-conv+1),
+           Dense(Nz-conv+1, 4Nz, relu),
            Dense(4Nz, 4Nz, relu),
            Dense(4Nz, Nz-1))
+else
+    NN = Chain(Dense(Nz, 12Nz, relu),
+               Dense(12Nz, 12Nz, relu),
+               Dense(12Nz, Nz-1))
+end
 
 function free_convection_neural_network(input)
     wT_interior = NN(input.temperature)
@@ -135,13 +159,13 @@ coarse_training_datasets = Dict(id => coarse_datasets[id] for id in ids_train)
 coarse_testing_datasets = Dict(id => coarse_datasets[id] for id in ids_test)
 
 ## Create animations for T(z,t) and wT(z,t)
-
+#=
 @info "Animating training data..."
 for id in keys(training_datasets)
     filepath = joinpath(output_dir, "free_convection_data_$id")
     animate_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
 end
-
+=#
 ## Pull out input (T) and output (wT) training data
 
 @info "Wrangling training data..."
@@ -180,7 +204,17 @@ n_batches = ceil(Int, n_obs / batch_size)
 
 @info "Training neural network..."
 
-nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output)
+causal_penalty() = nothing
+if spatial_causality == "soft"
+    ps = Flux.params(NN)
+    dense_layer_idx, dense_layer_params_idx = 1 + Int(conv>1)*3, 1 + Int(conv>1)*2
+    nrows, ncols = size(ps[dense_layer_params_idx])
+    mask = [x < y ? true : false for x in 1:nrows, y in 1:ncols]
+    causal_penalty() = sum(abs2, NN[dense_layer_idx].W[mask])
+    nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output) + causal_penalty()
+else
+    nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output)
+end
 nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, output) in training_data)
 
 function nn_callback()
@@ -206,6 +240,7 @@ for (id, ds) in coarse_training_datasets
                                     filepath=filepath, frameskip=5)
 end
 
+
 ## Save neural network + weights
 
 initial_nn_filepath = joinpath(output_dir, "free_convection_initial_neural_network.jld2")
@@ -228,8 +263,9 @@ opt = ADAM()
 for (iterations, epochs) in zip(training_iterations, training_epochs)
     @info "Training free convection NDE with iterations=$iterations for $epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
     train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
-                                        iterations, opt, epochs, history_filepath=nn_history_filepath)
+                                        iterations, opt, epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
 end
+
 
 ## Train on entire solution while decreasing the learning rate
 
@@ -239,7 +275,7 @@ optimizers = [ADAM(), Descent()]
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
     train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
-                                        burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath)
+                                        burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
 end
 
 ## Save neural network + weights

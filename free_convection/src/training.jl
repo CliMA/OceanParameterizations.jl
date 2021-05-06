@@ -1,3 +1,5 @@
+import Zygote: Params, pullback
+
 function inscribe_history(history_filepath, NN, loss)
     jldopen(history_filepath, "a") do file
         if !haskey(file, "loss")
@@ -19,7 +21,27 @@ end
 
 inscribe_history(::Nothing, args...) = nothing
 
-function train_neural_differential_equation!(NN, NDEType, algorithm, training_datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing)
+function dense_spatial_causality_train!(loss, ps, data, opt; cb = () -> ())
+    #= Breaks in Zygote due to mutation...  =#
+    local training_loss
+    ps = Params(ps)
+    for d in data
+        gs = gradient(ps) do
+            training_loss = loss(d...)
+            return training_loss
+        end
+        for i in 1:2:length(ps)
+            nrows, ncols = size(ps[i])
+            mask = [x >= y ? 1.0 : 0.0 for x in 1:nrows, y in 1:ncols]
+            ps[i] .*= mask
+        end
+        Flux.update!(opt, ps, gs)
+        cb()
+    end
+    
+end
+
+function train_neural_differential_equation!(NN, NDEType, algorithm, training_datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing, causal_penalty=nothing)
 
     ids = [id for id in keys(training_datasets)] |> sort
 
@@ -32,8 +54,12 @@ function train_neural_differential_equation!(NN, NDEType, algorithm, training_da
 
     function nde_loss()
         nde_sols = cat([solve_nde(ndes[id], NN, T₀[id], algorithm, nde_params[id]) |> Array for id in ids]..., dims=2)
-        return Flux.mse(nde_sols, true_sols)
-    end
+        if !isnothing(causal_penalty)
+            return Flux.mse(nde_sols, true_sols) + causal_penalty(NN)
+        else
+            return Flux.mse(nde_sols, true_sols)
+        end
+     end
 
     function nde_callback()
         mse_loss = nde_loss()
