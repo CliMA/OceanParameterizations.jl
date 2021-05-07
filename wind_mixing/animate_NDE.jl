@@ -10,12 +10,10 @@ using JLD2
 using FileIO
 
 PATH = joinpath(pwd(), "extracted_training_output")
-PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-# DATA_PATH = joinpath(PATH, "extracted_training_output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_2_extracted.jld2")
-DATA_PATH = joinpath(PATH, 
-                    "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
-DATA_PATH = joinpath(PATH, readdir(PATH)[1])
+# PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
+DATA_PATH = joinpath(PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
+ispath(DATA_PATH)
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(PATH, "Output")
 VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_zero_weights_smallNN_gradient_scale_5e-3_comparison"
@@ -26,8 +24,6 @@ SIMULATION_NAME = "Modified Pacanowski Philander"
 # file = jldopen(DATA_PATH, "r")
 file = jldopen(DATA_PATH, "r")
 
-
-close(file)
 losses = file["losses"]
 
 minimum(losses)
@@ -48,19 +44,16 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-weights, re = Flux.destructure(uw_NN)
 
-weights
-[uw_NN(rand(96)) uw_NN(rand(96)) weights[end-30:end]]
-# N_inputs = 96
-# hidden_units = 400
-# N_outputs = 31
+N_inputs = 96
+hidden_units = 400
+N_outputs = 31
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-# uw_NN = re(zeros(Float32, size(weights)))
-# vw_NN = re(zeros(Float32, size(weights)))
-# wT_NN = re(zeros(Float32, size(weights)))
+uw_NN = re(zeros(Float32, size(weights)))
+vw_NN = re(zeros(Float32, size(weights)))
+wT_NN = re(zeros(Float32, size(weights)))
 
 # uw_weights, re_uw = Flux.destructure(uw_NN)
 # vw_weights, re_vw = Flux.destructure(vw_NN)

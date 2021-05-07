@@ -129,6 +129,152 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constan
     end
 end
 
+function predict_uw(NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
+    uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
+    σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
+    μ_u, μ_v, σ_u, σ_v, σ_T = scalings.u.μ, scalings.v.μ, scalings.u.σ, scalings.v.σ, scalings.T.σ
+    D_cell, D_face = derivatives.cell, derivatives.face
+
+    u = @view x[1:Nz]
+    v = @view x[Nz + 1:2Nz]
+    T = @view x[2Nz + 1:3Nz]
+
+    interior = NN(x)
+
+    if conditions.smooth_NN
+        interior = filters.interior * interior
+    end
+    
+    if conditions.zero_weights
+        uw = [0f0; interior; 0f0]
+    else
+        uw = [BCs.uw.bottom; interior; BCs.uw.top]
+    end
+
+    if conditions.modified_pacanowski_philander
+        ϵ = 1f-7
+        ∂u∂z = D_face * u
+        ∂v∂z = D_face * v
+        ∂T∂z = D_face * T
+        Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, constants.H, constants.g, constants.α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+
+        if conditions.smooth_Ri
+            Ri = filters.face * Ri
+        end
+
+        ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
+
+        if conditions.zero_weights
+            ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
+        else
+            ν∂u∂z = σ_u / σ_uw / H .* ν .* ∂u∂z
+        end
+
+        return uw .- ν∂u∂z
+    else
+        return uw
+    end
+end
+
+function predict_vw(NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
+    uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
+    σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
+    μ_u, μ_v, σ_u, σ_v, σ_T = scalings.u.μ, scalings.v.μ, scalings.u.σ, scalings.v.σ, scalings.T.σ
+    D_cell, D_face = derivatives.cell, derivatives.face
+
+    u = @view x[1:Nz]
+    v = @view x[Nz + 1:2Nz]
+    T = @view x[2Nz + 1:3Nz]
+
+    interior = NN(x)
+
+    if conditions.smooth_NN
+        interior = filters.interior * interior
+    end
+    
+    if conditions.zero_weights
+        vw = [0f0; interior; 0f0]
+    else
+        vw = [BCs.vw.bottom; interior; BCs.vw.top]
+    end
+
+    if conditions.modified_pacanowski_philander
+        ϵ = 1f-7
+        ∂u∂z = D_face * u
+        ∂v∂z = D_face * v
+        ∂T∂z = D_face * T
+        Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, constants.H, constants.g, constants.α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+
+        if conditions.smooth_Ri
+            Ri = filters.face * Ri
+        end
+
+        ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
+        if conditions.zero_weights
+            ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); σ_v / σ_vw / H .* ν[2:end-1] .* ∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
+        else
+            ν∂v∂z = σ_v / σ_vw / H .* ν .* ∂v∂z
+        end
+
+        return vw .- ν∂v∂z
+    else
+        return vw
+    end
+end
+
+function predict_wT(NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
+    uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
+    σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
+    μ_u, μ_v, σ_u, σ_v, σ_T = scalings.u.μ, scalings.v.μ, scalings.u.σ, scalings.v.σ, scalings.T.σ
+    D_cell, D_face = derivatives.cell, derivatives.face
+
+    u = @view x[1:Nz]
+    v = @view x[Nz + 1:2Nz]
+    T = @view x[2Nz + 1:3Nz]
+
+    interior = NN(x)
+
+    if conditions.smooth_NN
+        interior = filters.interior * interior
+    end
+    
+    if conditions.zero_weights
+        wT = [0f0; interior; 0f0]
+    else
+        wT = [BCs.wT.bottom; interior; BCs.wT.top]
+    end
+
+    if conditions.modified_pacanowski_philander
+        ϵ = 1f-7
+        ∂u∂z = D_face * u
+        ∂v∂z = D_face * v
+        ∂T∂z = D_face * T
+        Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, constants.H, constants.g, constants.α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+
+        if conditions.smooth_Ri
+            Ri = filters.face * Ri
+        end
+
+        ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
+        if conditions.zero_weights
+            ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); σ_T / σ_wT / H .* ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
+        else
+            ν∂T∂z = σ_T / σ_wT / H .* ν .* ∂T∂z ./ constants.Pr
+        end
+
+        return wT .- ν∂T∂z
+    elseif conditions.convective_adjustment
+        ∂T∂z = D_face * T
+        κ∂T∂z = σ_T / σ_wT / H .* κ .* min.(0f0, ∂T∂z)
+        return wT .- κ∂T∂z
+    else
+        return wT
+    end
+end
+
 function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
     Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
     σ_uw, σ_vw, σ_wT = scalings.uw.σ, scalings.vw.σ, scalings.wT.σ
@@ -147,7 +293,7 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function calculate_gradient(uvT, derivatives, constants)
+function calculate_profile_gradient(uvT, derivatives, constants)
     Nz = constants.Nz
     D_face = derivatives.face
     @inline ∂u∂z(uvT, i) = D_face * uvT[1:Nz, i]
@@ -195,7 +341,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     D_face = derivatives.face
 
     if train_gradient
-        uvT_gradients = [calculate_gradient(uvT, derivatives, constants) for uvT in uvT_trains]
+        uvT_gradients = [calculate_profile_gradient(uvT, derivatives, constants) for uvT in uvT_trains]
     end    
 
     prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
@@ -211,19 +357,6 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
 
-    # function loss(weights, BCs)
-    #     sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
-    #     return mean(Flux.mse.(sols, uvT_trains))
-    # end
-
-    # gradient_scaling = 5f-3
-    # function loss_gradient(weights, BCs)
-    #     sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
-    #     loss_profile = mean(Flux.mse.(sols, uvT_trains))
-    #     loss_gradient = mean(Flux.mse.(calculate_gradient(sols), uvT_gradients)) * gradient_scaling
-    #     return mean([loss_profile, loss_gradient])
-    # end
-
     function loss_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
         return mean(loss.(uvT_trains, sols))
@@ -232,7 +365,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     gradient_scaling = 5f-3
     function loss_gradient_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
-        sol_gradients = [calculate_gradient(sol, derivatives, constants) for sol in sols]
+        sol_gradients = [calculate_profile_gradient(sol, derivatives, constants) for sol in sols]
         return mean(loss_gradient.(uvT_trains, sols, uvT_gradients, sol_gradients, gradient_scaling))
     end
 
