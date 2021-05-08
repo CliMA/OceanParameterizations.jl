@@ -108,12 +108,12 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
                         scalings.v.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]); 
                         scalings.T.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])]
 
-    𝒟test_uvT_scaled_gradient = calculate_gradient(𝒟test_uvT_scaled, derivatives, constants)
+    𝒟test_uvT_scaled_gradient = calculate_profile_gradient(𝒟test_uvT_scaled, derivatives, constants)
 
     losses = [loss(@view(sol[:,i]), @view(𝒟test_uvT_scaled[:,i])) for i in 1:size(sol, 2)]
 
     gradient_scaling = 5f-3
-    sol_gradient = calculate_gradient(sol, derivatives, constants)
+    sol_gradient = calculate_profile_gradient(sol, derivatives, constants)
     losses_gradient = [loss_gradient(@view(𝒟test_uvT_scaled[:,i]), 
                                      @view(sol[:,i]), 
                                      @view(𝒟test_uvT_scaled_gradient[:,i]), 
@@ -126,7 +126,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     output["loss_gradient"] = mean(losses_gradient)
 
     if modified_pacanowski_philander
-        sol_modified_pacanowski_philander_gradient = calculate_gradient(sol_modified_pacanowski_philander, derivatives, constants)
+        sol_modified_pacanowski_philander_gradient = calculate_profile_gradient(sol_modified_pacanowski_philander, derivatives, constants)
         losses_modified_pacanowski_philander = [loss(@view(sol_modified_pacanowski_philander[:,i]), 
                                                      @view(𝒟test_uvT_scaled[:,i])) 
                                                      for i in 1:size(sol_modified_pacanowski_philander, 2)]

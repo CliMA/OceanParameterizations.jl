@@ -317,7 +317,7 @@ end
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
-                    zero_weights=false)
+                    zero_weights=false, gradient_scaling=5f-3)
     @assert !modified_pacanowski_philander || !convective_adjustment
 
     if zero_weights
@@ -362,7 +362,6 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         return mean(loss.(uvT_trains, sols))
     end
 
-    gradient_scaling = 5f-3
     function loss_gradient_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
         sol_gradients = [calculate_profile_gradient(sol, derivatives, constants) for sol in sols]
