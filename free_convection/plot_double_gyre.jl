@@ -55,7 +55,7 @@ for var in ("u", "v", "T")
 
     supertitle = fig[0, :] = Label(fig, title, textsize=30)
 
-    record(fig, "double_gyre_$var.mp4", 1:50:length(ds["time"]), framerate=20) do n
+    record(fig, "double_gyre_$var.mp4", 1:10:length(ds["time"]), framerate=10) do n
         @info "Animating double gyre $var frame $n/$(length(ds["time"]))..."
         frame[] = n
     end

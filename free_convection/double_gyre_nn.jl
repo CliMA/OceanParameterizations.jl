@@ -30,7 +30,7 @@ function convective_adjustment!(model, Δt, K)
     Δz = model.grid.Δz
     T = model.tracers.T
 
-    ∂T∂z = ComputedField(@at (Cell, Cell, Cell) ∂z(T))
+    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
     compute!(∂T∂z)
 
     κ = zeros(Nx, Ny, Nz)
@@ -141,7 +141,7 @@ function ∂z_wT(wT)
     wT_field = ZFaceField(CPU(), grid)
     set!(wT_field, wT)
     fill_halo_regions!(wT_field, CPU(), nothing, nothing)
-    ∂z_wT_field = ComputedField(@at (Cell, Cell, Cell) ∂z(wT_field))
+    ∂z_wT_field = ComputedField(@at (Center, Center, Center) ∂z(wT_field))
     compute!(∂z_wT_field)
     return interior(∂z_wT_field)
 end

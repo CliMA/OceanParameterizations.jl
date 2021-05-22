@@ -1,4 +1,4 @@
-function coarse_grain(A::Array, n, ::Cell)
+function coarse_grain(A::Array, n, ::Center)
     N = length(A)
     Δ = Int(N / n)
     Ā = similar(A, n)
@@ -36,7 +36,7 @@ function coarse_grain(d::Dimension, n, loc)
 end
 
 function coarse_grain(A::GeoArray, n)
-    loc = hasdim(A, zC) ? Cell() : Face()
+    loc = hasdim(A, zC) ? Center() : Face()
 
     N = size(A, ZDim)
     T = size(A, Ti)

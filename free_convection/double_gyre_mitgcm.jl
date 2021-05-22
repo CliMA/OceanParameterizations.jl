@@ -64,7 +64,7 @@ end
 km = kilometers
 topo = (Bounded, Bounded, Bounded)
 domain = (x=(-3000km, 3000km), y=(-3000km, 3000km), z=(-1.8km, 0))
-grid = RegularCartesianGrid(topology=topo, size=(60, 60, 32); domain...)
+grid = RegularCartesianGrid(topology=topo, size=(60, 60, 64); domain...)
 
 ## Boundary conditions
 
@@ -86,7 +86,7 @@ no_slip = ValueBoundaryCondition(0)
 
 u_bcs = UVelocityBoundaryConditions(grid,
        top = wind_stress_bc,
-    bottom = u_bottom_stress_bc,
+#   bottom = u_bottom_stress_bc,
      north = no_slip,
      south = no_slip
 )
@@ -94,7 +94,7 @@ u_bcs = UVelocityBoundaryConditions(grid,
 v_bcs = VVelocityBoundaryConditions(grid,
       east = no_slip,
       west = no_slip,
-    bottom = v_bottom_stress_bc
+#   bottom = v_bottom_stress_bc
 )
 
 w_bcs = WVelocityBoundaryConditions(grid,
@@ -120,7 +120,7 @@ T_bcs = TracerBoundaryConditions(grid, bottom = ValueBoundaryCondition(T_min))
 
 ## Turbulent diffusivity closure
 
-closure = AnisotropicDiffusivity(νh=5000, νz=1e-2, κh=1000, κz=1e-5)
+closure = AnisotropicDiffusivity(νh=5000, νz=1e-2, κh=5000, κz=1e-5)
 
 ## Model setup
 
@@ -182,9 +182,9 @@ function print_progress(simulation)
     return nothing
 end
 
-wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=20minutes, max_change=1.1, max_Δt=1hour)
+wizard = TimeStepWizard(cfl=0.2, diffusive_cfl=0.5, Δt=20minutes, max_change=1.1, max_Δt=1hour)
 
-simulation = Simulation(model, Δt=wizard, stop_time=20years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model, Δt=wizard, stop_time=1year, iteration_interval=1, progress=print_progress)
 
 ## Set up output writers
 
