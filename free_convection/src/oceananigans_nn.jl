@@ -1,5 +1,7 @@
+using LinearAlgebra: Tridiagonal
+
 using Oceananigans:
-    CPU, RegularCartesianGrid, ZFaceField, ComputedField, set!, compute!, interior,
+    CPU, RegularRectilinearGrid, ZFaceField, ComputedField, set!, compute!, interior,
     FluxBoundaryCondition, GradientBoundaryCondition, TracerBoundaryConditions, fill_halo_regions!,
     Forcing, IncompressibleModel, Simulation, run!
 
@@ -59,7 +61,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
     ## Grid setup
 
     topo = (Periodic, Periodic, Bounded)
-    grid = RegularCartesianGrid(topology=topo, size=(1, 1, Nz), extent=(1, 1, Lz))
+    grid = RegularRectilinearGrid(topology=topo, size=(1, 1, Nz), extent=(1, 1, Lz))
 
     ## Boundary conditions
 

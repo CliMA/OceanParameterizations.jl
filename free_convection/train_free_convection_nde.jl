@@ -53,12 +53,12 @@ function parse_command_line_arguments()
 
         "--conv"
             help = "Toggles filter dim/if a convolutional layer is included in the NN architecture. conv > 1 --> layer is added"
-            default = 2
+            default = 0
             arg_type = Int
 
         "--spatial_causality"
             help = "Toggles how/if spatial causality is enforced in dense layer models. Empty string -> not enforced."
-            default = "soft"
+            default = ""
             arg_type = String
     end
 
@@ -105,9 +105,9 @@ if conv > 1
            Dense(4Nz, 4Nz, relu),
            Dense(4Nz, Nz-1))
 else
-    NN = Chain(Dense(Nz, 12Nz, relu),
-               Dense(12Nz, 12Nz, relu),
-               Dense(12Nz, Nz-1))
+    NN = Chain(Dense(Nz, 4Nz, relu),
+               Dense(4Nz, 4Nz, relu),
+               Dense(4Nz, Nz-1))
 end
 
 function free_convection_neural_network(input)
@@ -204,7 +204,8 @@ n_batches = ceil(Int, n_obs / batch_size)
 
 @info "Training neural network..."
 
-causal_penalty() = nothing
+causal_penalty = nothing
+
 if spatial_causality == "soft"
     ps = Flux.params(NN)
     dense_layer_idx, dense_layer_params_idx = 1 + Int(conv>1)*3, 1 + Int(conv>1)*2
