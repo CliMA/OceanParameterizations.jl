@@ -62,7 +62,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
                     unscale=true, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, f=1f-4,
                     modified_pacanowski_philander=false, convective_adjustment=false,
                     smooth_NN=false, smooth_Ri=false,
-                    zero_weights=false)
+                    zero_weights=false, 
+                    gradient_scaling = 5f-3)
     
     @assert !modified_pacanowski_philander || !convective_adjustment
 
@@ -112,7 +113,6 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     losses = [loss(@view(sol[:,i]), @view(𝒟test_uvT_scaled[:,i])) for i in 1:size(sol, 2)]
 
-    gradient_scaling = 5f-3
     sol_gradient = calculate_profile_gradient(sol, derivatives, constants)
     losses_gradient = [loss_gradient(@view(𝒟test_uvT_scaled[:,i]), 
                                      @view(sol[:,i]), 
@@ -122,7 +122,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     output["losses"] = losses
     output["loss"] = mean(losses)
-    output["losses_gradient"] = losses_gradient
+    output["losses_gradient"] = losses_gradient .- losses
     output["loss_gradient"] = mean(losses_gradient)
 
     if modified_pacanowski_philander
@@ -137,7 +137,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
                                                                        gradient_scaling) for i in 1:size(sol_modified_pacanowski_philander, 2)]
         output["losses_modified_pacanowski_philander"] = losses_modified_pacanowski_philander
         output["loss_modified_pacanowski_philander"] = mean(losses_modified_pacanowski_philander)
-        output["losses_modified_pacanowski_philander_gradient"] = losses_modified_pacanowski_philander_gradient
+        output["losses_modified_pacanowski_philander_gradient"] = losses_modified_pacanowski_philander_gradient .- losses_modified_pacanowski_philander
         output["loss_modified_pacanowski_philander_gradient"] = mean(losses_modified_pacanowski_philander_gradient)
     end
 
@@ -780,12 +780,20 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"]), minimum(data["test_wT_modified_pacanowski_philander"]), minimum(data["test_wT_NN_only"])])
 
     losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"])])
-    losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"])])
+    losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end])])
 
     plot_title = @lift "$SIMULATION_NAME: Time = $(round(times[$frame], digits=2)) days"
     fig = Figure(resolution=(1920, 1080))
-    colors=["navyblue", "hotpink2", "darkgoldenrod1", "forestgreen"]
-    colors_losses = ["saddlebrown", "grey22", "purple", "darkorange"]
+    color_palette = distinguishable_colors(9, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+    colors = (truth=color_palette[1], 
+              test=color_palette[2], 
+              test_modified_pacanoswki_philander=color_palette[3],
+              test_NN_only=color_palette[4])
+    colors_losses = (loss=color_palette[5],
+                     loss_modified_pacanowski_philander=color_palette[6],
+                     loss_gradient=color_palette[7],
+                     loss_gradient_modified_pacanowski_philander=color_palette[8],
+                     point=color_palette[9])
 
     if dimensionless
         u_str = "u"
@@ -808,82 +816,86 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     z_str = "z / m"
 
     ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
-    u_lines = [lines!(ax_u, truth_u, zc, linewidth=3, color=colors[1]), 
-                lines!(ax_u, test_u, zc, linewidth=3, color=colors[2]),
-                lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+    u_lines = [lines!(ax_u, truth_u, zc, linewidth=3, color=colors.truth), 
+                lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_u, test_u, zc, linewidth=3, color=colors.test)
+                ]
                 # lines!(ax_u, test_u_NN_only, zc, linewidth=3, color=colors[4])]
     CairoMakie.xlims!(ax_u, u_min, u_max)
     CairoMakie.ylims!(ax_u, minimum(zc), 0)
 
     ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
-    v_lines = [lines!(ax_v, truth_v, zc, linewidth=3, color=colors[1]), 
-                lines!(ax_v, test_v, zc, linewidth=3, color=colors[2]),
-                lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+    v_lines = [lines!(ax_v, truth_v, zc, linewidth=3, color=colors.truth), 
+                lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_v, test_v, zc, linewidth=3, color=colors.test),
+                ]
                 # lines!(ax_v, test_v_NN_only, zc, linewidth=3, color=colors[4])]
     CairoMakie.xlims!(ax_v, v_min, v_max)
     CairoMakie.ylims!(ax_v, minimum(zc), 0)
 
     ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
-    T_lines = [lines!(ax_T, truth_T, zc, linewidth=3, color=colors[1]), 
-                lines!(ax_T, test_T, zc, linewidth=3, color=colors[2]), 
-                lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors[3])]
+    T_lines = [lines!(ax_T, truth_T, zc, linewidth=3, color=colors.truth), 
+                lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_T, test_T, zc, linewidth=3, color=colors.test)
+                ]
                 # lines!(ax_T, test_T_NN_only, zc, linewidth=3, color=colors[4])]
     CairoMakie.xlims!(ax_T, T_min, T_max)
     CairoMakie.ylims!(ax_T, minimum(zc), 0)
 
     ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
-    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=3, color=colors[1]), 
-                lines!(ax_uw, test_uw, zf, linewidth=3, color=colors[2]), 
-                lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
-                lines!(ax_uw, test_uw_NN_only, zf, linewidth=3, color=colors[4])]
+    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=3, color=colors.truth), 
+                lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_uw, test_uw_NN_only, zf, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_uw, test_uw, zf, linewidth=3, color=colors.test), 
+                ]
     CairoMakie.xlims!(ax_uw, uw_min, uw_max)
     CairoMakie.ylims!(ax_uw, minimum(zf), 0)
 
     ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
-    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=3, color=colors[1]), 
-                lines!(ax_vw, test_vw, zf, linewidth=3, color=colors[2]), 
-                lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
-                lines!(ax_vw, test_vw_NN_only, zf, linewidth=3, color=colors[4])]
+    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=3, color=colors.truth), 
+                lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_vw, test_vw_NN_only, zf, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_vw, test_vw, zf, linewidth=3, color=colors.test)]
     CairoMakie.xlims!(ax_vw, vw_min, vw_max)
     CairoMakie.ylims!(ax_vw, minimum(zf), 0)
 
     ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
-    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=3, color=colors[1]), 
-                lines!(ax_wT, test_wT, zf, linewidth=3, color=colors[2]), 
-                lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors[3]),
-                lines!(ax_wT, test_wT_NN_only, zf, linewidth=3, color=colors[4])]
-    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=3, color=colors.truth), 
+                lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_wT, test_wT_NN_only, zf, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_wT, test_wT, zf, linewidth=3, color=colors.test)]
+                CairoMakie.xlims!(ax_wT, wT_min, wT_max)
     CairoMakie.ylims!(ax_wT, minimum(zf), 0)
 
-    ax_Ri = fig[2, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
-    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=3, color=colors[1]), 
-                lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors[2]),
-                lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors[3])]
+    ax_Ri = fig[1, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
+    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=3, color=colors.truth), 
+                lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors.test)]
                 # lines!(ax_Ri, test_Ri_NN_only, zf, linewidth=3, color=colors[4])]
     CairoMakie.xlims!(ax_Ri, -1, 2)
     CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
 
-    ax_losses = fig[1, 4] = Axis(fig, xlabel="Time / days", ylabel="Loss", yscale=CairoMakie.log10)
-    losses_lines = [lines!(ax_losses, times, losses, linewidth=3, color=colors_losses[1]),
-                    lines!(ax_losses, times, losses_modified_pacanowski_philander, linewidth=3, color=colors_losses[2]),
-                    lines!(ax_losses, times, losses_gradient, linewidth=3, color=colors_losses[3]),
-                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses[4])]
-    losses_point = [CairoMakie.scatter!(ax_losses, time_point, loss_point, linewidth=3, color=colors_losses[1]),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_gradient_point, linewidth=3, color=colors_losses[2]),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_point, linewidth=3, color=colors_losses[3]),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, linewidth=3, color=colors_losses[4]),]                
+    ax_losses = fig[2, 4] = Axis(fig, xlabel="Time / days", ylabel="Loss", yscale=CairoMakie.log10)
+    losses_lines = [lines!(ax_losses, times, losses, linewidth=3, color=colors_losses.loss),
+                    lines!(ax_losses, times, losses_modified_pacanowski_philander, linewidth=3, color=colors_losses.loss_modified_pacanowski_philander),
+                    lines!(ax_losses, times, losses_gradient, linewidth=3, color=colors_losses.loss_gradient),
+                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses.loss_gradient_modified_pacanowski_philander)]
+    losses_point = [CairoMakie.scatter!(ax_losses, time_point, loss_point, color=colors_losses.point),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_gradient_point, color=colors_losses.point),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_point, color=colors_losses.point),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, color=colors_losses.point)]                
     
     CairoMakie.xlims!(ax_losses, times[1], times[end])
     CairoMakie.ylims!(ax_losses, losses_min, losses_max)
 
-    legend = fig[2, 5] = Legend(fig, uw_lines, ["Oceananigans.jl LES", 
-                                                "NN + Modified Pac-Phil", 
+    legend = fig[1, 5] = Legend(fig, uw_lines, ["Oceananigans.jl LES", 
                                                 "Modified Pac-Phil Only", 
-                                                "NN Only"])
-    legend = fig[1, 5] = Legend(fig, losses_lines, ["Profile Loss, NN + Modified Pac-Phil", 
+                                                "NN Only",
+                                                "NN + Modified Pac-Phil"])
+    legend = fig[2, 5] = Legend(fig, losses_lines, ["Profile Loss, NN + Modified Pac-Phil", 
                                                     "Profile Loss, Modified Pac-Phil Only", 
-                                                    "Profile + Gradient Loss, NN + Modified Pac-Phil", 
-                                                    "Profile + Gradient Loss, Modified Pac-Phil Only"])
+                                                    "Gradient Loss, NN + Modified Pac-Phil", 
+                                                    "Gradient Loss, Modified Pac-Phil Only"])
     # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
     trim!(fig.layout)

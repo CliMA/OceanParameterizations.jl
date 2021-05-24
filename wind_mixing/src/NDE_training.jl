@@ -311,7 +311,7 @@ function loss(data, sol)
 end
 
 function loss_gradient(data, sol, data_gradient, sol_gradient, gradient_scale)
-    return mean([Flux.mse(data, sol), gradient_scale * Flux.mse(data_gradient, sol_gradient)])
+    return Flux.mse(data, sol) + gradient_scale * Flux.mse(data_gradient, sol_gradient)
 end
 
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
