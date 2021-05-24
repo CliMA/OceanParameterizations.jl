@@ -39,7 +39,7 @@ Plots.ylabel!("Loss mse")
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 # test_files = ["-8e-4"]
-test_files = ["cooling_5e-8"]
+test_files = ["cooling_4e-8"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]

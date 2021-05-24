@@ -11,7 +11,8 @@ using LinearAlgebra
 BLAS.set_num_threads(32)
 
 # Training data
-train_files = ["-1e-3", "-8e-4", "-5e-4"]
+# train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
+train_files = ["cooling_5e-8"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -69,10 +70,10 @@ wT_NN = re(weights ./ 1f5)
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
-FILE_PATH = [joinpath(OUTPUT_PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2"),
-              joinpath(OUTPUT_PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2"),
-              joinpath(OUTPUT_PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2"),
-              joinpath(OUTPUT_PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2")
+FILE_PATH = [joinpath(OUTPUT_PATH, "NDE_training_mpp_1sim_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2"),
+             joinpath(OUTPUT_PATH, "NDE_training_mpp_1sim_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2"),
+             joinpath(OUTPUT_PATH, "NDE_training_mpp_1sim_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2"),
+             joinpath(OUTPUT_PATH, "NDE_training_mpp_1sim_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2")
               ][task_id]
 @assert !isfile(FILE_PATH)
 

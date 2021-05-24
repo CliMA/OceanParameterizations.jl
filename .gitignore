@@ -38,6 +38,7 @@ docs/site/
 
 # Slurm scripts
 *.slurm
+*.sh
 
 # VSCode
 .vscode
@@ -48,6 +49,8 @@ wind_mixing/logs
 wind_mixing/training_output
 wind_mixing/old_data
 
+# batch scripts
+wind_mixing/batch_scripts
 
 # output gifs
 Output/
