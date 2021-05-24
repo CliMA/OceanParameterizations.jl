@@ -1,13 +1,14 @@
 """
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, opts, uw_NN, vw_NN, wT_NN)
 """
-function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, opts, uw_NN, vw_NN, wT_NN)
+function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts, uw_NN, vw_NN, wT_NN)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files
         training_info["train_epochs"] = train_epochs
         training_info["train_tranges"] = train_tranges
         training_info["optimizers"] = opts
+        training_info["parameters"] = train_parameters
         training_info["uw_neural_network"] = uw_NN
         training_info["vw_neural_network"] = vw_NN
         training_info["wT_neural_network"] = wT_NN
@@ -90,3 +91,24 @@ function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
         file["neural_network/wT"] = wT_NN
     end
 end
+
+# function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts, uw_NN, vw_NN, wT_NN)
+#     jldopen(FILE_PATH, "w") do file
+#         training_info = JLD2.Group(file, "training_info")
+#         training_info["train_files"] = train_files
+#         training_info["train_epochs"] = train_epochs
+#         training_info["train_tranges"] = train_tranges
+#         training_info["optimizers"] = opts
+#         training_info["parameters"] = train_parameters
+#         training_info["uw_neural_network"] = uw_NN
+#         training_info["vw_neural_network"] = vw_NN
+#         training_info["wT_neural_network"] = wT_NN
+
+#         training_data = JLD2.Group(file, "training_data")
+#         loss = JLD2.Group(training_data, "loss")
+#         neural_network = JLD2.Group(training_data, "neural_network")
+#         uw = JLD2.Group(neural_network, "uw")
+#         vw = JLD2.Group(neural_network, "vw")
+#         wT = JLD2.Group(neural_network, "wT")
+#     end
+# end

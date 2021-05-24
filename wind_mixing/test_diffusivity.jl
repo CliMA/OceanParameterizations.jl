@@ -8,8 +8,8 @@ using CairoMakie
 include("modified_pacalowski_philander_model.jl")
 # include("modified_diffusivity_model.jl")
 
-ds = jldopen(joinpath(pwd(), "2DaySuite", "three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2"))
-OUTPUT_NAME = "modified_diffusivity_tstep60_wind_mixing_test.mp4"
+ds = jldopen(joinpath(pwd(), "Data", "three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2"))
+OUTPUT_NAME = "modified_diffusivity_tstep60_wind_mixing_higher_diffusivity_test.mp4"
 SIMULATION_NAME = "Wind Mixing test"
 
 ## Load LES grid information, boundary conditions, and initial conditions
