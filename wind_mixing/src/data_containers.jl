@@ -223,7 +223,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     κₑ_∂z_T   = coarsify_face(κₑ_∂z_T)
 
     zC_coarse = coarse_grain(zC, 32, Center)
-    zF_coarse = coarse_grain(zF, 33, Face)
+    zF_coarse = coarse_grain_linear_interpolation(zF, 33, Face)
 
     function get_scaling(name, coarse)
         if isnothing(override_scalings)

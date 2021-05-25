@@ -6,7 +6,7 @@ end
 
 export
     # Utils
-    coarse_grain, Dᶠ, Dᶜ,
+    coarse_grain, Dᶠ, Dᶜ, coarse_grain_linear_interpolation,
     ZeroMeanUnitVarianceScaling, MinMaxScaling, scale, unscale,
     predict, animate_gif,
 

@@ -135,10 +135,17 @@ function ReadJLD2_LESbraryData(filename)
     push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w, κₑ_∂z_T)
 
     # Now grab parameter
-    α = les_data["buoyancy"]["equation_of_state"]["α"]
-    β = les_data["buoyancy"]["equation_of_state"]["β"]
+    if haskey(les_data["buoyancy"], "model")
+        α = les_data["buoyancy/model/equation_of_state/α"]
+        β = les_data["buoyancy/model/equation_of_state/β"]
+        g = les_data["buoyancy/model/gravitational_acceleration"]
+    else
+        α = les_data["buoyancy/equation_of_state/α"]
+        β = les_data["buoyancy/equation_of_state/β"]
+        g = les_data["buoyancy/gravitational_acceleration"]
+    end
+
     f⁰ = les_data["coriolis"]["f"]
-    g = les_data["buoyancy"]["gravitational_acceleration"]
     L = les_data["grid"]["Lz"]
 
     # Push parameters to container
