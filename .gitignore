@@ -48,6 +48,7 @@ wind_mixing/simulation_output
 wind_mixing/logs
 wind_mixing/training_output
 wind_mixing/old_data
+wind_mixing/LLSUB*
 
 # batch scripts
 wind_mixing/batch_scripts
