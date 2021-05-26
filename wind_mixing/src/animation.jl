@@ -914,3 +914,156 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
         end
     end
 end
+
+function animate_training_data_profiles_fluxes(train_files, FILE_PATH; fps=30, gif=false, mp4=true)
+    all_data = [WindMixing.data(train_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true) for train_file in train_files]
+
+    times = all_data[1].t ./ 86400
+
+    frame = Node(1)
+
+    time_point = @lift [times[$frame]]
+
+    u_data = [data.u.coarse for data in all_data]
+    v_data = [data.v.coarse for data in all_data]
+    T_data = [data.T.coarse for data in all_data]
+
+    us = [@lift u[:,$frame] for u in u_data]
+    vs = [@lift v[:,$frame] for v in v_data]
+    Ts = [@lift T[:,$frame] for T in T_data]
+
+    uws = [@lift data.uw.coarse[:,$frame] for data in all_data]
+    vws = [@lift data.vw.coarse[:,$frame] for data in all_data]
+    wTs = [@lift data.wT.coarse[:,$frame] for data in all_data]
+
+    u_max = maximum(maximum(data.u.coarse) for data in all_data)
+    u_min = minimum(minimum(data.u.coarse) for data in all_data)
+
+    v_max = maximum(maximum(data.v.coarse) for data in all_data)
+    v_min = minimum(minimum(data.v.coarse) for data in all_data)
+
+    T_max = maximum(maximum(data.T.coarse) for data in all_data)
+    T_min = minimum(minimum(data.T.coarse) for data in all_data)
+
+    uw_max = maximum(maximum(data.uw.coarse) for data in all_data)
+    uw_min = minimum(minimum(data.uw.coarse) for data in all_data)
+
+    vw_max = maximum(maximum(data.vw.coarse) for data in all_data)
+    vw_min = minimum(minimum(data.vw.coarse) for data in all_data)
+    
+    wT_max = maximum(maximum(data.wT.coarse) for data in all_data)
+    wT_min = minimum(minimum(data.wT.coarse) for data in all_data)
+
+    Nz = all_data[1].grid_points - 1
+    zc = all_data[1].u.z
+    zf = all_data[1].uw.z
+
+    D_face = Float32.(Dᶠ(Nz, zc[2] - zc[1]))
+
+    @inline function ∂_∂z(profile)
+        output = zeros(typeof(profile[1]), size(profile, 1) + 1, size(profile,2))
+        for i in 1:size(profile,2)
+            profile_col = @view profile[:,i]
+            output_col = @view output[:,i]
+            output_col .= D_face * profile_col
+        end
+        return output
+    end
+
+    ∂u∂zs = [∂_∂z(u) for u in u_data]
+    ∂v∂zs = [∂_∂z(v) for v in v_data]
+    ∂T∂zs = [∂_∂z(T) for T in T_data]
+
+    @inline function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, g, α)
+        # ϵ = eps(typeof(∂u∂z))
+        ϵ = 0
+        ∂u∂z += ϵ
+        ∂v∂z += ϵ
+        ∂T∂z += ϵ
+        Bz = g * α * ∂T∂z
+        S² = ∂u∂z ^2 + ∂v∂z ^2
+        return clamp.(Bz / S², -1, 2)
+    end
+
+    α = 1.67f-4
+    g = 9.81f0
+
+    Ris_data = [local_richardson.(∂u∂zs[i], ∂v∂zs[i], ∂T∂zs[i], g, α) for i in 1:length(∂u∂zs)]
+
+    Ris = [@lift Ri[:,$frame] for Ri in Ris_data]
+
+    plot_title = @lift "LES Simulations: Time = $(round(times[$frame], digits=2)) days"
+    fig = Figure(resolution=(1920, 1080))
+    color_palette = distinguishable_colors(length(all_data), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+
+    u_str = "u / m s⁻¹"
+    v_str = "v / m s⁻¹"
+    T_str = "T / °C"
+    uw_str = "uw / m² s⁻²"
+    vw_str = "vw / m² s⁻²"
+    wT_str = "wT / m s⁻¹ °C"
+
+    z_str = "z / m"
+
+    uw_tops = [data.uw.coarse[end,1] for data in all_data]
+    wT_tops = [data.wT.coarse[end,1] for data in all_data]
+
+    BC_strs = [@sprintf "Momentum Flux = %.1e, Buoyancy Flux = %.1e" uw_tops[i] wT_tops[i] for i in 1:length(uw_tops)]
+
+    ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
+    u_lines = [lines!(ax_u, us[i], zc, linewidth=3, color=color_palette[i]) for i in 1:length(us)]
+                # lines!(ax_u, test_u_NN_only, zc, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.ylims!(ax_u, minimum(zc), 0)
+
+    ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
+    v_lines = [lines!(ax_v, vs[i], zc, linewidth=3, color=color_palette[i]) for i in 1:length(vs)]
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.ylims!(ax_v, minimum(zc), 0)
+
+    ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
+    T_lines = [lines!(ax_T, Ts[i], zc, linewidth=3, color=color_palette[i]) for i in 1:length(Ts)]
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+    CairoMakie.ylims!(ax_T, minimum(zc), 0)
+
+    ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
+    uw_lines = [lines!(ax_uw, uws[i], zf, linewidth=3, color=color_palette[i]) for i in 1:length(uws)]
+    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
+
+    ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
+    vw_lines = [lines!(ax_vw, vws[i], zf, linewidth=3, color=color_palette[i]) for i in 1:length(vws)]
+    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
+
+    ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
+    wT_lines = [lines!(ax_wT, wTs[i], zf, linewidth=3, color=color_palette[i]) for i in 1:length(wTs)]
+    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
+
+    ax_Ri = fig[2, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
+    Ri_lines = [lines!(ax_Ri, Ris[i], zf, linewidth=3, color=color_palette[i]) for i in 1:length(Ris)]
+                # lines!(ax_Ri, test_Ri_NN_only, zf, linewidth=3, color=colors[4])]
+    CairoMakie.xlims!(ax_Ri, -1, 2)
+    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
+
+    legend = fig[1, 4] = Legend(fig, uw_lines, BC_strs)
+
+    # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
+    trim!(fig.layout)
+
+    if gif
+        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+            @info "Animating gif frame $n/$(length(times))..."
+            frame[] = n
+        end
+    end
+
+    if mp4
+        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+            @info "Animating mp4 frame $n/$(length(times))..."
+            frame[] = n
+        end
+    end
+end

@@ -38,8 +38,7 @@ Plots.ylabel!("Loss mse")
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-# test_files = ["-8e-4"]
-test_files = ["cooling_4e-8"]
+test_files = ["-8e-4"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
@@ -79,7 +78,7 @@ wT_NN = re(zeros(Float32, length(weights)))
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-trange = 1:1:1153
+trange = 1:1:10
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
@@ -93,6 +92,7 @@ plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         gradient_scaling=train_parameters["gradient_scaling"])
                         # zero_weights=true)
 
+plot_data["truth_Ri"]
 # WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
 
 WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME, fps=30)
@@ -125,3 +125,11 @@ WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VID
 # animate_flux(plot_data, "uw", joinpath(FILE_PATH, "uw_test"))
 # animate_flux(plot_data, "vw", joinpath(FILE_PATH, "vw_test"))
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
+
+# train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-6e-4", "-5e-4", "-4e-4", "-3e-4", "-2e-4"]
+train_files = ["cooling_4e-8"]
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train.T.coarse
+𝒟train.t
+animate_training_data_profiles_fluxes(train_files, joinpath(FILE_PATH, VIDEO_NAME))
+

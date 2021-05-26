@@ -210,7 +210,8 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
     end
 
     coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Center) for i in 1:size(x,2))..., dims=2)
-    coarsify_face(x) = cat((coarse_grain(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
+    coarsify_face(x) = cat((coarse_grain_linear_interpolation(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
+    # coarsify_face(x) = cat((coarse_grain(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
 
     u_coarse  = coarsify_cell(u)
     v_coarse  = coarsify_cell(v)
@@ -224,6 +225,7 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
 
     zC_coarse = coarse_grain(zC, 32, Center)
     zF_coarse = coarse_grain_linear_interpolation(zF, 33, Face)
+    # zF_coarse = coarse_grain(zF, 33, Face)
 
     function get_scaling(name, coarse)
         if isnothing(override_scalings)
