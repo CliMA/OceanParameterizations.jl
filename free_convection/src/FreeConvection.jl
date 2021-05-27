@@ -5,7 +5,7 @@ export
     zC, zF,
 
     # Utils
-    coarse_grain, add_surface_fluxes,
+    coarse_grain, add_surface_fluxes!,
 
     # Animations
     animate_data, animate_learned_free_convection,
@@ -66,5 +66,11 @@ include("data_dependencies.jl")
 function __init__()
     Logging.global_logger(OceananigansLogger())
 end
+
+using Oceananigans.OutputReaders: FieldTimeSeries, FieldDataset
+
+Base.setindex!(fts::FieldTimeSeries, val, inds...) = Base.setindex!(fts.data, val, inds...)
+
+Base.getindex(fds::FieldDataset, inds...) = Base.getindex(fds.fields, inds...)
 
 end # module

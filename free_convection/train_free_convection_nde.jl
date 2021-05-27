@@ -1,13 +1,11 @@
+using Logging
+using Printf
 using Random
 using Statistics
-using Printf
-using Logging
 
-using Debugger
 using ArgParse
 using LoggingExtras
 using DataDeps
-using GeoData
 using Flux
 using JLD2
 using OrdinaryDiffEq
@@ -16,7 +14,7 @@ using Zygote
 using OceanParameterizations
 using FreeConvection
 
-using Oceananigans: OceananigansLogger
+using Oceananigans: OceananigansLogger, FieldDataset
 using FreeConvection: coarse_grain
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
@@ -65,9 +63,9 @@ function parse_command_line_arguments()
     return parse_args(settings)
 end
 
-## Parse command line arguments
 
 @info "Parsing command line arguments..."
+
 args = parse_command_line_arguments()
 
 nde_type = Dict(
@@ -86,7 +84,8 @@ spatial_causality = args["spatial_causality"]
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
 
-## Set up loggers
+
+@info "Planting loggers..."
 
 log_filepath = joinpath(output_dir, "$(experiment_name)_training.log")
 TeeLogger(
@@ -94,7 +93,8 @@ TeeLogger(
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
 ) |> global_logger
 
-## Neural network architecture
+
+@info "Architecting neural network..."
 
 if conv > 1
     NN = Chain(
@@ -116,33 +116,34 @@ function free_convection_neural_network(input)
     return wT
 end
 
-## Register data dependencies
 
 @info "Registering data dependencies..."
+
 for dd in FreeConvection.LESBRARY_DATA_DEPS
     DataDeps.register(dd)
 end
 
-## Load data
 
 @info "Loading data..."
-datasets = Dict{Int,Any}(
-    1 => NCDstack(datadep"free_convection_8days_Qb1e-8/statistics.nc"),
-    2 => NCDstack(datadep"free_convection_8days_Qb2e-8/statistics.nc"),
-    3 => NCDstack(datadep"free_convection_8days_Qb3e-8/statistics.nc"),
-    4 => NCDstack(datadep"free_convection_8days_Qb4e-8/statistics.nc"),
-    5 => NCDstack(datadep"free_convection_8days_Qb5e-8/statistics.nc"),
-    6 => NCDstack(datadep"free_convection_8days_Qb6e-8/statistics.nc")
+
+ids = 1:9
+
+datasets = Dict{Int, FieldDataset}(
+    id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; metadata_paths=["parameters"])
+    for id in ids
 )
 
-## Add surface fluxes to data
 
 @info "Inserting surface fluxes..."
-datasets = Dict{Int,Any}(id => add_surface_fluxes(ds) for (id, ds) in datasets)
 
-## Coarse grain training data
+for id in ids
+    add_surface_fluxes!(datasets[id])
+end
+
+#=
 
 @info "Coarse graining data..."
+
 coarse_datasets = Dict{Int,Any}(id => coarse_grain(ds, Nz) for (id, ds) in datasets)
 
 ## Split into training and testing data
@@ -289,3 +290,5 @@ jldopen(final_nn_filepath, "w") do file
     file["T_scaling"] = T_scaling
     file["wT_scaling"] = wT_scaling
 end
+
+=#
