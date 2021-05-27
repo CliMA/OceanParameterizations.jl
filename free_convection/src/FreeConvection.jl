@@ -84,4 +84,23 @@ interior(f::FieldTimeSeries{X, Y, Z}) where {X, Y, Z} =
                     interior_parent_indices(Z, topology(f, 3), f.grid.Nz, f.grid.Hz),
                     :)
 
+import Oceananigans.OutputReaders: FieldTimeSeries, InMemory
+using Oceananigans.Architectures: array_type
+using Oceananigans.Grids: total_size, offset_data
+
+function FieldTimeSeries(grid, location, times; architecture=CPU(), name="", filepath="", bcs=nothing)
+    LX, LY, LZ = location
+
+    Nt = length(times)
+    data_size = total_size(location, grid)
+
+    ArrayType = array_type(architecture)
+    raw_data = zeros(data_size..., Nt) |> ArrayType
+    data = offset_data(raw_data, grid, location)
+
+    return FieldTimeSeries{LX, LY, LZ}(InMemory(), data, architecture, grid, bcs, times, name, filepath, 4)
+end
+
+export FieldTimeSeries
+
 end # module

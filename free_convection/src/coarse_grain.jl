@@ -54,3 +54,22 @@ function coarse_grain(field::Field{X, Y, Face}, new_grid; dims=3) where {X, Y}
 
     return coarse_field
 end
+
+function coarse_grain(fts::FieldTimeSeries, new_grid)
+    fts_new = FieldTimeSeries(new_grid, location(fts), fts.times)
+
+    Nt = size(fts, 4)
+    for n in 1:Nt
+        fts_new.data[:, :, :, n] .= coarse_grain(fts[n], new_grid).data
+    end
+
+    return fts_new
+end
+
+function coarse_grain(fds::FieldDataset, new_grid)
+    coarse_fields = Dict{String, FieldTimeSeries}(
+        name => coarse_grain(fts, new_grid)
+        for (name, fts) in fds.fields
+    )
+    return FieldDataset(coarse_fields, fds.metadata, fds.filepath)
+end

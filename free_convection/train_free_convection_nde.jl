@@ -149,30 +149,27 @@ topo = (Flat, Flat, Bounded)
 domain = (les_grid.zF[1], les_grid.zF[les_grid.Nz+1])
 coarse_grid = RegularRectilinearGrid(topology=topo, size=Nz, z=domain)
 
-T_test = datasets[1]["T"][1]
-wT_test = datasets[1]["wT"][1000]
-
-T_coarse = coarse_grain(T_test, coarse_grid)
-wT_coarse = coarse_grain(wT_test, coarse_grid)
-
-#=
 
 @info "Coarse graining data..."
 
-coarse_datasets = Dict{Int,Any}(id => coarse_grain(ds, Nz) for (id, ds) in datasets)
+coarse_datasets = Dict{Int, FieldDataset}(
+    id => coarse_grain(ds, coarse_grid)
+    for (id, ds) in datasets
+)
 
-## Split into training and testing data
 
 @info "Partitioning data into training and testing datasets..."
 
-ids_train = [1, 2, 4, 6]
-ids_test = [3, 5]
+ids_train = [1, 3, 5, 7, 9]
+ids_test = [2, 4, 6, 8]
 
-training_datasets = Dict(id => datasets[id] for id in ids_train)
-testing_datasets = Dict(id => datasets[id] for id in ids_test)
+training_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_train)
+testing_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_test)
 
-coarse_training_datasets = Dict(id => coarse_datasets[id] for id in ids_train)
-coarse_testing_datasets = Dict(id => coarse_datasets[id] for id in ids_test)
+coarse_training_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_train)
+coarse_testing_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_test)
+
+#=
 
 ## Create animations for T(z,t) and wT(z,t)
 
