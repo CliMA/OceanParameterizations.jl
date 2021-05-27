@@ -13,7 +13,8 @@ export data, read_les_output,
        write_metadata_NN_training, write_data_NN_training, write_data_NN,
        local_richardson,
        smoothing_filter,
-       loss, loss_gradient
+       loss, loss_gradient,
+       optimise_modified_pacanowski_philander
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face
@@ -42,6 +43,7 @@ include("NN_training.jl")
 include("animation.jl")
 include("training_data.jl")
 include("filtering_operators.jl")
+include("diffusivity_parameter_optimisation.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
