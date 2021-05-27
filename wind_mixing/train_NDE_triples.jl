@@ -12,7 +12,7 @@ BLAS.set_num_threads(32)
 
 # Training data
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
-train_files = ["cooling_5e-8", "-1e-3"]
+train_files = ["-1e-3", "cooling_5e-8"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -23,10 +23,9 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4"
-FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
-EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
-@assert !isfile(FILE_PATH)
+# FILE_PATH = joinpath(OUTPUT_PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2")
+# @assert !isfile(FILE_PATH)
+
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -71,21 +70,36 @@ wT_NN = re(weights ./ 1f5)
 
 # uw_NN(rand(96))
 
-gradient_scaling = 1f-2
+task_id = parse(Int,ARGS[1]) + 1
+num_tasks = parse(Int,ARGS[2])
+
+
+FILE_NAME = ["NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2",
+              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2",
+              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2",
+              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2"
+              ][task_id]
+FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
+@assert !isfile(FILE_PATH)
+
+EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
+
+gradient_scaling = [5f-3, 5f-3, 1f-2, 1f-2][task_id]
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
-# train_epochs = [1]
-# train_tranges = [1:20:1153]
-# train_iterations = [1000]
-# train_optimizers = [[ADAM(2e-4)]]
-
 train_epochs = [1]
-train_tranges = [1:30:300]
-train_iterations = [5]
-train_optimizers = [[ADAM(2e-4)]]
+train_tranges = [1:20:1153]
+train_iterations = [1000]
+train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
+
+
+# train_epochs = [1]
+# train_tranges = [1:30:300]
+# train_iterations = [5]
+# train_optimizers = [[ADAM(2e-4)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]

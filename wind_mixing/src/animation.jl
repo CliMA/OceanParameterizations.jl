@@ -120,6 +120,10 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
                                      @view(sol_gradient[:,i]), 
                                      gradient_scaling) for i in 1:size(sol, 2)]
 
+    if modified_pacanowski_philander
+        output["train_parameters"] = (ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr)
+    end
+
     output["losses"] = losses
     output["loss"] = mean(losses)
     output["losses_gradient"] = losses_gradient .- losses
@@ -699,7 +703,7 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     end
 end
 
-function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true, fps=30, gif=false, mp4=true, SIMULATION_NAME="")
+function animate_profiles_fluxes_comparison(data, FILE_PATH; modified_pacanowski_philander=true, dimensionless=true, fps=30, gif=false, mp4=true, SIMULATION_NAME="")
     times = data["t"] ./ 86400
 
     frame = Node(1)
@@ -782,7 +786,18 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
     losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"])])
     losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end])])
 
-    plot_title = @lift "$SIMULATION_NAME: Time = $(round(times[$frame], digits=2)) days"
+    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data["truth_uw"][end, 1] data["truth_wT"][end, 1]
+
+    if modified_pacanowski_philander
+        ν₀ = data["train_parameters"].ν₀
+        ν₋ = data["train_parameters"].ν₋
+        ΔRi = data["train_parameters"].ΔRi
+        Riᶜ = data["train_parameters"].Riᶜ
+        Pr = data["train_parameters"].Pr
+
+        diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
+    end
+    plot_title = @lift "$SIMULATION_NAME: $BC_str, Time = $(round(times[$frame], digits=2)) days"
     fig = Figure(resolution=(1920, 1080))
     color_palette = distinguishable_colors(9, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     colors = (truth=color_palette[1], 
@@ -897,7 +912,12 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; dimensionless=true,
                                                     "Gradient Loss, NN + Modified Pac-Phil", 
                                                     "Gradient Loss, Modified Pac-Phil Only"])
     # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
-    supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
+
+    if modified_pacanowski_philander
+        subtitle = fig[end+1, :] = Label(fig, text=diffusivity_str, textsize=23)
+    end
+
     trim!(fig.layout)
 
     if gif

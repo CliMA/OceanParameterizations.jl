@@ -18,7 +18,7 @@ arg_parse = parse_args(s)
 
 FILE_PATH = joinpath(pwd(), "training_output", arg_parse["input"])
 OUTPUT_PATH = joinpath(pwd(), "extracted_training_output", arg_parse["output"])
-OUTPUT_PATH = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output", arg_parse["output"])
+# OUTPUT_PATH = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output", arg_parse["output"])
 
 type = arg_parse["type"]
 

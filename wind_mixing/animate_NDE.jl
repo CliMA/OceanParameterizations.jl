@@ -16,8 +16,8 @@ DATA_PATH = joinpath(PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-
 ispath(DATA_PATH)
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(pwd(), "Output")
-# VIDEO_NAME = "u_v_T_pacanowski_philander_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_smallNN_gradient_scale_1e-2_rate_2e-4_test_-8e-4_comparison"
-VIDEO_NAME = "test"
+VIDEO_NAME = "u_v_T_mpp_diffusivity_5e-1_Ri_1e-1_zero_weights_wind_mixing_1e-3"
+# VIDEO_NAME = "test"
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
 SIMULATION_NAME = "Modified Pacanowski Philander"
 
@@ -30,15 +30,16 @@ minimum(losses)
 
 train_files = file["training_info/train_files"]
 train_parameters = file["training_info/parameters"]
+train_parameters["ν₋"] = 5f-1
 
 Plots.plot(1:1:length(losses), losses, yscale=:log10)
 Plots.xlabel!("Iteration")
 Plots.ylabel!("Loss mse")
 # savefig(joinpath(PATH, "Output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
-
+train_files = ["-1e-3"]
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-test_files = ["-8e-4"]
+test_files = ["-1e-3"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
@@ -78,7 +79,7 @@ wT_NN = re(zeros(Float32, length(weights)))
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
 
-trange = 1:1:10
+trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
@@ -92,7 +93,6 @@ plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         gradient_scaling=train_parameters["gradient_scaling"])
                         # zero_weights=true)
 
-plot_data["truth_Ri"]
 # WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
 
 WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME, fps=30)
