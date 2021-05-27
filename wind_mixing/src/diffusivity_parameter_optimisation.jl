@@ -1,5 +1,3 @@
-tanh_step(x) = (1 - tanh(x)) / 2
-
 function DE(x, p, t, derivatives, scalings, constants, BCs)
     ν₀, ν₋, ΔRi = p
     Riᶜ = constants.Riᶜ
