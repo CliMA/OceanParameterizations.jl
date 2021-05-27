@@ -11,10 +11,10 @@ using JLD2
 using OrdinaryDiffEq
 using Zygote
 
+using Oceananigans
 using OceanParameterizations
 using FreeConvection
 
-using Oceananigans: OceananigansLogger, FieldDataset
 using FreeConvection: coarse_grain
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
@@ -134,11 +134,26 @@ datasets = Dict{Int, FieldDataset}(
 )
 
 
-@info "Inserting surface fluxes..."
+@info "Injecting surface fluxes..."
 
 for id in ids
     add_surface_fluxes!(datasets[id])
 end
+
+
+@info "Coarsening grid..."
+
+les_grid = datasets[1]["T"].grid
+
+topo = (Flat, Flat, Bounded)
+domain = (les_grid.zF[1], les_grid.zF[les_grid.Nz+1])
+coarse_grid = RegularRectilinearGrid(topology=topo, size=Nz, z=domain)
+
+T_test = datasets[1]["T"][1]
+wT_test = datasets[1]["wT"][1000]
+
+T_coarse = coarse_grain(T_test, coarse_grid)
+wT_coarse = coarse_grain(wT_test, coarse_grid)
 
 #=
 

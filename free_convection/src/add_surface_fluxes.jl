@@ -4,7 +4,7 @@ function add_surface_fluxes!(ds)
     T = ds["T"]
     wT = ds["wT"]
 
-    _, _, Nz, _ = size(T)
+    Nz = size(T, 3)
     wT[:, :, Nz+1, :] .= Qθ
 
     return ds

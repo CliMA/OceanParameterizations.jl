@@ -1,58 +1,56 @@
-function coarse_grain(A::Array, n, ::Center)
-    N = length(A)
-    Δ = Int(N / n)
-    Ā = similar(A, n)
-    for i in 1:n
-        Ā[i] = mean(A[Δ*(i-1)+1:Δ*i])
-    end
-    return Ā
-end
+using Statistics: mean
+using Oceananigans.Fields: Field, location
 
-function coarse_grain(A::Array, n, ::Face)
-    N = length(A)
-    gap = (N-1)/n
+"""
+    coarse_grain(field::Field, new_grid; dims=3)
 
-    Ā = similar(A, n+1)
+Coarse grain a `field` onto a `new_grid` along `dims`. Returns a new `Field`.
+"""
+function coarse_grain(field::Field{X, Y, Center}, new_grid; dims=3) where {X, Y}
 
-    # Left and right faces must match
-    Ā[1] = A[1]
-    Ā[end] = A[end]
+    # TODO: Generalize to x and y.
+    @assert dims == 3
 
-    for i in 2:n
-        Ā[i] = 1 + (i-1) * gap
-    end
+    # TODO: Generalize `coarse_grain` to non-integer ratios.
+    r = field.grid.Nz / new_grid.Nz
+    @assert isinteger(r)
+    r = Int(r)
 
-    for i=2:n
-        Ā[i] = (floor(Ā[i])+1 - Ā[i]) * A[Int(floor(Ā[i]))] + (Ā[i] - floor(Ā[i])) * A[Int(floor(Ā[i]))+1]
-    end
+    coarse_field = Field(location(field)..., field.architecture, new_grid, field.boundary_conditions)
 
-    return Ā
-end
-
-function coarse_grain(d::Dimension, n, loc)
-    dim_base_type = basetypeof(d)
-    d̄ = coarse_grain(val(d), n, loc)
-    return dim_base_type(d̄, mode=GeoData.mode(d), metadata=metadata(d))
-end
-
-function coarse_grain(A::GeoArray, n)
-    loc = hasdim(A, zC) ? Center() : Face()
-
-    N = size(A, ZDim)
-    T = size(A, Ti)
-
-    Ā = zeros(eltype(A), loc isa Face ? n+1 : n, T)
-    for j in 1:T
-        Ā[:, j] .= coarse_grain(GeoData.data(A[Ti=j]), n, loc)
+    coarse_data = zeros(size(coarse_field))
+    for K in 1:new_grid.Nz
+        k1 = r * (K-1) + 1
+        k2 = r * K
+        coarse_data[:, :, K] .= mean(field[:, :, k1:k2])
     end
 
-    z = dims(A, ZDim)
-    coarse_grained_dims = (coarse_grain(z, n, loc), otherdims(A, z)...)
-    return GeoArray(Ā, dims=coarse_grained_dims, name=GeoData.name(A), refdims=refdims(A), metadata=metadata(A), missingval=missingval(A))
+    set!(coarse_field, coarse_data)
+
+    return coarse_field
 end
 
-function coarse_grain(ds::AbstractGeoStack, n)
-    vars = keys(ds)
-    cg_arrays = [coarse_grain(ds[var], n) for var in vars]
-    return GeoStack(cg_arrays..., keys=vars, window=window(ds), refdims=refdims(ds), metadata=metadata(ds))
+function coarse_grain(field::Field{X, Y, Face}, new_grid; dims=3) where {X, Y}
+
+    # TODO: Generalize to x and y.
+    @assert dims == 3
+
+    r = field.grid.Nz / new_grid.Nz
+
+    coarse_field = Field(location(field)..., field.architecture, new_grid, field.boundary_conditions)
+
+    coarse_data = zeros(size(location(field), new_grid))
+
+    # Left-most and right-most faces must match between the two grids.
+    coarse_data[:, :, 1] .= field.data[:, :, 1]
+    coarse_data[:, :, new_grid.Nz+1] .= field.data[:, :, field.grid.Nz+1]
+
+    for K in 2:new_grid.Nz
+        c = 1 + (K-1) * r
+        coarse_data[K] = (floor(c)+1 - c) * field.data[floor(Int, c)] + (c - floor(c)) * field.data[floor(Int, c)+1]
+    end
+
+    set!(coarse_field, coarse_data)
+
+    return coarse_field
 end
