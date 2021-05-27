@@ -37,7 +37,7 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH; n_simulations, ν₀ = 1f-3, ν₋ = 1f-1, ΔRi=0.1f0)
+function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH; n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0)
     𝒟 = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     
     function prepare_parameters()
