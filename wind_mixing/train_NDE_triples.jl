@@ -12,7 +12,7 @@ BLAS.set_num_threads(32)
 
 # Training data
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
-train_files = ["-1e-3", "cooling_5e-8"]
+train_files = ["-1e-3", "-5e-4", "cooling_5e-8", "cooling_2e-8"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -74,10 +74,10 @@ task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
 
-FILE_NAME = ["NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2",
-              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2",
-              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2",
-              "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2"
+FILE_NAME = ["NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2",
+             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2",
+             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2",
+             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2"
               ][task_id]
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)

@@ -12,14 +12,14 @@ using FileIO
 PATH = joinpath(pwd(), "extracted_training_output")
 # PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-DATA_PATH = joinpath(PATH, "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_extracted.jld2")
+DATA_PATH = joinpath(PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_extracted.jld2")
 ispath(DATA_PATH)
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(pwd(), "Output")
-VIDEO_NAME = "u_v_T_mpp_diffusivity_5e-1_Ri_1e-1_zero_weights_wind_mixing_1e-3"
+VIDEO_NAME = "u_v_T_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_test_-1e-3"
 # VIDEO_NAME = "test"
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
-SIMULATION_NAME = "Modified Pacanowski Philander"
+SIMULATION_NAME = "Modified Pacanowski Philander, 3 Simulation Training"
 
 # file = jldopen(DATA_PATH, "r")
 file = jldopen(DATA_PATH, "r")
@@ -30,13 +30,12 @@ minimum(losses)
 
 train_files = file["training_info/train_files"]
 train_parameters = file["training_info/parameters"]
-train_parameters["ν₋"] = 5f-1
 
 Plots.plot(1:1:length(losses), losses, yscale=:log10)
 Plots.xlabel!("Iteration")
 Plots.ylabel!("Loss mse")
 # savefig(joinpath(PATH, "Output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
-train_files = ["-1e-3"]
+# train_files = ["-1e-3"]
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 test_files = ["-1e-3"]
@@ -45,16 +44,19 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+close(file)
+[uw_NN(rand(96)) uw_NN(rand(96))]
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-uw_NN = re(zeros(Float32, length(weights)))
-vw_NN = re(zeros(Float32, length(weights)))
-wT_NN = re(zeros(Float32, length(weights)))
+# # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+
+# uw_NN = re(zeros(Float32, length(weights)))
+# vw_NN = re(zeros(Float32, length(weights)))
+# wT_NN = re(zeros(Float32, length(weights)))
 
 # [uw_NN(𝒟train.uvT_scaled[:,1]) uw_NN(𝒟train.uvT_scaled[:,100]) uw_NN(𝒟train.uvT_scaled[:,500]) uw_NN(rand(96))]
 
@@ -127,9 +129,13 @@ WindMixing.animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VID
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
 
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-6e-4", "-5e-4", "-4e-4", "-3e-4", "-2e-4"]
-train_files = ["cooling_4e-8"]
+train_files = ["cooling_5e-8", "cooling_4e-8", "cooling_3e-8", "cooling_2e-8"]
+# train_files = ["cooling_1e-8"]
+
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 𝒟train.T.coarse
 𝒟train.t
+VIDEO_NAME = "u_v_T_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_test_-1e-3"
+VIDEO_NAME = "test_video"
 animate_training_data_profiles_fluxes(train_files, joinpath(FILE_PATH, VIDEO_NAME))
 
