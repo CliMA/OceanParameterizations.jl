@@ -29,9 +29,9 @@ function parse_command_line_arguments()
             default = 32
             arg_type = Int
 
-        "--nde"
-            help = "Type of neural differential equation (NDE) to train. Options: free_convection, convective_adjustment"
-            default = "free_convection"
+        "--base-parameterization"
+            help = "Base parameterization to use for the NDE. Options: nothing, convective_adjustment"
+            default = "nothing"
             arg_type = String
 
         "--time-stepper"
@@ -69,12 +69,12 @@ end
 args = parse_command_line_arguments()
 
 nde_type = Dict(
-    "free_convection" => FreeConvectionNDE,
+    "nothing" => FreeConvectionNDE,
     "convective_adjustment" => ConvectiveAdjustmentNDE
 )
 
 Nz = args["grid-points"]
-NDEType = nde_type[args["nde"]]
+NDEType = nde_type[args["base-parameterization"]]
 algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 experiment_name = args["name"]
 full_epochs = args["epochs"]

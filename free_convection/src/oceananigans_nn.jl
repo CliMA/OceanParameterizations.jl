@@ -39,24 +39,27 @@ function convective_adjustment!(model, Δt, K)
     return nothing
 end
 
-function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
+function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=600)
     ρ₀ = 1027.0
     cₚ = 4000.0
-    f  = ds.metadata[:coriolis_parameter]
-    α  = ds.metadata[:thermal_expansion_coefficient]
+    f  = ds.metadata["coriolis_parameter"]
+    α  = ds.metadata["thermal_expansion_coefficient"]
     β  = 0.0
-    g  = ds.metadata[:gravitational_acceleration]
+    g  = ds.metadata["gravitational_acceleration"]
 
-    heat_flux = ds.metadata[:heat_flux]
-    ∂T₀∂z = ds.metadata[:dθdz_deep]
+    heat_flux = ds.metadata["temperature_flux"]
+    ∂T₀∂z = ds.metadata["dθdz_deep"]
 
-    times = dims(ds[:T], Ti)
-    stop_time = times[end]
-
-    zf = dims(ds[:wT], ZDim)
-    zc = dims(ds[:T], ZDim)
-    Nz = length(zc)
+    T = ds["T"]
+    wT = ds["wT"]
+    Nz = size(T, 3)
+    zc = znodes(T)
+    zf = znodes(wT)
     Lz = abs(zf[1])
+
+    Nt = size(T, 4)
+    times = T.times
+    stop_time = times[end]
 
     ## Grid setup
 
@@ -91,11 +94,8 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     enforce_fluxes(wT) = cat(0, wT, heat_flux, dims=1)
 
+    # convective adjustment diffusivity
     K = wT_scaling.σ / T_scaling.σ * stop_time / Lz * 10
-
-    @show K
-
-    # K = 100  # convective adjustment diffusivity
 
     function diagnose_wT_NN(model)
         T = interior(model.tracers.T)[:]
@@ -137,7 +137,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
     model_convective_adjustment = IncompressibleModel(grid=grid, boundary_conditions=(T=T_bcs,))
     model_neural_network = IncompressibleModel(grid=grid, boundary_conditions=(T=T_bcs,), forcing=(T=T_forcing,))
 
-    T₀ = reshape(Array(ds[:T][Ti=1]), size(grid)...)
+    T₀ = reshape(Array(interior(T)[1, 1, :, 1]), size(grid)...)
     set!(model_convective_adjustment, T=T₀)
     set!(model_neural_network, T=T₀)
 
@@ -164,7 +164,6 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
         return nothing
     end
 
-    Δt = ds.metadata[:interval]
     simulation_convective_adjustment = Simulation(model_convective_adjustment, Δt=Δt, iteration_interval=1,
                                                   stop_time=stop_time, progress=progress_convective_adjustment)
     simulation_neural_network = Simulation(model_neural_network, Δt=Δt, iteration_interval=1,
@@ -177,7 +176,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     simulation_convective_adjustment.output_writers[:solution] =
         NetCDFOutputWriter(model_convective_adjustment, outputs_CA,
-                           schedule = TimeInterval(ds.metadata[:interval]),
+                           schedule = TimeInterval(Δt),
                            filepath = filepath_CA,
                            mode = "c")
 
@@ -187,7 +186,7 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath)
 
     simulation_neural_network.output_writers[:solution] =
         NetCDFOutputWriter(model_neural_network, outputs_NN,
-                           schedule = TimeInterval(ds.metadata[:interval]),
+                           schedule = TimeInterval(Δt),
                            filepath = filepath_NN,
                            mode = "c",
                            dimensions = (wT=("zF",),))
