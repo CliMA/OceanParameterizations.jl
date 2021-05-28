@@ -169,15 +169,14 @@ testing_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_test
 coarse_training_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_train)
 coarse_testing_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_test)
 
-#=
+@info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
 
-## Create animations for T(z,t) and wT(z,t)
-
-@info "Animating training data..."
 for id in keys(training_datasets)
     filepath = joinpath(output_dir, "free_convection_data_$id")
     animate_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
 end
+
+#=
 
 ## Pull out input (T) and output (wT) training data
 

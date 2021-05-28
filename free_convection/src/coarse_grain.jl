@@ -1,5 +1,6 @@
 using Statistics: mean
 using Oceananigans.Fields: Field, location
+using Oceananigans.OutputReaders: FieldTimeSeries, FieldDataset
 
 """
     coarse_grain(field::Field, new_grid; dims=3)
