@@ -63,15 +63,16 @@ EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
-FILE_NAME = ["NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_2e-5.jld2",
-             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_5e-5.jld2",
-             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_2e-5.jld2",
-             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_5e-5.jld2"
+FILE_NAME = ["NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_2e-5",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_5e-5",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_2e-5",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_5e-5"
               ][task_id]
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
-EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
+EXTRACTED_FILE_NAME = "$(FILE_NAME)_extracted"
+EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$EXTRACTED_FILE_NAME.jld2")
 
 FILE_NAME_NN = ["NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2",
                 "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_extracted.jld2",
