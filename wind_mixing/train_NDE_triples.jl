@@ -39,26 +39,16 @@ EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-#                         "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-# @assert isfile(FILE_PATH_NN)
-# file = jldopen(FILE_PATH_NN, "r")
+# # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-# uw_NN = file["neural_network/uw"]
-# vw_NN = file["neural_network/vw"]
-# wT_NN = file["neural_network/wT"]
-
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
-
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
-
-uw_NN = re(weights ./ 1f5)
-vw_NN = re(weights ./ 1f5)
-wT_NN = re(weights ./ 1f5)
+# uw_NN = re(weights ./ 1f5)
+# vw_NN = re(weights ./ 1f5)
+# wT_NN = re(weights ./ 1f5)
 
 # uw_NN = re(zeros(Float32, length(weights)))
 # vw_NN = re(zeros(Float32, length(weights)))
@@ -73,16 +63,33 @@ wT_NN = re(weights ./ 1f5)
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
-
-FILE_NAME = ["NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4.jld2",
-             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4.jld2",
-             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4.jld2",
-             "NDE_training_mpp_4sim_wind_mixing_-1e-3_-5e-4_cooling_5e-8_2e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4.jld2"
+FILE_NAME = ["NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_2e-5.jld2",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_5e-5.jld2",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_2e-5.jld2",
+             "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_5e-5.jld2"
               ][task_id]
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
+
+FILE_NAME_NN = ["NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2",
+                "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_extracted.jld2",
+                "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_extracted.jld2",
+                "NDE_training_mpp_5sim_-1e-3_-9e-4_-8e-4_-7e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_extracted.jld2"
+                ][task_id]
+
+FILE_PATH_NN = joinpath(EXTRACTED_OUTPUT_PATH, FILE_NAME_NN)
+
+@assert isfile(FILE_PATH_NN)
+file = jldopen(FILE_PATH_NN, "r")
+
+uw_NN = file["neural_network/uw"]
+vw_NN = file["neural_network/vw"]
+wT_NN = file["neural_network/wT"]
+
+close(file)
+
 
 gradient_scaling = [5f-3, 5f-3, 1f-2, 1f-2][task_id]
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
@@ -91,9 +98,9 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
 train_epochs = [1]
-train_tranges = [1:20:1153]
-train_iterations = [1000]
-train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
+train_tranges = [1:25:1153]
+train_iterations = [500]
+train_optimizers = [[[ADAM(2e-5)]], [[ADAM(5e-5)]], [[ADAM(2e-5)]], [[ADAM(5e-5)]]][task_id]
 
 
 # train_epochs = [1]

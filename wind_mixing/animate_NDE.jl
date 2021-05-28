@@ -12,14 +12,14 @@ using FileIO
 PATH = joinpath(pwd(), "extracted_training_output")
 # PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-DATA_PATH = joinpath(PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_extracted.jld2")
+DATA_PATH = joinpath(PATH, "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_extracted.jld2")
 ispath(DATA_PATH)
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(pwd(), "Output")
-VIDEO_NAME = "u_v_T_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4_test_-1e-3"
+VIDEO_NAME = "u_v_T_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4_test_-1e-3"
 # VIDEO_NAME = "test"
 # SIMULATION_NAME = "NN Smoothing Wind-Mixing, Testing Data"
-SIMULATION_NAME = "Modified Pacanowski Philander, 3 Simulation Training"
+SIMULATION_NAME = "Modified Pacanowski Philander, 5 Simulation Training"
 
 # file = jldopen(DATA_PATH, "r")
 file = jldopen(DATA_PATH, "r")
