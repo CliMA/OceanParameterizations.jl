@@ -21,15 +21,15 @@ struct LESbraryData{𝒮, 𝒯, 𝒰, 𝒱}
     wT :: 𝒯
     wu :: 𝒯
     wv :: 𝒯
-    uu :: 𝒯
-    vv :: 𝒯
-    ww :: 𝒯
+    # uu :: 𝒯
+    # vv :: 𝒯
+    # ww :: 𝒯
 
     # Subfilter fluxes
-    νₑ_∂z_u :: 𝒯
-    νₑ_∂z_v :: 𝒯
-    νₑ_∂z_w :: 𝒯
-    κₑ_∂z_T :: 𝒯
+    # νₑ_∂z_u :: 𝒯
+    # νₑ_∂z_v :: 𝒯
+    # νₑ_∂z_w :: 𝒯
+    # κₑ_∂z_T :: 𝒯
 
     # Simulation constants
     α  :: 𝒰
@@ -79,17 +79,17 @@ function ReadJLD2_LESbraryData(filename)
 
     # Second Order Statistics
     wT  = zeros(typeof(les_data["timeseries/wT/$t₀"][1]), Nz+1, Nt)
-    uu  = zeros(typeof(les_data["timeseries/uu/$t₀"][1]), Nz,   Nt)
-    vv  = zeros(typeof(les_data["timeseries/vv/$t₀"][1]), Nz,   Nt)
-    ww  = zeros(typeof(les_data["timeseries/ww/$t₀"][1]), Nz+1, Nt)
+    # uu  = zeros(typeof(les_data["timeseries/uu/$t₀"][1]), Nz,   Nt)
+    # vv  = zeros(typeof(les_data["timeseries/vv/$t₀"][1]), Nz,   Nt)
+    # ww  = zeros(typeof(les_data["timeseries/ww/$t₀"][1]), Nz+1, Nt)
     wu  = zeros(typeof(les_data["timeseries/wu/$t₀"][1]), Nz+1, Nt)
     wv  = zeros(typeof(les_data["timeseries/wv/$t₀"][1]), Nz+1, Nt)
 
     # Subfilter momentum fluxes
-    νₑ_∂z_u  = zeros(typeof(les_data["timeseries/νₑ_∂z_u/$t₀"][1]), Nz+1, Nt)
-    νₑ_∂z_v  = zeros(typeof(les_data["timeseries/νₑ_∂z_v/$t₀"][1]), Nz+1, Nt)
-    νₑ_∂z_w  = zeros(typeof(les_data["timeseries/νₑ_∂z_w/$t₀"][1]), Nz, Nt)
-    κₑ_∂z_T  = zeros(typeof(les_data["timeseries/κₑ_∂z_T/$t₀"][1]), Nz+1, Nt)
+    # νₑ_∂z_u  = zeros(typeof(les_data["timeseries/νₑ_∂z_u/$t₀"][1]), Nz+1, Nt)
+    # νₑ_∂z_v  = zeros(typeof(les_data["timeseries/νₑ_∂z_v/$t₀"][1]), Nz+1, Nt)
+    # νₑ_∂z_w  = zeros(typeof(les_data["timeseries/νₑ_∂z_w/$t₀"][1]), Nz, Nt)
+    # κₑ_∂z_T  = zeros(typeof(les_data["timeseries/κₑ_∂z_T/$t₀"][1]), Nz+1, Nt)
 
     # grab arrays
     for j in 1:Nt
@@ -104,15 +104,15 @@ function ReadJLD2_LESbraryData(filename)
         @. wT[:, j] = les_data["timeseries/wT/$key"][1, 1, :]
         @. wu[:, j] = les_data["timeseries/wu/$key"][1, 1, :]
         @. wv[:, j] = les_data["timeseries/wv/$key"][1, 1, :]
-        @. uu[:, j] = les_data["timeseries/uu/$key"][1, 1, :]
-        @. vv[:, j] = les_data["timeseries/vv/$key"][1, 1, :]
-        @. ww[:, j] = les_data["timeseries/ww/$key"][1, 1, :]
+        # @. uu[:, j] = les_data["timeseries/uu/$key"][1, 1, :]
+        # @. vv[:, j] = les_data["timeseries/vv/$key"][1, 1, :]
+        # @. ww[:, j] = les_data["timeseries/ww/$key"][1, 1, :]
 
         # Subfilter fluxes
-        @. νₑ_∂z_u[:, j] = les_data["timeseries/νₑ_∂z_u/$key"][1, 1, :]
-        @. νₑ_∂z_v[:, j] = les_data["timeseries/νₑ_∂z_v/$key"][1, 1, :]
-        @. νₑ_∂z_w[:, j] = les_data["timeseries/νₑ_∂z_w/$key"][1, 1, :]
-        @. κₑ_∂z_T[:, j] = les_data["timeseries/κₑ_∂z_T/$key"][1, 1, :]
+        # @. νₑ_∂z_u[:, j] = les_data["timeseries/νₑ_∂z_u/$key"][1, 1, :]
+        # @. νₑ_∂z_v[:, j] = les_data["timeseries/νₑ_∂z_v/$key"][1, 1, :]
+        # @. νₑ_∂z_w[:, j] = les_data["timeseries/νₑ_∂z_w/$key"][1, 1, :]
+        # @. κₑ_∂z_T[:, j] = les_data["timeseries/κₑ_∂z_T/$key"][1, 1, :]
 
         t[j] = les_data["timeseries"]["t"][key]
     end
@@ -129,16 +129,24 @@ function ReadJLD2_LESbraryData(filename)
     push!(container, T, U, V)
 
     # Push second order statistics into container
-    push!(container, wT, wu, wv, uu, vv, ww)
+    # push!(container, wT, wu, wv, uu, vv, ww)
+    push!(container, wT, wu, wv)
 
     # Push subfilter fluxes into container
-    push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w, κₑ_∂z_T)
+    # push!(container, νₑ_∂z_u, νₑ_∂z_v, νₑ_∂z_w, κₑ_∂z_T)
 
     # Now grab parameter
-    α = les_data["buoyancy"]["equation_of_state"]["α"]
-    β = les_data["buoyancy"]["equation_of_state"]["β"]
+    if haskey(les_data["buoyancy"], "model")
+        α = les_data["buoyancy/model/equation_of_state/α"]
+        β = les_data["buoyancy/model/equation_of_state/β"]
+        g = les_data["buoyancy/model/gravitational_acceleration"]
+    else
+        α = les_data["buoyancy/equation_of_state/α"]
+        β = les_data["buoyancy/equation_of_state/β"]
+        g = les_data["buoyancy/gravitational_acceleration"]
+    end
+
     f⁰ = les_data["coriolis"]["f"]
-    g = les_data["buoyancy"]["gravitational_acceleration"]
     L = les_data["grid"]["Lz"]
 
     # Push parameters to container

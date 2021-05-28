@@ -2,7 +2,7 @@ module DataWrangling
 
 export
        # Coarse graining
-       coarse_grain,
+       coarse_grain, coarse_grain_linear_interpolation,
 
        # Feature scaling
        AbstractFeatureScaling, ZeroMeanUnitVarianceScaling, MinMaxScaling, scale, unscale,
