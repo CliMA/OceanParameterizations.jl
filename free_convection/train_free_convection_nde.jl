@@ -120,7 +120,7 @@ end
 @info "Registering data dependencies..."
 
 for dd in FreeConvection.LESBRARY_DATA_DEPS
-    DataDeps.register(dd)
+    isdir(@datadep_str dd.name) || DataDeps.register(dd)
 end
 
 
@@ -169,22 +169,22 @@ testing_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_test
 coarse_training_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_train)
 coarse_testing_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_test)
 
+
 @info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
 
 for id in keys(training_datasets)
-    filepath = joinpath(output_dir, "free_convection_data_$id")
-    animate_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
+    filepath = joinpath(output_dir, "free_convection_training_data_$id")
+    if !isfile(filepath * ".mp4") || !isfile(filepath * ".gif")
+        animate_training_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
+    end
 end
 
-#=
 
-## Pull out input (T) and output (wT) training data
+@info "Wrangling (T, wT) training data..."
 
-@info "Wrangling training data..."
 input_training_data = wrangle_input_training_data(coarse_training_datasets)
 output_training_data = wrangle_output_training_data(coarse_training_datasets)
 
-## Feature scaling
 
 @info "Scaling features..."
 
@@ -200,9 +200,9 @@ wT_scaling = ZeroMeanUnitVarianceScaling(wT_training_data)
 input_training_data = [rescale(i, T_scaling, wT_scaling) for i in input_training_data]
 output_training_data = wT_scaling.(output_training_data)
 
-## Training data pairs
 
 @info "Batching training data..."
+
 n_training_data = length(input_training_data)
 training_data = [(input_training_data[n], output_training_data[:, n]) for n in 1:n_training_data] |> shuffle
 data_loader = Flux.Data.DataLoader(training_data, batchsize=n_training_data, shuffle=true)
@@ -212,22 +212,27 @@ batch_size = data_loader.batchsize
 n_batches = ceil(Int, n_obs / batch_size)
 @info "Training data loader contains $n_obs pairs of observations (batch size = $batch_size)."
 
-## Train neural network on T -> wT mapping
 
-@info "Training neural network..."
+@info "Training neural network on fluxes (T -> wT mapping)..."
 
 causal_penalty = nothing
 
 if spatial_causality == "soft"
     ps = Flux.params(NN)
-    dense_layer_idx, dense_layer_params_idx = 1 + Int(conv>1)*3, 1 + Int(conv>1)*2
+
+    dense_layer_idx = 1 + Int(conv > 1) * 3
+    dense_layer_params_idx = 1 + Int(conv > 1) * 2
+
     nrows, ncols = size(ps[dense_layer_params_idx])
     mask = [x < y ? true : false for x in 1:nrows, y in 1:ncols]
+
     causal_penalty() = sum(abs2, NN[dense_layer_idx].W[mask])
+
     nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output) + causal_penalty()
 else
     nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output)
 end
+
 nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, output) in training_data)
 
 function nn_callback()
@@ -236,28 +241,30 @@ function nn_callback()
     return μ_loss
 end
 
-epochs = 5
-optimizers = [ADAM(1e-3), Descent(1e-4)]
+epochs = 10
+optimizers = [ADAM(), Descent(1e-2)]
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
     @info "Training heat flux neural network with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"
     Flux.train!(nn_loss, Flux.params(NN), mini_batch, opt, cb=Flux.throttle(nn_callback, 5))
 end
 
-## Animate the heat flux the neural network has learned
 
-@info "Animating what the neural network has learned..."
+@info "Animating what the neural network has learned so far (T -> wT mapping)..."
+
 for (id, ds) in coarse_training_datasets
     filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-                                    filepath=filepath, frameskip=5)
+    if !isfile(filepath * ".mp4") || !isfile(filepath * ".gif")
+        animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                        filepath=filepath, frameskip=5)
+    end
 end
 
 
-## Save neural network + weights
+@info "Saving initial neural network weights to disk..."
 
 initial_nn_filepath = joinpath(output_dir, "free_convection_initial_neural_network.jld2")
-@info "Saving initial neural network to $initial_nn_filepath..."
+
 jldopen(initial_nn_filepath, "w") do file
     file["grid_points"] = Nz
     file["neural_network"] = NN
@@ -265,12 +272,13 @@ jldopen(initial_nn_filepath, "w") do file
     file["wT_scaling"] = wT_scaling
 end
 
-## Train neural differential equation on incrementally increasing time spans
+
+@info "Training neural differential equation on incrementally increasing time spans..."
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
 training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
-training_epochs     = (10,   10,      10,       10,       10)
+training_epochs     = (1,    1,       1,        1,        1)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
@@ -280,7 +288,7 @@ for (iterations, epochs) in zip(training_iterations, training_epochs)
 end
 
 
-## Train on entire solution while decreasing the learning rate
+@info "Training the neural differential equation on the entire solution while decreasing the learning rate..."
 
 burn_in_iterations = 1:9:1153
 optimizers = [ADAM(), Descent()]
@@ -291,15 +299,14 @@ for opt in optimizers
                                         burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
 end
 
-## Save neural network + weights
+
+@info "Saving final neural network weights to disk..."
 
 final_nn_filepath = joinpath(output_dir, "free_convection_final_neural_network.jld2")
-@info "Saving final neural network to $final_nn_filepath..."
+
 jldopen(final_nn_filepath, "w") do file
     file["grid_points"] = Nz
     file["neural_network"] = NN
     file["T_scaling"] = T_scaling
     file["wT_scaling"] = wT_scaling
 end
-
-=#
