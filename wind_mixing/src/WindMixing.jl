@@ -15,7 +15,7 @@ export data, read_les_output,
        smoothing_filter,
        loss, loss_gradient,
        optimise_modified_pacanowski_philander,
-       extract_NN
+       extract_NN, extract_parameters_modified_pacanowski_philander_optimisation
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face
@@ -42,10 +42,10 @@ include("data_containers.jl")
 include("NDE_training.jl")
 include("NN_training.jl")
 include("animation.jl")
-include("training_data.jl")
+include("data_writing.jl")
 include("filtering_operators.jl")
 include("diffusivity_parameter_optimisation.jl")
-include("NN_extraction.jl")
+include("data_extraction.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
