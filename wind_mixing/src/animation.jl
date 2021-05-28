@@ -121,7 +121,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
                                      gradient_scaling) for i in 1:size(sol, 2)]
 
     if modified_pacanowski_philander
-        output["train_parameters"] = (ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr)
+        output["train_parameters"] = (ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr, gradient_scaling=gradient_scaling)
     end
 
     output["losses"] = losses
@@ -703,7 +703,7 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     end
 end
 
-function animate_profiles_fluxes_comparison(data, FILE_PATH; modified_pacanowski_philander=true, dimensionless=true, fps=30, gif=false, mp4=true, SIMULATION_NAME="")
+function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_trainings, training_types, fps=30, gif=false, mp4=true)
     times = data["t"] ./ 86400
 
     frame = Node(1)
@@ -786,18 +786,23 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; modified_pacanowski
     losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"])])
     losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end])])
 
+    train_parameters = data["train_parameters"]
+    ν₀ = train_parameters.ν₀
+    ν₋ = train_parameters.ν₋
+    ΔRi = train_parameters.ΔRi
+    Riᶜ = train_parameters.Riᶜ
+    Pr = train_parameters.Pr
+    gradient_scaling = train_parameters.gradient_scaling
+
     BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data["truth_uw"][end, 1] data["truth_wT"][end, 1]
+    plot_title = @lift "$animation_type Data: $BC_str, Time = $(round(times[$frame], digits=2)) days"
 
-    if modified_pacanowski_philander
-        ν₀ = data["train_parameters"].ν₀
-        ν₋ = data["train_parameters"].ν₋
-        ΔRi = data["train_parameters"].ΔRi
-        Riᶜ = data["train_parameters"].Riᶜ
-        Pr = data["train_parameters"].Pr
+    diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
 
-        diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
-    end
-    plot_title = @lift "$SIMULATION_NAME: $BC_str, Time = $(round(times[$frame], digits=2)) days"
+    scaling_str = @sprintf "Gradient Scaling = %.1e" gradient_scaling
+
+    plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str, $scaling_str"
+    
     fig = Figure(resolution=(1920, 1080))
     color_palette = distinguishable_colors(9, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     colors = (truth=color_palette[1], 
@@ -810,21 +815,12 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; modified_pacanowski
                      loss_gradient_modified_pacanowski_philander=color_palette[8],
                      point=color_palette[9])
 
-    if dimensionless
-        u_str = "u"
-        v_str = "v"
-        T_str = "T"
-        uw_str = "uw"
-        vw_str = "vw"
-        wT_str = "wT"
-    else
-        u_str = "u / m s⁻¹"
-        v_str = "v / m s⁻¹"
-        T_str = "T / °C"
-        uw_str = "uw / m² s⁻²"
-        vw_str = "vw / m² s⁻²"
-        wT_str = "wT / m s⁻¹ °C"
-    end
+    u_str = "u / m s⁻¹"
+    v_str = "v / m s⁻¹"
+    T_str = "T / °C"
+    uw_str = "uw / m² s⁻²"
+    vw_str = "vw / m² s⁻²"
+    wT_str = "wT / m s⁻¹ °C"
 
     zc = data["depth_profile"]
     zf = data["depth_flux"]
@@ -913,23 +909,30 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; modified_pacanowski
                                                     "Gradient Loss, Modified Pac-Phil Only"])
     # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
-
-    if modified_pacanowski_philander
-        subtitle = fig[end+1, :] = Label(fig, text=diffusivity_str, textsize=23)
-    end
+    subtitle = fig[end+1, :] = Label(fig, text=plot_subtitle, textsize=20)
 
     trim!(fig.layout)
 
+    print_frame = maximum([1, Int(floor(length(times)/20))])
+
+    function print_progress(n, n_total, print_frame, type)
+        if n % print_frame == 0
+            @info "Animating $(type) frame $n/$n_total"
+        end
+    end
+
+    @info "Starting Animation"
+
     if gif
         record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
-            @info "Animating gif frame $n/$(length(times))..."
+            print_progress(n, length(times), print_frame, "gif")
             frame[] = n
         end
     end
 
     if mp4
         record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
-            @info "Animating mp4 frame $n/$(length(times))..."
+            print_progress(n, length(times), print_frame, "mp4")
             frame[] = n
         end
     end
@@ -1086,4 +1089,112 @@ function animate_training_data_profiles_fluxes(train_files, FILE_PATH; fps=30, g
             frame[] = n
         end
     end
+end
+
+
+function generate_training_types_str(FILE_NAME)
+    training_types = ""
+    check_exists(str) = occursin(str, FILE_NAME)
+
+    if check_exists("_wind_mixing_")
+        training_types *= "Wind Mixing"
+    end
+
+    if check_exists("_cooling_")
+        if training_types != ""
+            training_types *= ", Cooling"
+        else
+            training_types *= "Cooling"
+        end
+    end
+
+    if check_exists("_heating_")
+        if training_types != ""
+            training_types *= ", Heating"
+        else
+            training_types *= "Heating"
+        end
+    end
+
+    if check_exists("_windcooling_")
+        if training_types != ""
+            training_types *= ", Wind + Cooling"
+        else
+            training_types *= "Wind + Cooling"
+        end
+    end
+
+    if check_exists("_windheating_")
+        if training_types != ""
+            training_types *= ", Wind + Heating"
+        else
+            training_types *= "Wind + Heating"
+        end
+    end
+
+    return training_types
+end
+
+function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30, gif=false, mp4=true)
+    DATA_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
+    OUTPUT_PATH = joinpath(pwd(), "Output", FILE_NAME)
+
+    if !ispath(OUTPUT_PATH)
+        mkdir(OUTPUT_PATH)
+    end
+
+    @info "Loading Data"
+    file = jldopen(DATA_PATH, "r")
+    losses = file["losses"]
+    @info "Training Loss = $(minimum(losses))"
+    train_files = file["training_info/train_files"]
+    train_parameters = file["training_info/parameters"]
+    uw_NN = file["neural_network/uw"]
+    vw_NN = file["neural_network/vw"]
+    wT_NN = file["neural_network/wT"]
+    close(file)
+
+    @info "Loading Training Data"
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+    training_types = generate_training_types_str(FILE_NAME)
+
+    Threads.@threads for test_file in test_files
+        @info "Generating Data: $test_file"
+        𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+
+        @info "Solving NDE: $test_file"
+        plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+                                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+                                ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
+                                Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
+                                smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+                                zero_weights=train_parameters["zero_weights"],
+                                gradient_scaling=train_parameters["gradient_scaling"])
+        
+        if test_file in train_files
+            animation_type = "Training"
+        else
+            animation_type = "Testing"
+        end
+        n_trainings = length(train_files)
+
+        if animation_type == "Training"
+            VIDEO_NAME = "train_$test_file"
+        else
+            VIDEO_NAME = "test_$test_file"
+        end
+
+        VIDEO_PATH = joinpath(OUTPUT_PATH, "$VIDEO_NAME")
+
+        @info "Animating $test_file Video"
+        animate_profiles_fluxes_comparison(plot_data, VIDEO_PATH, fps=fps, gif=gif, mp4=mp4, 
+                                                animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
+        @info "$test_file Animation Completed"
+    end
+
+    @info "Plotting Loss..."
+    Plots.plot(1:1:length(losses), losses, yscale=:log10)
+    Plots.xlabel!("Iteration")
+    Plots.ylabel!("Loss mse")
+    savefig(joinpath(OUTPUT_PATH, "loss.pdf"))
 end
