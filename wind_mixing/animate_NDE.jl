@@ -81,12 +81,13 @@ wT_NN = re(zeros(Float32, length(weights)))
 # uw_NN = re_uw(uw_weights)
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
-
-trange = 1:1:200
+test_files = ["-1e-3"]
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+trange = 1:1:10
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                        ν₀=1f-4, ν₋=1f0, ΔRi=1f-1,
+                        ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
                         # ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
                         # Riᶜ=train_parameters["Riᶜ"], convective_adjustment=true,
@@ -104,6 +105,7 @@ training_types = "Wind Mixing, Free Convection"
 VIDEO_NAME = "test"
 animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VIDEO_NAME), fps=30, 
                                                 animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
+
 
 # VIDEO_NAME = "u_v_T_modified_pacanowski_philander_1sim_-1e-3_test2"
 

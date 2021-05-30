@@ -108,6 +108,8 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constan
         end
 
         ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
+        # ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi) .+ 1f0 .* tanh_step.((Ri .+ constants.Riᶜ) ./ constants.ΔRi)
+
 
         if conditions.zero_weights
             ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]

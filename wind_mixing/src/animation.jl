@@ -174,13 +174,13 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     truth_Ri = similar(𝒟test.uw.coarse[:,trange])
 
-    for i in 1:size(truth_Ri, 2)
+    Threads.@threads for i in 1:size(truth_Ri, 2)
         truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.scaled[:,i], D_face * 𝒟test.v.scaled[:,i], D_face * 𝒟test.T.scaled[:,i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
     test_Ri = similar(truth_Ri)
 
-    for i in 1:size(test_Ri,2)
+    Threads.@threads for i in 1:size(test_Ri,2)
         test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
@@ -209,7 +209,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
         test_Ri_modified_pacanowski_philander = similar(truth_Ri)
 
-        for i in 1:size(test_Ri_modified_pacanowski_philander,2)
+        Threads.@threads for i in 1:size(test_Ri_modified_pacanowski_philander,2)
             test_Ri_modified_pacanowski_philander[:,i] .= 
             local_richardson.(D_face * sol_modified_pacanowski_philander[1:Nz,i], 
                             D_face * sol_modified_pacanowski_philander[Nz + 1:2Nz, i], 
@@ -220,7 +220,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_vw_NN_only = similar(truth_vw)
         test_wT_NN_only = similar(truth_wT)
 
-        for i in 1:size(test_uw_NN_only, 2)
+        Threads.@threads for i in 1:size(test_uw_NN_only, 2)
             test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
             predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
         end
@@ -336,6 +336,186 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         # output["test_T_NN_only"] = test_T_NN_only
     end
     return output
+end
+
+function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts; timestepper=ROCK4())
+    μ_u = scalings.u.μ
+    μ_v = scalings.v.μ
+    σ_u = scalings.u.σ
+    σ_v = scalings.v.σ
+    σ_T = scalings.T.σ
+    σ_uw = scalings.uw.σ
+    σ_vw = scalings.vw.σ
+    σ_wT = scalings.wT.σ
+    H, τ, f, Nz, g, α = constants.H, constants.τ, constants.f, constants.Nz, constants.g, constants.α
+    ν₀, ν₋, Riᶜ, ΔRi, Pr = constants.ν₀, constants.ν₋, constants.Riᶜ, constants.ΔRi, constants.Pr
+    D_face = derivatives.face
+    D_cell = derivatives.cell
+
+    uw = zeros(Float32, Nz+1)
+    vw = similar(uw)
+    wT = similar(uw)
+
+    ∂u∂z = similar(uw)
+    ∂v∂z = similar(uw)
+    ∂T∂z = similar(uw)
+
+    ν = similar(uw)
+
+    Ri = similar(uw)
+
+    uw[1] = BCs.uw.bottom - scalings.uw(0f0)
+    vw[1] = BCs.vw.bottom - scalings.vw(0f0)
+    wT[1] = BCs.wT.bottom - scalings.wT(0f0)
+
+    uw[end] = BCs.uw.top - scalings.uw(0f0)
+    vw[end] = BCs.vw.top - scalings.vw(0f0)
+    wT[end] = BCs.wT.top - scalings.wT(0f0)
+
+    uw_interior = @view uw[2:end-1]
+    vw_interior = @view vw[2:end-1]
+    wT_interior = @view wT[2:end-1]
+
+    ∂uw∂z = zeros(Float32, Nz)
+    ∂vw∂z = similar(∂uw∂z)
+    ∂wT∂z = similar(∂uw∂z)
+
+    dx = zeros(Float32, 3Nz)
+
+    function predict_flux!(uvT, u, v, T)  
+        uw_interior .= uw_NN(uvT)
+        vw_interior .= vw_NN(uvT)
+        wT_interior .= wT_NN(uvT)
+
+        mul!(∂u∂z, D_face, u)
+        mul!(∂v∂z, D_face, v)
+        mul!(∂T∂z, D_face, T)
+
+        Ri .= local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, H, g, α, σ_u, σ_v, σ_T)
+        ν .= ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+
+        uw_interior .-= σ_u ./ σ_uw ./ H .* @view(ν[2:end-1]) .* @view(∂u∂z[2:end-1])
+        vw_interior .-= σ_v ./ σ_vw ./ H .* @view(ν[2:end-1]) .* @view(∂v∂z[2:end-1])
+        wT_interior .-= σ_T ./ σ_wT ./ H .* @view(ν[2:end-1]) .* @view(∂T∂z[2:end-1]) ./ Pr
+    end
+
+    function NDE!(dx, x, p, t)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:end]
+
+        ∂u∂t = @view dx[1:Nz]
+        ∂v∂t = @view dx[Nz+1:2Nz]
+        ∂T∂t = @view dx[2Nz+1:end]
+
+        # ∂u∂t = dx[1:Nz]
+        # ∂v∂t = dx[Nz+1:2Nz]
+        # ∂T∂t = dx[2Nz+1:end]
+
+        predict_flux!(x, u, v, T)
+
+        mul!(∂uw∂z, D_cell, uw)
+        mul!(∂vw∂z, D_cell, vw)
+        mul!(∂wT∂z, D_cell, wT)
+
+        ∂u∂t .= -τ ./ H .* σ_uw ./ σ_u .* ∂uw∂z .+ f .* τ ./ σ_u .* (σ_v .* v .+ μ_v)
+        ∂v∂t .= -τ ./ H .* σ_vw ./ σ_v .* ∂vw∂z .- f .* τ ./ σ_v .* (σ_u .* u .+ μ_u)
+        ∂T∂t .= -τ ./ H .* σ_wT ./ σ_T .* ∂wT∂z
+    end
+
+    tspan = (ts[1], ts[end])
+    prob = ODEProblem(NDE!, uvT₀, tspan)
+    sol = Array(solve(prob, timestepper, saveat=ts))
+    return sol
+end
+
+function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, tspan; timestepper=ROCK4())
+    μ_u = scalings.u.μ
+    μ_v = scalings.v.μ
+    σ_u = scalings.u.σ
+    σ_v = scalings.v.σ
+    σ_T = scalings.T.σ
+    σ_uw = scalings.uw.σ
+    σ_vw = scalings.vw.σ
+    σ_wT = scalings.wT.σ
+    H, τ, f, Nz, g, α = constants.H, constants.τ, constants.f, constants.Nz, constants.g, constants.α
+    ν₀, ν₋, Riᶜ, ΔRi, Pr = constants.ν₀, constants.ν₋, constants.Riᶜ, constants.ΔRi, constants.Pr
+    D_face = derivatives.face |> gpu
+    D_cell = derivatives.cell |> gpu
+
+    uw = zeros(Float32, Nz+1)
+    vw = similar(uw)
+    wT = similar(uw)
+
+    ∂u∂z = similar(uw) |> gpu
+    ∂v∂z = similar(∂u∂z)
+    ∂T∂z = similar(∂u∂z)
+
+    ν = similar(∂u∂z)
+    Ri = similar(∂u∂z)
+
+    uw[1] = BCs.uw.bottom - scalings.uw(0f0)
+    vw[1] = BCs.vw.bottom - scalings.vw(0f0)
+    wT[1] = BCs.wT.bottom - scalings.wT(0f0)
+
+    uw[end] = BCs.uw.top - scalings.uw(0f0)
+    vw[end] = BCs.vw.top - scalings.vw(0f0)
+    wT[end] = BCs.wT.top - scalings.wT(0f0)
+
+    uw = uw |> gpu
+    vw = vw |> gpu
+    wT = wT |> gpu
+
+    uw_interior = @view uw[2:end-1]
+    vw_interior = @view vw[2:end-1]
+    wT_interior = @view wT[2:end-1]
+
+    ∂uw∂z = zeros(Float32, Nz) |> gpu
+    ∂vw∂z = similar(∂uw∂z)
+    ∂wT∂z = similar(∂uw∂z)
+
+    # dx = zeros(Float32, 3Nz) |> gpu
+
+    function predict_flux!(uvT, u, v, T)  
+        uw_interior .= uw_NN(uvT)
+        vw_interior .= vw_NN(uvT)
+        wT_interior .= wT_NN(uvT)
+
+        mul!(∂u∂z, D_face, u)
+        mul!(∂v∂z, D_face, v)
+        mul!(∂T∂z, D_face, T)
+
+        Ri .= local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, H, g, α, σ_u, σ_v, σ_T)
+        ν .= ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+
+        uw_interior .-= σ_u ./ σ_uw ./ H .* @view(ν[2:end-1]) .* @view(∂u∂z[2:end-1])
+        vw_interior .-= σ_v ./ σ_vw ./ H .* @view(ν[2:end-1]) .* @view(∂v∂z[2:end-1])
+        wT_interior .-= σ_T ./ σ_wT ./ H .* @view(ν[2:end-1]) .* @view(∂T∂z[2:end-1]) ./ Pr
+    end
+
+    function NDE!(dx, x, p, t)
+        u = @view x[1:Nz]
+        v = @view x[Nz + 1:2Nz]
+        T = @view x[2Nz + 1:end]
+
+        ∂u∂t = @view dx[1:Nz]
+        ∂v∂t = @view dx[Nz+1:2Nz]
+        ∂T∂t = @view dx[2Nz+1:end]
+
+        predict_flux!(x, u, v, T)
+
+        mul!(∂uw∂z, D_cell, uw)
+        mul!(∂vw∂z, D_cell, vw)
+        mul!(∂wT∂z, D_cell, wT)
+
+        ∂u∂t .= -τ ./ H .* σ_uw ./ σ_u .* ∂uw∂z .+ f .* τ ./ σ_u .* (σ_v .* v .+ μ_v)
+        ∂v∂t .= -τ ./ H .* σ_vw ./ σ_v .* ∂vw∂z .- f .* τ ./ σ_v .* (σ_u .* u .+ μ_u)
+        ∂T∂t .= -τ ./ H .* σ_wT ./ σ_T .* ∂wT∂z
+    end
+
+    prob = ODEProblem(NDE!, uvT₀, tspan)
+    sol = Array(solve(prob, timestepper, saveat=ts))
+    return sol
 end
 
 function NDE_profile_oceananigans(baseline_sol, NDE_sol)
