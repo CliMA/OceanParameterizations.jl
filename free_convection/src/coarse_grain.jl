@@ -57,7 +57,7 @@ function coarse_grain(field::Field{X, Y, Face}, new_grid; dims=3) where {X, Y}
 end
 
 function coarse_grain(fts::FieldTimeSeries, new_grid)
-    fts_new = FieldTimeSeries(new_grid, location(fts), fts.times)
+    fts_new = FieldTimeSeries(new_grid, location(fts), fts.times; ArrayType=Array{Float32})
 
     Nt = size(fts, 4)
     for n in 1:Nt

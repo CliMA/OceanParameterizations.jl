@@ -130,7 +130,7 @@ end
 ids = 1:9
 
 datasets = Dict{Int, FieldDataset}(
-    id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; metadata_paths=["parameters"])
+    id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; ArrayType=Array{Float32}, metadata_paths=["parameters"])
     for id in ids
 )
 
@@ -148,7 +148,7 @@ les_grid = datasets[1]["T"].grid
 
 topo = (Flat, Flat, Bounded)
 domain = (les_grid.zF[1], les_grid.zF[les_grid.Nz+1])
-coarse_grid = RegularRectilinearGrid(topology=topo, size=Nz, z=domain)
+coarse_grid = RegularRectilinearGrid(Float32, topology=topo, size=Nz, z=domain)
 
 
 @info "Coarse graining data..."
@@ -238,7 +238,7 @@ nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, ou
 
 function nn_callback()
     μ_loss = nn_training_set_loss(training_data)
-    @info @sprintf("Training free convection neural network... training set MSE loss = %.12e", μ_loss)
+    @info @sprintf("Training free convection neural network... training set MSE loss: μ_loss::%s = %.10e", typeof(μ_loss), μ_loss)
     return μ_loss
 end
 

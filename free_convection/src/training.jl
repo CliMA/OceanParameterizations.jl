@@ -63,7 +63,7 @@ function train_neural_differential_equation!(NN, NDEType, algorithm, datasets, T
 
     function nde_callback()
         mse_loss = nde_loss()
-        @info @sprintf("Training free convection NDE... MSE loss = %.12e", mse_loss)
+        @info @sprintf("Training free convection NDE... MSE loss: μ_loss::%s = %.12e", typeof(mse_loss), mse_loss)
         inscribe_history(history_filepath, NN, mse_loss)
         return nothing
     end
