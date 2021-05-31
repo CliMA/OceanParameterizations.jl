@@ -67,40 +67,4 @@ function __init__()
     Logging.global_logger(OceananigansLogger())
 end
 
-# TODO: Add these definitions to Oceananigans!
-
-using Oceananigans.OutputReaders: FieldTimeSeries, FieldDataset
-
-Base.setindex!(fts::FieldTimeSeries, val, inds...) = Base.setindex!(fts.data, val, inds...)
-
-Base.getindex(fds::FieldDataset, inds...) = Base.getindex(fds.fields, inds...)
-
-import Oceananigans: interior
-using Oceananigans.Grids: topology, interior_parent_indices
-
-interior(f::FieldTimeSeries{X, Y, Z}) where {X, Y, Z} =
-    view(parent(f), interior_parent_indices(X, topology(f, 1), f.grid.Nx, f.grid.Hx),
-                    interior_parent_indices(Y, topology(f, 2), f.grid.Ny, f.grid.Hy),
-                    interior_parent_indices(Z, topology(f, 3), f.grid.Nz, f.grid.Hz),
-                    :)
-
-import Oceananigans.OutputReaders: FieldTimeSeries, InMemory
-using Oceananigans.Architectures: array_type
-using Oceananigans.Grids: total_size, offset_data
-
-function FieldTimeSeries(grid, location, times; architecture=CPU(), name="", filepath="", bcs=nothing)
-    LX, LY, LZ = location
-
-    Nt = length(times)
-    data_size = total_size(location, grid)
-
-    ArrayType = array_type(architecture)
-    raw_data = zeros(data_size..., Nt) |> ArrayType
-    data = offset_data(raw_data, grid, location)
-
-    return FieldTimeSeries{LX, LY, LZ}(InMemory(), data, architecture, grid, bcs, times, name, filepath, 4)
-end
-
-export FieldTimeSeries
-
 end # module
