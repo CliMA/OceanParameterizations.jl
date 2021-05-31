@@ -159,7 +159,6 @@ for (id, ds) in coarse_datasets
     oceananigans_solutions[id] = nn_sol
 end
 
-#=
 
 @info "Plotting loss matrix..."
 
@@ -173,6 +172,8 @@ for (id, ds) in coarse_datasets
                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
                      filepath = filepath, frameskip = 5)
 end
+
+#=
 
 # @info "Animating what the neural network has learned..."
 

@@ -183,20 +183,27 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
     plots = []
 
     for (id, ds) in datasets
-        Nz, Nt = size(ds[:T])
-        times = dims(ds[:wT], Ti) ./ days
+
+        T = ds["T"]
+        wT = ds["wT"]
+        Nz = size(T, 3)
+        zc = znodes(T)
+        zf = znodes(wT)
+        H = abs(zf[1])
+        Nt = size(T, 4)
+        times = T.times ./ days
 
         kwargs = (linewidth=2, linealpha=0.8, grid=false, framestyle=:box, yaxis=(:log10, (1e-6, 1e-1)),
                   xlabel="Time (days)", ylabel="Mean squared error", xlims=extrema(times), ylims=(1e-6, 1e-1),
-                  title = @sprintf("Q = %d W/m² (%s)", -ds.metadata[:heat_flux_Wm⁻²], id in ids_train ? "train" : "test"),
+                  title = @sprintf("Q = %d W/m² (%s)", -4e6 * ds.metadata["temperature_flux"], id in ids_train ? "train" : "test"),
                   legend=isempty(plots) ? :bottomright : nothing,
                   foreground_color_legend=nothing, background_color_legend=nothing)
 
-        loss_nde = [loss(ds[:T][Ti=n][:], nde_sols[id].T[:, n]) for n in 1:Nt]
-        loss_kpp = [loss(ds[:T][Ti=n][:], kpp_sols[id].T[:, n]) for n in 1:Nt]
-        loss_tke = [loss(ds[:T][Ti=n][:], tke_sols[id].T[:, n]) for n in 1:Nt]
-        loss_ca = [loss(ds[:T][Ti=n][:], convective_adjustment_sols[id].T[:, n]) for n in 1:Nt]
-        loss_emb = [loss(ds[:T][Ti=n][:], oceananigans_sols[id].T[:, n]) for n in 1:Nt]
+        loss_nde = [loss(interior(ds["T"])[1, 1, :, n], nde_sols[id].T[:, n]) for n in 1:Nt]
+        loss_kpp = [loss(interior(ds["T"])[1, 1, :, n], kpp_sols[id].T[:, n]) for n in 1:Nt]
+        loss_tke = [loss(interior(ds["T"])[1, 1, :, n], tke_sols[id].T[:, n]) for n in 1:Nt]
+        loss_ca = [loss(interior(ds["T"])[1, 1, :, n], convective_adjustment_sols[id].T[:, n]) for n in 1:Nt]
+        loss_emb = [loss(interior(ds["T"])[1, 1, :, n], oceananigans_sols[id].T[:, n]) for n in 1:Nt]
 
         p = plot()
 

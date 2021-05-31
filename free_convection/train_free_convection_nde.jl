@@ -41,7 +41,7 @@ function parse_command_line_arguments()
 
         "--name"
             help = "Experiment name (also determines name of output directory)."
-            default = "layers3_depth12_relu_ROCK4_250epochs_softDSC"
+            default = "testing_free_conection_nde"
             arg_type = String
 
         "--epochs"
@@ -119,8 +119,9 @@ end
 
 @info "Registering data dependencies..."
 
+# TODO: Move to __init__
 for dd in FreeConvection.LESBRARY_DATA_DEPS
-    isdir(@datadep_str dd.name) || DataDeps.register(dd)
+    DataDeps.register(dd)
 end
 
 
@@ -278,7 +279,7 @@ end
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
 training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
-training_epochs     = (1,    1,       1,        1,        1)
+training_epochs     = (10,   10,      10,       10,       10)
 opt = ADAM()
 
 for (iterations, epochs) in zip(training_iterations, training_epochs)
@@ -291,7 +292,7 @@ end
 @info "Training the neural differential equation on the entire solution while decreasing the learning rate..."
 
 burn_in_iterations = 1:9:1153
-optimizers = [ADAM(), Descent()]
+optimizers = [ADAM(1e-3), ADAM(5e-4), ADAM(2.5e-4)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
