@@ -1,6 +1,8 @@
 using Test
 using OceanParameterizations
+using Statistics
 
 @testset "OceanParameterizations" begin
-    # Write your tests here.
+    include("test_feature_scaling.jl")
+    include("test_coarse_graining.jl")
 end

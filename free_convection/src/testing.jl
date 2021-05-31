@@ -132,41 +132,41 @@ function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convecti
         time_str = @sprintf("%.2f days", times[n])
         title = @sprintf("Free convection (Q = %d W/m², %s): %s", -ds.metadata[:heat_flux_Wm⁻²], id in ids_train ? "train" : "test", time_str)
 
-        wT_plot = plot()
-        T_plot = plot()
+        wT_plot = plot(margin=5Plots.mm)
+        T_plot = plot(margin=5Plots.mm)
 
         plot!(wT_plot, ds[:wT][Ti=n][:], zf, xlims=wT_lims, label="LES", color="dodgerblue", ylims=extrema(zf),
-              xlabel="Heat flux wT (m/s °C)", ylabel="Depth z (meters)", legend=nothing; kwargs...)
+              xlabel="Heat flux w′T′ (m/s ⋅ K)", ylabel="Depth z (meters)", legend=nothing; kwargs...)
 
         plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", color="dodgerblue", xlabel="Temperature T (°C)",
               xlims=T_lims, ylims=extrema(zf), title=title, legend=:bottomright; kwargs...)
 
-        plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
+        # plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
 
-        plot!(wT_plot, nde_sol.wT[:, n], zf, label="Neural DE", color="forestgreen"; kwargs...)
-        plot!(T_plot, nde_sol.T[:, n], zc, label="Neural DE", color="forestgreen"; kwargs...)
+        plot!(wT_plot, nde_sol.wT[:, n], zf, label="NDE", color="forestgreen"; kwargs...)
+        plot!(T_plot, nde_sol.T[:, n], zc, label="NDE", color="forestgreen"; kwargs...)
 
-        plot!(wT_plot, oceananigans_sol.wT[:, n], zf, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        plot!(T_plot, oceananigans_sol.T[:, n], zc, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        # plot!(wT_plot, oceananigans_sol.wT[:, n], zf, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        # plot!(T_plot, oceananigans_sol.T[:, n], zc, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
 
-        plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
-        plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
+        # plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
+        # plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
 
-        plot!(wT_plot, tke_sol.wT[:, n], zf, label="TKE mass flux", color="darkmagenta"; kwargs...)
-        plot!(T_plot, tke_sol.T[:, n], zc, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        # plot!(wT_plot, tke_sol.wT[:, n], zf, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        # plot!(T_plot, tke_sol.T[:, n], zc, label="TKE mass flux", color="darkmagenta"; kwargs...)
 
-        loss_plot = plot()
+        loss_plot = plot(margin=5Plots.mm)
 
         time_in_days = times[1:n]
 
-        plot!(loss_plot, time_in_days, loss_ca[1:n], label="Convective adjustment", color="gray",
+        plot!(loss_plot, time_in_days, loss_nde[1:n], label="NDE", color="forestgreen",
               yaxis=(:log10, (1e-6, 1e-1)), xlims=extrema(times), ylims=(1e-6, 1e-1),
               xlabel="Time (days)", ylabel="Mean squared error", legend=nothing; kwargs...)
 
-        plot!(loss_plot, time_in_days, loss_nde[1:n], label="Neural DE", color="forestgreen"; kwargs...)
-        plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
-        plot!(loss_plot, time_in_days, loss_tke[1:n], label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(loss_plot, time_in_days, loss_nde[1:n], label="NDE", color="forestgreen"; kwargs...)
+        # plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        # plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
+        # plot!(loss_plot, time_in_days, loss_tke[1:n], label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         plot(wT_plot, T_plot, loss_plot, layout=(1, 3), size=(1000, 400), dpi=200)
     end
@@ -207,11 +207,11 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
 
         p = plot()
 
-        plot!(p, times, loss_ca, label="Convective adjustment", color="gray"; kwargs...)
-        plot!(p, times, loss_nde, label="Neural DE", color="forestgreen"; kwargs...)
-        plot!(p, times, loss_emb, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        plot!(p, times, loss_kpp, label="KPP", color="crimson"; kwargs...)
-        plot!(p, times, loss_tke, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        # plot!(p, times, loss_ca, label="Convective adjustment", color="gray"; kwargs...)
+        plot!(p, times, loss_nde, label="NDE", color="forestgreen"; kwargs...)
+        # plot!(p, times, loss_emb, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        # plot!(p, times, loss_kpp, label="KPP", color="crimson"; kwargs...)
+        # plot!(p, times, loss_tke, label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         push!(plots, p)
     end

@@ -1,13 +1,14 @@
 """
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, opts, uw_NN, vw_NN, wT_NN)
 """
-function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, opts, uw_NN, vw_NN, wT_NN)
+function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts, uw_NN, vw_NN, wT_NN)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files
         training_info["train_epochs"] = train_epochs
         training_info["train_tranges"] = train_tranges
         training_info["optimizers"] = opts
+        training_info["parameters"] = train_parameters
         training_info["uw_neural_network"] = uw_NN
         training_info["vw_neural_network"] = vw_NN
         training_info["wT_neural_network"] = wT_NN
@@ -88,5 +89,39 @@ function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
         file["neural_network/uw"] = uw_NN
         file["neural_network/vw"] = vw_NN
         file["neural_network/wT"] = wT_NN
+    end
+end
+
+function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts)
+    jldopen(FILE_PATH, "w") do file
+        training_info = JLD2.Group(file, "training_info")
+        training_info["train_files"] = train_files
+        training_info["train_epochs"] = train_epochs
+        training_info["train_tranges"] = train_tranges
+        training_info["optimizers"] = opts
+        training_info["parameters"] = train_parameters
+
+        training_data = JLD2.Group(file, "training_data")
+        loss = JLD2.Group(training_data, "loss")
+        parameters = JLD2.Group(training_data, "parameters")
+    end
+end
+
+function write_data_modified_pacanowski_philander_optimisation(FILE_PATH, loss, parameters)
+    jldopen(FILE_PATH, "a") do file
+        if !haskey(file, "training_data/loss")
+            file["training_data/loss/1"] = loss
+        else
+            count = length(keys(file["training_data/loss"])) + 1
+            file["training_data/loss/$count"] = loss
+        end
+
+        if !haskey(file, "training_data/parameters")
+            file["training_data/parameters/1"] = parameters
+        else
+            count = length(keys(file["training_data/parameters"])) + 1
+            file["training_data/parameters/$count"] = parameters
+        end
+
     end
 end
