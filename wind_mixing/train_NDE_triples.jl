@@ -68,7 +68,6 @@ wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
-task_id=1
 FILE_NAME = ["NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_5e-5",
              "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_5e-5",
              "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1.5e-2_rate_5e-5",
