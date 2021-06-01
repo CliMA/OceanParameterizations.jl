@@ -174,13 +174,13 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     truth_Ri = similar(𝒟test.uw.coarse[:,trange])
 
-    Threads.@threads for i in 1:size(truth_Ri, 2)
+    for i in 1:size(truth_Ri, 2)
         truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.scaled[:,i], D_face * 𝒟test.v.scaled[:,i], D_face * 𝒟test.T.scaled[:,i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
     test_Ri = similar(truth_Ri)
 
-    Threads.@threads for i in 1:size(test_Ri,2)
+    for i in 1:size(test_Ri,2)
         test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
@@ -209,7 +209,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
         test_Ri_modified_pacanowski_philander = similar(truth_Ri)
 
-        Threads.@threads for i in 1:size(test_Ri_modified_pacanowski_philander,2)
+        for i in 1:size(test_Ri_modified_pacanowski_philander,2)
             test_Ri_modified_pacanowski_philander[:,i] .= 
             local_richardson.(D_face * sol_modified_pacanowski_philander[1:Nz,i], 
                             D_face * sol_modified_pacanowski_philander[Nz + 1:2Nz, i], 
@@ -220,7 +220,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_vw_NN_only = similar(truth_vw)
         test_wT_NN_only = similar(truth_wT)
 
-        Threads.@threads for i in 1:size(test_uw_NN_only, 2)
+        for i in 1:size(test_uw_NN_only, 2)
             test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
             predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
         end
@@ -634,13 +634,13 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
     truth_Ri = similar(𝒟test.uw.coarse[:,trange])
 
-    Threads.@threads for i in 1:size(truth_Ri, 2)
+    for i in 1:size(truth_Ri, 2)
         truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.scaled[:,i], D_face * 𝒟test.v.scaled[:,i], D_face * 𝒟test.T.scaled[:,i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
     test_Ri = similar(truth_Ri)
 
-    Threads.@threads for i in 1:size(test_Ri,2)
+    for i in 1:size(test_Ri,2)
         test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
@@ -669,7 +669,7 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
         test_Ri_modified_pacanowski_philander = similar(truth_Ri)
 
-        Threads.@threads for i in 1:size(test_Ri_modified_pacanowski_philander,2)
+        for i in 1:size(test_Ri_modified_pacanowski_philander,2)
             test_Ri_modified_pacanowski_philander[:,i] .= 
             local_richardson.(D_face * sol_modified_pacanowski_philander[1:Nz,i], 
                             D_face * sol_modified_pacanowski_philander[Nz + 1:2Nz, i], 
@@ -680,7 +680,7 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         test_vw_NN_only = similar(truth_vw)
         test_wT_NN_only = similar(truth_wT)
 
-        Threads.@threads for i in 1:size(test_uw_NN_only, 2)
+        for i in 1:size(test_uw_NN_only, 2)
             test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
             predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
         end
@@ -1623,7 +1623,7 @@ function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30
         𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
         @info "Solving NDE: $test_file"
-        plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        plot_data = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                                 Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
