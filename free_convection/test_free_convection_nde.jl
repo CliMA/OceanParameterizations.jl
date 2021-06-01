@@ -38,6 +38,14 @@ function parse_command_line_arguments()
             help = "Experiment name (also determines name of output directory)."
             default = "layers3_depth4_relu_ROCK4"
             arg_type = String
+
+        "--training-simulations"
+            help = "Simulation IDs (list of integers separated by spaces) to train the neural differential equation on." *
+                   "All other simulations will be used for testing/validation."
+            action = :append_arg
+            nargs = '+'
+            arg_type = Int
+            range_tester = (id -> id in FreeConvection.SIMULATION_IDS)
     end
 
     return parse_args(settings)
@@ -58,8 +66,13 @@ experiment_name = args["name"]
 NDEType = nde_type[args["base-parameterization"]]
 algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 
+ids_train = args["training-simulations"][1]
+ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
+validate_simulation_ids(ids_train, ids_test)
+
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
+
 
 @info "Planting loggers..."
 
@@ -72,11 +85,7 @@ TeeLogger(
 
 @info "Loading training data..."
 
-ids_train = 1:9
-ids_test = [2, 4, 6, 8]
-
 data = load_data(ids_train, ids_test, Nz)
-
 coarse_datasets = data.coarse_datasets
 
 

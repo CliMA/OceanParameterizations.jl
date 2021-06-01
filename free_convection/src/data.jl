@@ -11,8 +11,7 @@ LESBRARY_DATA_DEPS = [
     ) for id in SIMULATION_IDS
 ]
 
-function load_data(ids_train, ids_test, Nz)
-
+function validate_simulation_ids(ids_train, ids_test)
     @info "Simulation IDs: $(collect(SIMULATION_IDS))"
     @info "Training simulations: $(collect(ids_train))"
     @info "Testing simulations: $(collect(ids_test))"
@@ -26,6 +25,11 @@ function load_data(ids_train, ids_test, Nz)
     if !isempty(ids_intersection)
         @warn "Simulations used for both training and testing: $(collect(ids_intersection))"
     end
+
+    return nothing
+end
+
+function load_data(ids_train, ids_test, Nz)
 
     @info "Constructing FieldTimeSeries..."
 

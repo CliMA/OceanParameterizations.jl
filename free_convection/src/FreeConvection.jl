@@ -20,7 +20,7 @@ export
     compute_nde_solution_history, plot_epoch_loss, animate_nde_loss, plot_comparisons, plot_loss_matrix,
 
     # Data
-    load_data
+    validate_simulation_ids, load_data
 
 using Logging
 using Printf
