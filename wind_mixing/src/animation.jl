@@ -1618,7 +1618,7 @@ function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     training_types = generate_training_types_str(FILE_NAME)
 
-    Threads.@threads for test_file in test_files
+    for test_file in test_files
         @info "Generating Data: $test_file"
         𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
