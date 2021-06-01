@@ -1,9 +1,6 @@
 module FreeConvection
 
 export
-    # DimensionalData.jl dimensions
-    zC, zF,
-
     # Utils
     coarse_grain, add_surface_fluxes!,
 
@@ -30,7 +27,6 @@ using Printf
 using Statistics
 
 using DataDeps
-using DimensionalData
 using NCDatasets
 using Plots
 using Flux
@@ -38,10 +34,10 @@ using OrdinaryDiffEq
 using DiffEqSensitivity
 using DiffEqFlux
 using JLD2
+
 using OceanParameterizations
 using Oceananigans.Units
 
-using DimensionalData: basetypeof
 using Oceananigans: OceananigansLogger, Center, Face
 using Oceananigans.Utils: prettytime
 

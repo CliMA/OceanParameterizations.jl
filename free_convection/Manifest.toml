@@ -295,12 +295,6 @@ git-tree-sha1 = "214c3fcac57755cfda163d91c58893a8723f93e9"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
 version = "1.0.2"
 
-[[DimensionalData]]
-deps = ["Adapt", "ConstructionBase", "Dates", "LinearAlgebra", "RecipesBase", "SparseArrays", "Statistics", "Tables"]
-git-tree-sha1 = "09ce078668f33af056db00992595d5d24df2d475"
-uuid = "0703355e-b756-11e9-17c0-8b28908087d0"
-version = "0.17.8"
-
 [[Distances]]
 deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
 git-tree-sha1 = "abe4ad222b26af3337262b8afb28fab8d215e9f8"
