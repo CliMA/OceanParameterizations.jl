@@ -58,7 +58,6 @@ include("training.jl")
 include("testing.jl")
 include("k_profile_parameterization.jl")
 include("tke_mass_flux.jl")
-# include("optimize_kpp_parameters.jl")
 include("oceananigans_nn.jl")
 
 include("data_dependencies.jl")
