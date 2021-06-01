@@ -115,58 +115,15 @@ function free_convection_neural_network(input)
 end
 
 
-@info "Registering data dependencies..."
+@info "Loading training data..."
 
-# TODO: Move to __init__
-for dd in FreeConvection.LESBRARY_DATA_DEPS
-    DataDeps.register(dd)
-end
-
-
-@info "Loading data..."
-
-ids = 1:9
-
-datasets = Dict{Int, FieldDataset}(
-    id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; ArrayType=Array{Float32}, metadata_paths=["parameters"])
-    for id in ids
-)
-
-
-@info "Injecting surface fluxes..."
-
-for id in ids
-    add_surface_fluxes!(datasets[id])
-end
-
-
-@info "Coarsening grid..."
-
-les_grid = datasets[1]["T"].grid
-
-topo = (Flat, Flat, Bounded)
-domain = (les_grid.zF[1], les_grid.zF[les_grid.Nz+1])
-coarse_grid = RegularRectilinearGrid(Float32, topology=topo, size=Nz, z=domain)
-
-
-@info "Coarse graining data..."
-
-coarse_datasets = Dict{Int, FieldDataset}(
-    id => coarse_grain(ds, coarse_grid)
-    for (id, ds) in datasets
-)
-
-
-@info "Partitioning data into training and testing datasets..."
-
-ids_train = [1, 3, 5, 7, 9]
+ids_train = 1:9
 ids_test = [2, 4, 6, 8]
 
-training_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_train)
-testing_datasets = Dict{Int, FieldDataset}(id => datasets[id] for id in ids_test)
+data = load_data(ids_train, ids_test, Nz)
 
-coarse_training_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_train)
-coarse_testing_datasets = Dict{Int, FieldDataset}(id => coarse_datasets[id] for id in ids_test)
+training_datasets = data.training_datasets
+coarse_training_datasets = data.coarse_training_datasets
 
 
 @info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
@@ -290,7 +247,7 @@ end
 @info "Training the neural differential equation on the entire solution while decreasing the learning rate..."
 
 burn_in_iterations = 1:9:1153
-optimizers = [ADAM(1e-3), ADAM(5e-4), ADAM(2.5e-4)]
+optimizers = [ADAM(1e-3), ADAM(5e-4)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
