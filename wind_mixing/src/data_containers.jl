@@ -21,7 +21,7 @@ directories = Dict(
     "cooling_2e-8"             => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb2.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
     "cooling_1e-8"             => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb1.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
     "heating_-3e-8"            => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    "wind_-1e-3_heating_-4e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_FCWM_8days_statistics.jld2",
+    "wind_-1e-3_heating_-4e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
     "wind_-5e-4_cooling_4e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
     "wind_-1e-3_cooling_4e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
     "wind_-2e-4_cooling_1e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
@@ -218,8 +218,26 @@ function data(filenames; animate=false, scale_type=MinMaxScaling, animate_dir="O
         animate_gif([T],  zC, t, "T",  directory=animate_dir)
     end
 
-    coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Center) for i in 1:size(x,2))..., dims=2)
-    coarsify_face(x) = cat((coarse_grain_linear_interpolation(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
+    function coarsify_cell(x)
+        output = zeros(typeof(x[1]), 32, size(x,2))
+        for i in 1:size(x,2)
+            col = @view output[:,i]
+            col .= coarse_grain(x[:,i], 32, Center)
+        end
+        return output
+    end
+
+    function coarsify_face(x)
+        output = zeros(typeof(x[1]), 33, size(x,2))
+        for i in 1:size(x,2)
+            col = @view output[:,i]
+            col .= coarse_grain_linear_interpolation(x[:,i], 33, Face)
+            # col .= coarse_grain(x[:,i], 33, Face)
+        end
+        return output
+    end
+    # coarsify_cell(x) = cat((coarse_grain(x[:,i], 32, Center) for i in 1:size(x,2))..., dims=2)
+    # coarsify_face(x) = cat((coarse_grain_linear_interpolation(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
     # coarsify_face(x) = cat((coarse_grain(x[:,i], 33, Face) for i in 1:size(x,2))..., dims=2)
 
     u_coarse  = coarsify_cell(u)
