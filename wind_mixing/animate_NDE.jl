@@ -137,7 +137,7 @@ animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VIDEO_NAME), f
 # animate_flux(plot_data, "wT", joinpath(FILE_PATH, "wT_test"))
 
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-6e-4", "-5e-4", "-4e-4", "-3e-4", "-2e-4"]
-train_files = ["cooling_5e-8", "cooling_4e-8", "cooling_3e-8", "cooling_2e-8"]
+train_files = ["wind_-1e-3_heating_-4e-8"]
 # train_files = ["cooling_1e-8"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)

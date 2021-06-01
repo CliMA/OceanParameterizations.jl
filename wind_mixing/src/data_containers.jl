@@ -20,8 +20,17 @@ directories = Dict(
     "cooling_3e-8"             => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
     "cooling_2e-8"             => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb2.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
     "cooling_1e-8"             => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb1.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    "wind_-1e-3_heating_-4e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    "wind_-5e-3_heating_4e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2"
+    "heating_-3e-8"            => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "wind_-1e-3_heating_-4e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_FCWM_8days_statistics.jld2",
+    "wind_-5e-4_cooling_4e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_4e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_1e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_2e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb2.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-5e-4_cooling_1e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_5e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-5e-4_cooling_3e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_3e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_3e-8"  => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2"
     )
 
 function read_les_output(filename::String)

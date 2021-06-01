@@ -338,7 +338,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     return output
 end
 
-function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts; timestepper=ROCK4())
+function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
     μ_u = scalings.u.μ
     μ_v = scalings.v.μ
     σ_u = scalings.u.σ
@@ -429,7 +429,7 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
     return sol
 end
 
-function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, tspan; timestepper=ROCK4())
+function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, tspan, timestepper)
     μ_u = scalings.u.μ
     μ_v = scalings.v.μ
     σ_u = scalings.u.σ
@@ -516,6 +516,286 @@ function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, d
     prob = ODEProblem(NDE!, uvT₀, tspan)
     sol = Array(solve(prob, timestepper, saveat=ts))
     return sol
+end
+
+function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange; 
+                    unscale=true, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.81f0, f=1f-4,
+                    modified_pacanowski_philander=false, convective_adjustment=false,
+                    smooth_NN=false, smooth_Ri=false,
+                    zero_weights=false, 
+                    gradient_scaling = 5f-3)
+
+    timestepper = ROCK4()
+    
+    @assert !modified_pacanowski_philander || !convective_adjustment
+
+    Nz = length(𝒟train.u.z)
+
+    conditions = (modified_pacanowski_philander=modified_pacanowski_philander, convective_adjustment=convective_adjustment, 
+                    smooth_NN=smooth_NN, smooth_Ri=smooth_Ri,
+                    zero_weights=zero_weights)
+    
+    constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₋, Riᶜ, ΔRi, Pr, κ, conditions)
+
+    H, τ, f = constants.H, constants.τ, constants.f
+    D_face, D_cell = derivatives.face, derivatives.cell
+
+    BCs = prepare_BCs(𝒟test, scalings)
+    uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom, wT_top = BCs.uw.bottom, BCs.uw.top, BCs.vw.bottom, BCs.vw.top, BCs.wT.bottom, BCs.wT.top
+
+    prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
+
+    if modified_pacanowski_philander
+        constants_NN_only = (H=constants.H, τ=constants.τ, f=constants.f, Nz=constants.Nz, g=constants.g, α=constants.α, ν₀=0f0, ν₋=0f0, Riᶜ=constants.Riᶜ, ΔRi=constants.ΔRi, Pr=constants.Pr)
+        # prob_NDE_NN_only(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants_NN_only, derivatives, filters)
+    end
+
+    t_test = Float32.(𝒟test.t[trange] ./ constants.τ)
+    uvT₀ = [scalings.u(𝒟test.uvT_unscaled[1:Nz, 1]); scalings.v(𝒟test.uvT_unscaled[Nz + 1:2Nz, 1]); scalings.T(𝒟test.uvT_unscaled[2Nz + 1:3Nz, 1])]
+
+    sol = solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper)
+
+    if modified_pacanowski_philander
+        zeros_uw_NN = NN_constructions.uw(zeros(Float32, NN_sizes.uw))
+        zeros_vw_NN = NN_constructions.vw(zeros(Float32, NN_sizes.vw))
+        zeros_wT_NN = NN_constructions.wT(zeros(Float32, NN_sizes.wT))
+
+        sol_modified_pacanowski_philander = solve_NDE_mutating(zeros_uw_NN, zeros_vw_NN, zeros_wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper)
+    end
+
+    output = Dict()
+
+    𝒟test_uvT_scaled = [scalings.u.(𝒟test.uvT_unscaled[1:Nz, trange]); 
+                        scalings.v.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]); 
+                        scalings.T.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])]
+
+    𝒟test_uvT_scaled_gradient = calculate_profile_gradient(𝒟test_uvT_scaled, derivatives, constants)
+
+    losses = [loss(@view(sol[:,i]), @view(𝒟test_uvT_scaled[:,i])) for i in 1:size(sol, 2)]
+
+    sol_gradient = calculate_profile_gradient(sol, derivatives, constants)
+    losses_gradient = [loss_gradient(@view(𝒟test_uvT_scaled[:,i]), 
+                                     @view(sol[:,i]), 
+                                     @view(𝒟test_uvT_scaled_gradient[:,i]), 
+                                     @view(sol_gradient[:,i]), 
+                                     gradient_scaling) for i in 1:size(sol, 2)]
+
+    if modified_pacanowski_philander
+        output["train_parameters"] = (ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr, gradient_scaling=gradient_scaling)
+    end
+
+    output["losses"] = losses
+    output["loss"] = mean(losses)
+    output["losses_gradient"] = losses_gradient .- losses
+    output["loss_gradient"] = mean(losses_gradient)
+
+    if modified_pacanowski_philander
+        sol_modified_pacanowski_philander_gradient = calculate_profile_gradient(sol_modified_pacanowski_philander, derivatives, constants)
+        losses_modified_pacanowski_philander = [loss(@view(sol_modified_pacanowski_philander[:,i]), 
+                                                     @view(𝒟test_uvT_scaled[:,i])) 
+                                                     for i in 1:size(sol_modified_pacanowski_philander, 2)]
+        losses_modified_pacanowski_philander_gradient = [loss_gradient(@view(𝒟test_uvT_scaled[:,i]), 
+                                                                       @view(sol_modified_pacanowski_philander[:,i]), 
+                                                                       @view(𝒟test_uvT_scaled_gradient[:,i]), 
+                                                                       @view(sol_modified_pacanowski_philander_gradient[:,i]), 
+                                                                       gradient_scaling) for i in 1:size(sol_modified_pacanowski_philander, 2)]
+        output["losses_modified_pacanowski_philander"] = losses_modified_pacanowski_philander
+        output["loss_modified_pacanowski_philander"] = mean(losses_modified_pacanowski_philander)
+        output["losses_modified_pacanowski_philander_gradient"] = losses_modified_pacanowski_philander_gradient .- losses_modified_pacanowski_philander
+        output["loss_modified_pacanowski_philander_gradient"] = mean(losses_modified_pacanowski_philander_gradient)
+    end
+
+    truth_uw = 𝒟test.uw.coarse[:,trange]
+    truth_vw = 𝒟test.vw.coarse[:,trange]
+    truth_wT = 𝒟test.wT.coarse[:,trange]
+    
+    truth_u = 𝒟test.uvT_unscaled[1:Nz, trange]
+    truth_v = 𝒟test.uvT_unscaled[Nz + 1:2Nz, trange]
+    truth_T = 𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange]
+
+    test_uw = similar(truth_uw)
+    test_vw = similar(truth_vw)
+    test_wT = similar(truth_wT)
+
+    for i in 1:size(test_uw, 2)
+        test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+    end
+
+    test_uw .= inv(scalings.uw).(test_uw)
+    test_vw .= inv(scalings.vw).(test_vw)
+    test_wT .= inv(scalings.wT).(test_wT)
+    test_u = inv(scalings.u).(sol[1:Nz,:])
+    test_v = inv(scalings.v).(sol[Nz + 1:2Nz, :])
+    test_T = inv(scalings.T).(sol[2Nz + 1: 3Nz, :])
+
+    depth_profile = 𝒟test.u.z
+    depth_flux = 𝒟test.uw.z
+    t = 𝒟test.t[trange]
+
+    truth_Ri = similar(𝒟test.uw.coarse[:,trange])
+
+    Threads.@threads for i in 1:size(truth_Ri, 2)
+        truth_Ri[:,i] .= local_richardson.(D_face * 𝒟test.u.scaled[:,i], D_face * 𝒟test.v.scaled[:,i], D_face * 𝒟test.T.scaled[:,i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+    end
+
+    test_Ri = similar(truth_Ri)
+
+    Threads.@threads for i in 1:size(test_Ri,2)
+        test_Ri[:,i] .= local_richardson.(D_face * sol[1:Nz,i], D_face * sol[Nz + 1:2Nz, i], D_face * sol[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+    end
+
+    output["truth_Ri"] = truth_Ri
+    output["test_Ri"] = test_Ri
+
+    if modified_pacanowski_philander
+        test_uw_modified_pacanowski_philander = similar(truth_uw)
+        test_vw_modified_pacanowski_philander = similar(truth_vw)
+        test_wT_modified_pacanowski_philander = similar(truth_wT)
+
+        for i in 1:size(test_uw_modified_pacanowski_philander, 2)
+            test_uw_modified_pacanowski_philander[:,i], test_vw_modified_pacanowski_philander[:,i], test_wT_modified_pacanowski_philander[:,i] = 
+                                    predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
+                                                NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
+                                                NN_constructions.wT(zeros(Float32, NN_sizes.wT)), 
+                                     @view(sol_modified_pacanowski_philander[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+        end
+
+        test_uw_modified_pacanowski_philander .= inv(scalings.uw).(test_uw_modified_pacanowski_philander)
+        test_vw_modified_pacanowski_philander .= inv(scalings.vw).(test_vw_modified_pacanowski_philander)
+        test_wT_modified_pacanowski_philander .= inv(scalings.wT).(test_wT_modified_pacanowski_philander)
+        test_u_modified_pacanowski_philander = inv(scalings.u).(sol_modified_pacanowski_philander[1:Nz,:])
+        test_v_modified_pacanowski_philander = inv(scalings.v).(sol_modified_pacanowski_philander[Nz + 1:2Nz, :])
+        test_T_modified_pacanowski_philander = inv(scalings.T).(sol_modified_pacanowski_philander[2Nz + 1: 3Nz, :])
+
+        test_Ri_modified_pacanowski_philander = similar(truth_Ri)
+
+        Threads.@threads for i in 1:size(test_Ri_modified_pacanowski_philander,2)
+            test_Ri_modified_pacanowski_philander[:,i] .= 
+            local_richardson.(D_face * sol_modified_pacanowski_philander[1:Nz,i], 
+                            D_face * sol_modified_pacanowski_philander[Nz + 1:2Nz, i], 
+                            D_face * sol_modified_pacanowski_philander[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+        end
+
+        test_uw_NN_only = similar(truth_uw)
+        test_vw_NN_only = similar(truth_vw)
+        test_wT_NN_only = similar(truth_wT)
+
+        Threads.@threads for i in 1:size(test_uw_NN_only, 2)
+            test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
+            predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
+        end
+
+        test_uw_NN_only .= inv(scalings.uw).(test_uw_NN_only)
+        test_vw_NN_only .= inv(scalings.vw).(test_vw_NN_only)
+        test_wT_NN_only .= inv(scalings.wT).(test_wT_NN_only)
+        # test_u_NN_only = inv(scalings.u).(sol_NN_only[1:Nz,:])
+        # test_v_NN_only = inv(scalings.v).(sol_NN_only[Nz + 1:2Nz, :])
+        # test_T_NN_only = inv(scalings.T).(sol_NN_only[2Nz + 1: 3Nz, :])
+
+        # test_Ri_NN_only = similar(truth_Ri)
+
+        # for i in 1:size(test_Ri_NN_only,2)
+        #     test_Ri_NN_only[:,i] .= 
+        #     local_richardson.(D_face * sol_NN_only[1:Nz,i], 
+        #                     D_face * sol_NN_only[Nz + 1:2Nz, i], 
+        #                     D_face * sol_NN_only[2Nz + 1: 3Nz, i], H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+        # end
+
+        output["test_Ri_modified_pacanowski_philander"] = test_Ri_modified_pacanowski_philander
+        # output["test_Ri_NN_only"] = test_Ri_NN_only
+    end
+
+    if !unscale
+        truth_uw .= scalings.uw.(𝒟test.uw.coarse[:,trange])
+        truth_vw .= scalings.vw.(𝒟test.vw.coarse[:,trange])
+        truth_wT .= scalings.wT.(𝒟test.wT.coarse[:,trange])
+
+        truth_u .= scalings.u.(𝒟test.uvT_unscaled[1:Nz, trange])
+        truth_v .= scalings.v.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
+        truth_T .= scalings.T.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
+
+        test_uw .= scalings.uw.(test_uw)
+        test_vw .= scalings.vw.(test_vw)
+        test_wT .= scalings.wT.(test_wT)
+
+        test_u .= scalings.u.(test_u)
+        test_v .= scalings.v.(test_v)
+        test_T .= scalings.w.(test_T)
+
+        if modified_pacanowski_philander
+            test_uw_modified_pacanowski_philander .= scalings.uw.(test_uw_modified_pacanowski_philander)
+            test_vw_modified_pacanowski_philander .= scalings.vw.(test_vw_modified_pacanowski_philander)
+            test_wT_modified_pacanowski_philander .= scalings.wT.(test_wT_modified_pacanowski_philander)
+    
+            test_u_modified_pacanowski_philander .= scalings.u.(test_u_modified_pacanowski_philander)
+            test_v_modified_pacanowski_philander .= scalings.v.(test_v_modified_pacanowski_philander)
+            test_T_modified_pacanowski_philander .= scalings.w.(test_T_modified_pacanowski_philander)
+
+            test_uw_NN_only .= scalings.uw.(test_uw_NN_only)
+            test_vw_NN_only .= scalings.vw.(test_vw_NN_only)
+            test_wT_NN_only .= scalings.wT.(test_wT_NN_only)
+    
+            # test_u_NN_only .= scalings.u.(test_u_NN_only)
+            # test_v_NN_only .= scalings.v.(test_v_NN_only)
+            # test_T_NN_only .= scalings.w.(test_T_NN_only)
+
+        end
+    end
+
+    if unscale
+        test_uw .= test_uw .- test_uw[1, 1]
+        test_vw .= test_vw .- test_vw[1, 1] 
+        test_wT .= test_wT .- test_wT[1, 1]
+
+        if modified_pacanowski_philander
+            test_uw_modified_pacanowski_philander .= test_uw_modified_pacanowski_philander .- test_uw_modified_pacanowski_philander[1, 1]
+            test_vw_modified_pacanowski_philander .= test_vw_modified_pacanowski_philander .- test_vw_modified_pacanowski_philander[1, 1] 
+            test_wT_modified_pacanowski_philander .= test_wT_modified_pacanowski_philander .- test_wT_modified_pacanowski_philander[1, 1]
+
+            test_uw_NN_only .= test_uw_NN_only .- test_uw_NN_only[1, 1]
+            test_vw_NN_only .= test_vw_NN_only .- test_vw_NN_only[1, 1] 
+            test_wT_NN_only .= test_wT_NN_only .- test_wT_NN_only[1, 1]
+        end
+    end
+
+    output["truth_uw"] = truth_uw
+    output["truth_vw"] = truth_vw
+    output["truth_wT"] = truth_wT
+
+    output["truth_u"] = truth_u
+    output["truth_v"] = truth_v
+    output["truth_T"] = truth_T
+
+    output["test_uw"] = test_uw
+    output["test_vw"] = test_vw
+    output["test_wT"] = test_wT
+
+    output["test_u"] = test_u
+    output["test_v"] = test_v
+    output["test_T"] = test_T
+
+    output["depth_profile"] = 𝒟test.u.z
+    output["depth_flux"] = 𝒟test.uw.z
+    output["t"] = 𝒟test.t[trange]
+
+    if modified_pacanowski_philander
+        output["test_uw_modified_pacanowski_philander"] = test_uw_modified_pacanowski_philander
+        output["test_vw_modified_pacanowski_philander"] = test_vw_modified_pacanowski_philander
+        output["test_wT_modified_pacanowski_philander"] = test_wT_modified_pacanowski_philander
+    
+        output["test_u_modified_pacanowski_philander"] = test_u_modified_pacanowski_philander
+        output["test_v_modified_pacanowski_philander"] = test_v_modified_pacanowski_philander
+        output["test_T_modified_pacanowski_philander"] = test_T_modified_pacanowski_philander
+
+        output["test_uw_NN_only"] = test_uw_NN_only
+        output["test_vw_NN_only"] = test_vw_NN_only
+        output["test_wT_NN_only"] = test_wT_NN_only
+    
+        # output["test_u_NN_only"] = test_u_NN_only
+        # output["test_v_NN_only"] = test_v_NN_only
+        # output["test_T_NN_only"] = test_T_NN_only
+    end
+    return output
 end
 
 function NDE_profile_oceananigans(baseline_sol, NDE_sol)
@@ -869,14 +1149,14 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     trim!(fig.layout)
 
     if gif
-        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
             @info "Animating gif frame $n/$(length(times))..."
             frame[] = n
         end
     end
 
     if mp4
-        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
             @info "Animating mp4 frame $n/$(length(times))..."
             frame[] = n
         end
@@ -1104,14 +1384,14 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     @info "Starting Animation"
 
     if gif
-        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
             print_progress(n, length(times), print_frame, "gif")
             frame[] = n
         end
     end
 
     if mp4
-        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
             print_progress(n, length(times), print_frame, "mp4")
             frame[] = n
         end
@@ -1211,7 +1491,7 @@ function animate_training_data_profiles_fluxes(train_files, FILE_PATH; fps=30, g
     uw_tops = [data.uw.coarse[end,1] for data in all_data]
     wT_tops = [data.wT.coarse[end,1] for data in all_data]
 
-    BC_strs = [@sprintf "Momentum Flux = %.1e, Buoyancy Flux = %.1e" uw_tops[i] wT_tops[i] for i in 1:length(uw_tops)]
+    BC_strs = [@sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" uw_tops[i] wT_tops[i] for i in 1:length(uw_tops)]
 
     ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
     u_lines = [lines!(ax_u, us[i], zc, linewidth=3, color=color_palette[i]) for i in 1:length(us)]
@@ -1257,14 +1537,14 @@ function animate_training_data_profiles_fluxes(train_files, FILE_PATH; fps=30, g
     trim!(fig.layout)
 
     if gif
-        record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
             @info "Animating gif frame $n/$(length(times))..."
             frame[] = n
         end
     end
 
     if mp4
-        record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
             @info "Animating mp4 frame $n/$(length(times))..."
             frame[] = n
         end
