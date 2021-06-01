@@ -4,7 +4,6 @@ using Logging
 using ArgParse
 using LoggingExtras
 using DataDeps
-using GeoData
 using Flux
 using JLD2
 using OrdinaryDiffEq

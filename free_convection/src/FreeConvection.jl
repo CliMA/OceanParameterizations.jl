@@ -31,7 +31,6 @@ using Statistics
 
 using DataDeps
 using DimensionalData
-using GeoData
 using NCDatasets
 using Plots
 using Flux
@@ -43,12 +42,8 @@ using OceanParameterizations
 using Oceananigans.Units
 
 using DimensionalData: basetypeof
-using GeoData: AbstractGeoStack, window
 using Oceananigans: OceananigansLogger, Center, Face
 using Oceananigans.Utils: prettytime
-
-@dim zC ZDim "z"
-@dim zF ZDim "z"
 
 include("coarse_grain.jl")
 include("add_surface_fluxes.jl")
