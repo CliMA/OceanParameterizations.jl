@@ -8,7 +8,7 @@ using Random
 using GalacticOptim
 using LinearAlgebra
 
-BLAS.set_num_threads(32)
+BLAS.set_num_threads(24)
 
 # Training data
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
@@ -23,7 +23,8 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4"
+# FILE_NAME = "NDE_training_mpp_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4"
+FILE_NAME = "test3"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
@@ -83,7 +84,7 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 # train_optimizers = [[ADAM(2e-4)]]
 
 train_epochs = [1]
-train_tranges = [1:30:300]
+train_tranges = [1:20:1153]
 train_iterations = [5]
 train_optimizers = [[ADAM(2e-4)]]
 
@@ -150,6 +151,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
-uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
+@time train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
+@time train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
 
-extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
+# extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
