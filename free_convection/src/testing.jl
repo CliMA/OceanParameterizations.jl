@@ -1,4 +1,4 @@
-function compute_nde_solution_history(datasets, NDEType, algorithm, nn_filepath, nn_history_filepath)
+function compute_nde_solution_history(datasets, NDEType, algorithm, nn_filepath, nn_history_filepath; gc_interval=50)
     final_nn = jldopen(nn_filepath, "r")
 
     Nz = final_nn["grid_points"]
@@ -22,7 +22,7 @@ function compute_nde_solution_history(datasets, NDEType, algorithm, nn_filepath,
             push!(solution_history[id], nde_sol)
         end
 
-        e % 50 == 0 && GC.gc() # Mercy if you're running this on a little laptop.
+        e % gc_interval == 0 && GC.gc() # Mercy if you're running this on a little laptop.
     end
 
     close(final_nn)
@@ -64,7 +64,7 @@ end
 function animate_nde_loss(datasets, ids_train, ids_test, nde_solutions, true_solutions, T_scaling; title, filepath, fps=15)
     ids = (ids_train..., ids_test...)
     epochs = length(nde_solutions[first(ids)])
-    times = dims(datasets[first(ids)][:T], Ti)[:] ./ days
+    times = datasets[first(ids)]["T"].times
 
     ylims=(1e-6, 1)
     kwargs = (linewidth=2, linealpha=0.8, yaxis=:log, xlabel="Simulation time (days)",
@@ -103,24 +103,30 @@ end
 minimum_nonzero(xs...) = min([minimum(filter(!iszero, x)) for x in xs]...)
 maximum_nonzero(xs...) = max([maximum(filter(!iszero, x)) for x in xs]...)
 
+# TODO: Allow to selectively turn off different parameterizations.
 function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convective_adjustment_sol, oceananigans_sol, T_scaling; filepath, frameskip=1, fps=15)
-    Nz, Nt = size(ds[:T])
-    zc = dims(ds[:T], ZDim) |> Array
-    zf = dims(ds[:wT], ZDim) |> Array
-    times = dims(ds[:wT], Ti) ./ days
+    T = ds["T"]
+    wT = ds["wT"]
+    FT = eltype(T)
+    Nz = size(T, 3)
+    Nt = size(T, 4)
+    zc = znodes(T)
+    zf = znodes(wT)
+    times = T.times ./ days
 
     kwargs = (linewidth=2, linealpha=0.8, grid=false, framestyle=:box,
               foreground_color_legend=nothing, background_color_legend=nothing)
 
-    T_lims = extrema(ds[:T])
-    wT_lims = extrema(ds[:wT])
+    T_lims = interior(T) |> extrema
+    wT_lims = interior(wT) |> extrema
 
     loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
-    loss_nde = [loss(ds[:T][Ti=n][:], nde_sol.T[:, n]) for n in 1:Nt]
-    loss_kpp = [loss(ds[:T][Ti=n][:], kpp_sol.T[:, n]) for n in 1:Nt]
-    loss_tke = [loss(ds[:T][Ti=n][:], tke_sol.T[:, n]) for n in 1:Nt]
-    loss_ca = [loss(ds[:T][Ti=n][:], convective_adjustment_sol.T[:, n]) for n in 1:Nt]
-    loss_emb = [loss(ds[:T][Ti=n][:], oceananigans_sol.T[:, n]) for n in 1:Nt]
+
+    loss_nde = [loss(interior(T)[1, 1, :, n], nde_sol.T[:, n]) for n in 1:Nt]
+    loss_kpp = [loss(interior(T)[1, 1, :, n], kpp_sol.T[:, n]) for n in 1:Nt]
+    loss_tke = [loss(interior(T)[1, 1, :, n], tke_sol.T[:, n]) for n in 1:Nt]
+    loss_ca = [loss(interior(T)[1, 1, :, n], convective_adjustment_sol.T[:, n]) for n in 1:Nt]
+    loss_emb = [loss(interior(T)[1, 1, :, n], oceananigans_sol.T[:, n]) for n in 1:Nt]
 
     loss_min = minimum_nonzero(loss_nde, loss_kpp, loss_tke, loss_ca, loss_emb)
     loss_max = maximum_nonzero(loss_nde, loss_kpp, loss_tke, loss_ca, loss_emb)
@@ -130,30 +136,30 @@ function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convecti
         @info "Plotting comparisons [frame $n/$Nt]: $filepath ..."
 
         time_str = @sprintf("%.2f days", times[n])
-        title = @sprintf("Free convection (Q = %d W/m², %s): %s", -ds.metadata[:heat_flux_Wm⁻²], id in ids_train ? "train" : "test", time_str)
+        title = @sprintf("Free convection (Q = %d W/m², %s): %s", -4e6 * ds.metadata["temperature_flux"], id in ids_train ? "train" : "test", time_str)
 
         wT_plot = plot(margin=5Plots.mm)
         T_plot = plot(margin=5Plots.mm)
 
-        plot!(wT_plot, ds[:wT][Ti=n][:], zf, xlims=wT_lims, label="LES", color="dodgerblue", ylims=extrema(zf),
+        plot!(wT_plot, interior(wT)[1, 1, :, n], zf, xlims=wT_lims, label="LES", color="dodgerblue", ylims=extrema(zf),
               xlabel="Heat flux w′T′ (m/s ⋅ K)", ylabel="Depth z (meters)", legend=nothing; kwargs...)
 
-        plot!(T_plot, ds[:T][Ti=n][:], zc, label="LES", color="dodgerblue", xlabel="Temperature T (°C)",
+        plot!(T_plot, interior(T)[1, 1, :, n], zc, label="LES", color="dodgerblue", xlabel="Temperature T (°C)",
               xlims=T_lims, ylims=extrema(zf), title=title, legend=:bottomright; kwargs...)
 
-        # plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
+        plot!(T_plot, convective_adjustment_sol.T[:, n], zc, label="Convective adjustment", color="gray"; kwargs...)
 
         plot!(wT_plot, nde_sol.wT[:, n], zf, label="NDE", color="forestgreen"; kwargs...)
         plot!(T_plot, nde_sol.T[:, n], zc, label="NDE", color="forestgreen"; kwargs...)
 
-        # plot!(wT_plot, oceananigans_sol.wT[:, n], zf, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        # plot!(T_plot, oceananigans_sol.T[:, n], zc, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(wT_plot, oceananigans_sol.wT[:, n], zf, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(T_plot, oceananigans_sol.T[:, n], zc, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
 
-        # plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
-        # plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
+        plot!(wT_plot, kpp_sol.wT[:, n], zf, label="KPP", color="crimson"; kwargs...)
+        plot!(T_plot, kpp_sol.T[:, n], zc, label="KPP", color="crimson"; kwargs...)
 
-        # plot!(wT_plot, tke_sol.wT[:, n], zf, label="TKE mass flux", color="darkmagenta"; kwargs...)
-        # plot!(T_plot, tke_sol.T[:, n], zc, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(wT_plot, tke_sol.wT[:, n], zf, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(T_plot, tke_sol.T[:, n], zc, label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         loss_plot = plot(margin=5Plots.mm)
 
@@ -164,9 +170,9 @@ function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convecti
               xlabel="Time (days)", ylabel="Mean squared error", legend=nothing; kwargs...)
 
         plot!(loss_plot, time_in_days, loss_nde[1:n], label="NDE", color="forestgreen"; kwargs...)
-        # plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        # plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
-        # plot!(loss_plot, time_in_days, loss_tke[1:n], label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(loss_plot, time_in_days, loss_emb[1:n], label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(loss_plot, time_in_days, loss_kpp[1:n], label="KPP", color="crimson"; kwargs...)
+        plot!(loss_plot, time_in_days, loss_tke[1:n], label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         plot(wT_plot, T_plot, loss_plot, layout=(1, 3), size=(1000, 400), dpi=200)
     end
@@ -176,6 +182,7 @@ function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convecti
     gif(anim, filepath * ".gif", fps=fps)
 end
 
+# TODO: Allow to selectively turn off different parameterizations.
 function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, convective_adjustment_sols, oceananigans_sols, T_scaling; filepath)
 
     loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
@@ -207,11 +214,11 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
 
         p = plot()
 
-        # plot!(p, times, loss_ca, label="Convective adjustment", color="gray"; kwargs...)
+        plot!(p, times, loss_ca, label="Convective adjustment", color="gray"; kwargs...)
         plot!(p, times, loss_nde, label="NDE", color="forestgreen"; kwargs...)
-        # plot!(p, times, loss_emb, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        # plot!(p, times, loss_kpp, label="KPP", color="crimson"; kwargs...)
-        # plot!(p, times, loss_tke, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        plot!(p, times, loss_emb, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
+        plot!(p, times, loss_kpp, label="KPP", color="crimson"; kwargs...)
+        plot!(p, times, loss_tke, label="TKE mass flux", color="darkmagenta"; kwargs...)
 
         push!(plots, p)
     end

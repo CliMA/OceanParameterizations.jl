@@ -9,11 +9,9 @@ using Flux
 using JLD2
 using OrdinaryDiffEq
 
+using Oceananigans
 using OceanParameterizations
 using FreeConvection
-
-using Oceananigans: OceananigansLogger
-using FreeConvection: coarse_grain
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
@@ -75,10 +73,10 @@ TeeLogger(
 
 @info "Registering data dependencies..."
 
+# TODO: Move to __init__
 for dd in FreeConvection.LESBRARY_DATA_DEPS
-    isdir(@datadep_str dd.name) || DataDeps.register(dd)
+    DataDeps.register(dd)
 end
-
 
 @info "Loading data..."
 
@@ -173,31 +171,39 @@ for (id, ds) in coarse_datasets
                      filepath = filepath, frameskip = 5)
 end
 
-#=
 
-# @info "Animating what the neural network has learned..."
+@info "Animating what the neural network has learned..."
 
-# for (id, ds) in coarse_datasets
-#     filepath = joinpath(output_dir, "learned_free_convection_$id")
-#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-#                                     filepath=filepath, frameskip=5)
-# end
+for (id, ds) in coarse_datasets
+    filepath = joinpath(output_dir, "learned_free_convection_$id")
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                    filepath=filepath, frameskip=5)
+end
+
 
 @info "Computing NDE solution history..."
 
 nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
 
+
+@info "Plotting loss(epoch)..."
+
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
                 title = "Free convection loss history",
                 filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
+
+
+@info "Plotting loss(time; epoch)..."
 
 animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
                  title = "Free convection loss history",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
+#=
+@info "Comparing advective fluxes ⟨w'T'⟩ with LES diffusive flux ⟨κₑ∂zT⟩..."
 
-# t = dims(coarse_datasets[6][:T], Ti).val / 86400
-# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |wT| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
+# t = coarse_datasets[1]["T"].times ./ 86400
+# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |w'T'| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
 #          legend=:outertopright, foreground_color_legend=nothing, background_color_legend=nothing, dpi=200)
 
 # for (id, ds) in coarse_datasets
@@ -208,6 +214,5 @@ animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, tru
 #     plot!(p, t, diffusive_heat_flux ./ total_heat_flux, linewidth=2, label=label)
 # end
 
-# savefig("les_flux_contribution.png")
-
+# savefig(joinpath(output_dir, "les_flux_contribution.png"))
 =#

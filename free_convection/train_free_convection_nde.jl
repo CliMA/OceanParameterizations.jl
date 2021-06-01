@@ -15,8 +15,6 @@ using Oceananigans
 using OceanParameterizations
 using FreeConvection
 
-using FreeConvection: coarse_grain
-
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
 
