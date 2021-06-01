@@ -69,10 +69,10 @@ task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
 task_id=1
-FILE_NAME = ["NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4",
-             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_2e-4",
-             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4",
-             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4"
+FILE_NAME = ["NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_5e-5",
+             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_5e-5",
+             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1.5e-2_rate_5e-5",
+             "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_2e-2_rate_5e-5"
               ][task_id]
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
@@ -98,7 +98,7 @@ EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$EXTRACTED_FILE_NAME.jld2
 # close(file)
 
 
-gradient_scaling = [5f-3, 5f-3, 1f-2, 1f-2][task_id]
+gradient_scaling = [5f-3, 1f-2, 1.5f-2, 2f-2][task_id]
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
@@ -106,9 +106,9 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 
 train_epochs = [1]
 train_tranges = [1:20:1153]
-train_iterations = [500]
-train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
-
+train_iterations = [600]
+# train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
+train_optimizers = [[ADAM(5e-5)]]
 
 # train_epochs = [1]
 # train_tranges = [1:30:300]
