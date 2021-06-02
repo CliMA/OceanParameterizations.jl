@@ -179,7 +179,7 @@ n_batches = ceil(Int, n_obs / batch_size)
 @info "Training data loader contains $n_obs pairs of observations (batch size = $batch_size)."
 
 
-@info "Training neural network on fluxes (T -> wT mapping)..."
+@info "Training neural network on fluxes: ⟨T⟩(z) -> ⟨w'T⟩(z) mapping..."
 
 causal_penalty = nothing
 
