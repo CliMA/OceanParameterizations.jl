@@ -48,16 +48,16 @@ wT_NN = file["neural_network/wT"]
 close(file)
 [uw_NN(rand(96)) uw_NN(rand(96))]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-uw_NN = re(zeros(Float32, length(weights)))
-vw_NN = re(zeros(Float32, length(weights)))
-wT_NN = re(zeros(Float32, length(weights)))
+# uw_NN = re(zeros(Float32, length(weights)))
+# vw_NN = re(zeros(Float32, length(weights)))
+# wT_NN = re(zeros(Float32, length(weights)))
 
 # [uw_NN(𝒟train.uvT_scaled[:,1]) uw_NN(𝒟train.uvT_scaled[:,100]) uw_NN(𝒟train.uvT_scaled[:,500]) uw_NN(rand(96))]
 
@@ -81,14 +81,17 @@ wT_NN = re(zeros(Float32, length(weights)))
 # uw_NN = re_uw(uw_weights)
 # vw_NN = re_vw(uw_weights)
 # wT_NN = re_wT(uw_weights)
+
+using WindMixing: NDE_profile_mutating
+
 test_files = ["-1e-3"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 trange = 1:1:10
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+plot_data = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                        ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
-                        # ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
+                        # ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
+                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
                         # Riᶜ=train_parameters["Riᶜ"], convective_adjustment=true,
                         # smooth_NN=false, smooth_Ri=train_parameters["smooth_Ri"],

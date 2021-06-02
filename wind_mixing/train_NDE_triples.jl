@@ -14,8 +14,8 @@ using LinearAlgebra
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
 train_files = [
                "wind_-1e-3_cooling_4e-8", 
-               "wind_-2e-4_cooling_1e-8", 
-               "wind_-1e-3_cooling_2e-8", 
+            #    "wind_-2e-4_cooling_1e-8", 
+            #    "wind_-1e-3_cooling_2e-8", 
                "wind_-2e-4_cooling_5e-8", 
                "wind_-5e-4_cooling_3e-8"
                ]
@@ -25,7 +25,7 @@ train_files = [
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
@@ -56,18 +56,18 @@ uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
-uw_NN = re(zeros(Float32, length(weights)))
-vw_NN = re(zeros(Float32, length(weights)))
-wT_NN = re(zeros(Float32, length(weights)))
+# uw_NN = re(zeros(Float32, length(weights)))
+# vw_NN = re(zeros(Float32, length(weights)))
+# wT_NN = re(zeros(Float32, length(weights)))
 
-uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
-vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
-wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
+# uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
+# vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
+# wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
 
 
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
-
+task_id = 2
 FILE_NAME = ["NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_5e-5",
              "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_5e-5",
              "NDE_training_mpp_5sim_windcooling_SS_WW_SW_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1.5e-2_rate_5e-5",
@@ -103,16 +103,16 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
-train_epochs = [1]
-train_tranges = [1:20:1153]
-train_iterations = [600]
-# train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
-train_optimizers = [[ADAM(5e-5)]]
-
 # train_epochs = [1]
-# train_tranges = [1:30:300]
-# train_iterations = [5]
-# train_optimizers = [[ADAM(2e-4)]]
+# train_tranges = [1:20:1153]
+# train_iterations = [600]
+# # train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
+# train_optimizers = [[ADAM(5e-5)]]
+
+train_epochs = [1]
+train_tranges = [1:35:1153]
+train_iterations = [5]
+train_optimizers = [[ADAM(2e-4)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
