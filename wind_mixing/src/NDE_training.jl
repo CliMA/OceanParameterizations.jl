@@ -76,10 +76,6 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constan
     vw_interior = vw_NN(x)
     wT_interior = wT_NN(x)
 
-    # uw_interior = fill(scalings.uw(0f0), 31)
-    # vw_interior = fill(scalings.vw(0f0), 31)
-    # wT_interior = fill(scalings.wT(0f0), 31)
-
     if conditions.smooth_NN
         uw_interior = filters.interior * uw_interior
         vw_interior = filters.interior * vw_interior
@@ -393,4 +389,69 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         weights .= res.minimizer
     end
     return NN_constructions.uw(weights[NN_ranges.uw]), NN_constructions.vw(weights[NN_ranges.vw]), NN_constructions.wT(weights[NN_ranges.wT])
+end
+
+function solve_NDE_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper; 
+                                n_simulations, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0)
+    Nz = length(𝒟train.u.z)
+
+    conditions = (modified_pacanowski_philander=true, convective_adjustment=false, 
+                    smooth_profile=false, smooth_NN=false, smooth_Ri=false, 
+                    train_gradient=true, zero_weights=true)
+    
+    constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₋, Riᶜ, ΔRi, Pr, κ, conditions)
+    
+    n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+
+    uvT₀s = [𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]] for i in 0:n_simulations - 1]
+    t_train = 𝒟train.t[:,1][tsteps]
+
+    prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
+
+    t_train = t_train ./ constants.τ
+    tspan_train = (t_train[1], t_train[end])
+    BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
+
+    prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+    sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+
+    return sols
+end
+
+function solve_NDE_nonmutating_backprop(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper; 
+    n_simulations, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0)
+
+    Nz = length(𝒟train.u.z)
+
+    conditions = (modified_pacanowski_philander=true, convective_adjustment=false, 
+    smooth_profile=false, smooth_NN=false, smooth_Ri=false, 
+    train_gradient=true, zero_weights=true)
+
+    constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₋, Riᶜ, ΔRi, Pr, κ, conditions)
+
+    n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+
+    uvT₀s = [𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]] for i in 0:n_simulations - 1]
+    t_train = 𝒟train.t[:,1][tsteps]
+
+    prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
+
+    t_train = t_train ./ constants.τ
+    tspan_train = (t_train[1], t_train[end])
+    BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
+    𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
+    𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
+    𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
+    𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
+    𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
+
+    prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+    sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+
+    return sols
 end

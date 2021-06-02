@@ -29,7 +29,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_3sim_windcooling_SS_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4"
+FILE_NAME = "NDE_training_mpp_3sim_windcooling_SS_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
@@ -86,7 +86,7 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 train_epochs = [1]
 train_tranges = [1:35:1153]
 train_iterations = [100]
-train_optimizers = [[ADAM(2e-4)]]
+train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:1153]
