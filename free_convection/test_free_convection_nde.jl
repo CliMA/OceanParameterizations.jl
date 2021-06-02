@@ -4,16 +4,13 @@ using Logging
 using ArgParse
 using LoggingExtras
 using DataDeps
-using GeoData
 using Flux
 using JLD2
 using OrdinaryDiffEq
 
+using Oceananigans
 using OceanParameterizations
 using FreeConvection
-
-using Oceananigans: OceananigansLogger
-using FreeConvection: coarse_grain
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
@@ -27,9 +24,9 @@ function parse_command_line_arguments()
             default = 32
             arg_type = Int
 
-        "--nde"
-            help = "Type of neural differential equation (NDE) to train. Options: free_convection, convective_adjustment"
-            default = "convective_adjustment"
+        "--base-parameterization"
+            help = "Base parameterization to use for the NDE. Options: nothing, convective_adjustment"
+            default = "nothing"
             arg_type = String
 
         "--time-stepper"
@@ -41,21 +38,43 @@ function parse_command_line_arguments()
             help = "Experiment name (also determines name of output directory)."
             default = "layers3_depth4_relu_ROCK4"
             arg_type = String
+
+        "--training-simulations"
+            help = "Simulation IDs (list of integers separated by spaces) to train the neural differential equation on." *
+                   "All other simulations will be used for testing/validation."
+            action = :append_arg
+            nargs = '+'
+            arg_type = Int
+            range_tester = (id -> id in FreeConvection.SIMULATION_IDS)
     end
 
     return parse_args(settings)
 end
 
-## Parse command line arguments
 
 @info "Parsing command line arguments..."
+
 args = parse_command_line_arguments()
+
+nde_type = Dict(
+    "nothing" => FreeConvectionNDE,
+    "convective_adjustment" => ConvectiveAdjustmentNDE
+)
 
 Nz = args["grid-points"]
 experiment_name = args["name"]
+NDEType = nde_type[args["base-parameterization"]]
+algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
+
+ids_train = args["training-simulations"][1]
+ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
+validate_simulation_ids(ids_train, ids_test)
 
 output_dir = joinpath(@__DIR__, experiment_name)
 mkpath(output_dir)
+
+
+@info "Planting loggers..."
 
 log_filepath = joinpath(output_dir, "$(experiment_name)_testing.log")
 TeeLogger(
@@ -63,59 +82,14 @@ TeeLogger(
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
 ) |> global_logger
 
-nde_type = Dict(
-    "free_convection" => FreeConvectionNDE,
-    "convective_adjustment" => ConvectiveAdjustmentNDE
-)
 
-NDEType = nde_type[args["nde"]]
-algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
+@info "Loading training data..."
 
-## Register data dependencies
+data = load_data(ids_train, ids_test, Nz)
+coarse_datasets = data.coarse_datasets
 
-@info "Registering data dependencies..."
-for dd in FreeConvection.LESBRARY_DATA_DEPS
-    DataDeps.register(dd)
-end
 
-## Load data
-
-@info "Loading data..."
-datasets = Dict{Int,Any}(
-    1 => NCDstack(datadep"free_convection_8days_Qb1e-8/statistics.nc"),
-    2 => NCDstack(datadep"free_convection_8days_Qb2e-8/statistics.nc"),
-    3 => NCDstack(datadep"free_convection_8days_Qb3e-8/statistics.nc"),
-    4 => NCDstack(datadep"free_convection_8days_Qb4e-8/statistics.nc"),
-    5 => NCDstack(datadep"free_convection_8days_Qb5e-8/statistics.nc"),
-    6 => NCDstack(datadep"free_convection_8days_Qb6e-8/statistics.nc")
-)
-
-## Add surface fluxes to data
-
-@info "Inserting surface fluxes..."
-datasets = Dict{Int,Any}(id => add_surface_fluxes(ds) for (id, ds) in datasets)
-
-## Coarse grain training data
-
-@info "Coarse graining data..."
-coarse_datasets = Dict{Int,Any}(id => coarse_grain(ds, Nz) for (id, ds) in datasets)
-
-## Split into training and testing data
-
-@info "Partitioning data into training and testing datasets..."
-
-ids_train = [1, 2, 4, 6]
-ids_test = [3, 5]
-
-training_datasets = Dict(id => datasets[id] for id in ids_train)
-testing_datasets = Dict(id => datasets[id] for id in ids_test)
-
-coarse_training_datasets = Dict(id => coarse_datasets[id] for id in ids_train)
-coarse_testing_datasets = Dict(id => coarse_datasets[id] for id in ids_test)
-
-## Filepaths
-
-@info "Reading neural network..."
+@info "Reading neural network from disk..."
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 final_nn_filepath = joinpath(output_dir, "free_convection_final_neural_network.jld2")
@@ -132,12 +106,11 @@ function free_convection_neural_network(input)
     return wT
 end
 
-## Gather solutions
 
 @info "Gathering and computing solutions..."
 
+true_solutions = Dict(id => (T=interior(ds["T"])[1, 1, :, :], wT=interior(ds["wT"])[1, 1, :, :]) for (id, ds) in coarse_datasets)
 nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
-true_solutions = Dict(id => (T=ds[:T].data, wT=ds[:wT].data) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
 
@@ -148,6 +121,7 @@ for (id, ds) in coarse_datasets
     convective_adjustment_solutions[id] = ca_sol
     oceananigans_solutions[id] = nn_sol
 end
+
 
 @info "Plotting loss matrix..."
 
@@ -162,29 +136,39 @@ for (id, ds) in coarse_datasets
                      filepath = filepath, frameskip = 5)
 end
 
-# @info "Animating what the neural network has learned..."
 
-# for (id, ds) in coarse_datasets
-#     filepath = joinpath(output_dir, "learned_free_convection_$id")
-#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-#                                     filepath=filepath, frameskip=5)
-# end
+@info "Animating what the neural network has learned..."
+
+for (id, ds) in coarse_datasets
+    filepath = joinpath(output_dir, "learned_free_convection_$id")
+    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                    filepath=filepath, frameskip=5)
+end
+
 
 @info "Computing NDE solution history..."
 
 nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
 
+
+@info "Plotting loss(epoch)..."
+
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
                 title = "Free convection loss history",
                 filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
+
+
+@info "Plotting loss(time; epoch)..."
 
 animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
                  title = "Free convection loss history",
                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
+#=
+@info "Comparing advective fluxes ⟨w'T'⟩ with LES diffusive flux ⟨κₑ∂zT⟩..."
 
-# t = dims(coarse_datasets[6][:T], Ti).val / 86400
-# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |wT| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
+# t = coarse_datasets[1]["T"].times ./ 86400
+# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |w'T'| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
 #          legend=:outertopright, foreground_color_legend=nothing, background_color_legend=nothing, dpi=200)
 
 # for (id, ds) in coarse_datasets
@@ -195,4 +179,5 @@ animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, tru
 #     plot!(p, t, diffusive_heat_flux ./ total_heat_flux, linewidth=2, label=label)
 # end
 
-# savefig("les_flux_contribution.png")
+# savefig(joinpath(output_dir, "les_flux_contribution.png"))
+=#

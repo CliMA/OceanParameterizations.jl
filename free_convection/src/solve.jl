@@ -6,18 +6,23 @@ function solve_nde(nde, NN, T₀, alg, nde_params)
 end
 
 function solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling; T₀=nothing)
-    zc = dims(ds[:T], ZDim)
-    zf = dims(ds[:wT], ZDim)
-    Nz = length(zc)
-    H = abs(zf[1]) # Domain height
-    Δẑ = diff(zc[:])[1] / H  # Non-dimensional grid spacing
+
+    T = ds["T"]
+    wT = ds["wT"]
+    Nz = size(T, 3)
+    zc = znodes(T)
+    zf = znodes(wT)
+
+    H = abs(zf[1]) # Domain depth/height
+
+    Δẑ = diff(zc)[1] / H  # Non-dimensional grid spacing
     Dzᶠ = Dᶠ(Nz, Δẑ) # Differentiation matrix operator
 
     nde_params = FreeConvectionNDEParameters(ds, T_scaling, wT_scaling)
     nde = NDEType(NN, ds)
 
     if isnothing(T₀)
-        T₀ = T_scaling.(ds[:T][Ti=1].data)
+        T₀ = T_scaling.(interior(T)[1, 1, :, 1])
     end
 
     T = solve_nde(nde, NN, T₀, algorithm, nde_params) |> Array
@@ -26,7 +31,6 @@ function solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling; T₀=nothi
 
     Nz, Nt = size(T)
     wT = zeros(Nz+1, Nt)
-
 
     for n in 1:Nt
         T_n = T[:, n]

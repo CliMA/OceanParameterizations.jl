@@ -1,5 +1,4 @@
 using DataDeps
-using GeoData
 using Plots
 using OceanParameterizations
 using FreeConvection

@@ -38,18 +38,18 @@ function dense_spatial_causality_train!(loss, ps, data, opt; cb = () -> ())
         Flux.update!(opt, ps, gs)
         cb()
     end
-    
+
 end
 
-function train_neural_differential_equation!(NN, NDEType, algorithm, training_datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing, causal_penalty=nothing)
+function train_neural_differential_equation!(NN, NDEType, algorithm, datasets, T_scaling, wT_scaling, iterations, opt, epochs; history_filepath=nothing, causal_penalty=nothing)
 
-    ids = [id for id in keys(training_datasets)] |> sort
+    ids = [id for id in keys(datasets)] |> sort
 
-    nde_params = Dict(id => FreeConvectionNDEParameters(training_datasets[id], T_scaling, wT_scaling) for id in ids)
-    T₀ = Dict(id => T_scaling.(training_datasets[id][:T][Ti=1].data) for id in ids)
-    ndes = Dict(id => NDEType(NN, training_datasets[id]; iterations) for id in ids)
+    nde_params = Dict(id => FreeConvectionNDEParameters(datasets[id], T_scaling, wT_scaling) for id in ids)
+    T₀ = Dict(id => T_scaling.(interior(datasets[id]["T"])[1, 1, :, 1]) for id in ids)
+    ndes = Dict(id => NDEType(NN, datasets[id]; iterations) for id in ids)
 
-    true_sols = [T_scaling.(training_datasets[id][:T][Ti=iterations].data) for id in ids]
+    true_sols = [T_scaling.(interior(datasets[id]["T"])[1, 1, :, iterations]) for id in ids]
     true_sols = cat(true_sols..., dims=2)
 
     function nde_loss()
@@ -63,7 +63,7 @@ function train_neural_differential_equation!(NN, NDEType, algorithm, training_da
 
     function nde_callback()
         mse_loss = nde_loss()
-        @info @sprintf("Training free convection NDE... MSE loss = %.12e", mse_loss)
+        @info @sprintf("Training free convection NDE... MSE loss: μ_loss::%s = %.12e", typeof(mse_loss), mse_loss)
         inscribe_history(history_filepath, NN, mse_loss)
         return nothing
     end
