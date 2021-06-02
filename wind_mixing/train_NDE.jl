@@ -156,6 +156,8 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
+uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
+
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
