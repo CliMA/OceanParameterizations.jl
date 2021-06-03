@@ -423,8 +423,8 @@ function solve_NDE_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepp
     return sols
 end
 
-function solve_NDE_nonmutating_backprop(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper; 
-    n_simulations, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0)
+function solve_NDE_nonmutating_backprop(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizer; 
+                                maxiters, n_simulations, gradient_scaling, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=1.67f-4, g=9.81f0)
 
     Nz = length(𝒟train.u.z)
 
@@ -438,20 +438,42 @@ function solve_NDE_nonmutating_backprop(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, 
 
     uvT₀s = [𝒟train.uvT_scaled[:,n_steps * i + tsteps[1]] for i in 0:n_simulations - 1]
     t_train = 𝒟train.t[:,1][tsteps]
+    uvT_trains = [𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)][:, tsteps] for i in 0:n_simulations - 1]
+
+    D_face = derivatives.face
+
+    uvT_gradients = [calculate_profile_gradient(uvT, derivatives, constants) for uvT in uvT_trains]
 
     prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
 
     t_train = t_train ./ constants.τ
     tspan_train = (t_train[1], t_train[end])
     BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
-    𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
-    𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
-    𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
-    𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
-    𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
+            𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
+            𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
 
     prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
-    sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
 
-    return sols
+    function loss_gradient_NDE(weights, BCs)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        sol_gradients = [calculate_profile_gradient(sol, derivatives, constants) for sol in sols]
+        return mean(loss_gradient.(uvT_trains, sols, uvT_gradients, sol_gradients, gradient_scaling))
+    end
+
+    f_loss = OptimizationFunction(loss_gradient_NDE, GalacticOptim.AutoZygote())
+    prob_loss = OptimizationProblem(f_loss, weights, BCs)
+
+    iter = 1
+    function cb(args...)
+        @info "NDE, loss = $(args[2]), iteration = $iter/$maxiters"
+        iter += 1
+        false
+    end
+
+    res = solve(prob_loss, optimizer, cb=cb, maxiters=maxiters)
+    weights .= res.minimizer
+    return NN_constructions.uw(weights[NN_ranges.uw]), NN_constructions.vw(weights[NN_ranges.vw]), NN_constructions.wT(weights[NN_ranges.wT])
 end
