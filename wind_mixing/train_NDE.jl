@@ -8,17 +8,21 @@ using Random
 using GalacticOptim
 using LinearAlgebra
 
-# BLAS.set_num_threads(24)
+BLAS.set_num_threads(1)
 
 # Training data
 # train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
 train_files = [
-               "wind_-1e-3_cooling_4e-8", 
-            #    "wind_-2e-4_cooling_1e-8", 
-            #    "wind_-1e-3_cooling_2e-8", 
-               "wind_-2e-4_cooling_5e-8", 
-               "wind_-5e-4_cooling_3e-8"
-               ]
+       "wind_-5e-4_cooling_4e-8",
+       "wind_-1e-3_cooling_4e-8",
+       "wind_-2e-4_cooling_1e-8",
+       "wind_-1e-3_cooling_2e-8",
+       "wind_-5e-4_cooling_1e-8",
+       "wind_-2e-4_cooling_5e-8",
+       "wind_-5e-4_cooling_3e-8",
+       "wind_-2e-4_cooling_3e-8",
+       "wind_-1e-3_cooling_3e-8"
+       ]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -29,7 +33,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_3sim_windcooling_SS_WS_MM_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4"
+FILE_NAME = "NDE_training_mpp_9sim_windcooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
@@ -77,15 +81,15 @@ wT_NN = re(weights ./ 1f5)
 
 # uw_NN(rand(96))
 
-gradient_scaling = 1f-2
+gradient_scaling = 5f-3
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
 train_epochs = [1]
-train_tranges = [1:35:1153]
-train_iterations = [100]
+train_tranges = [1:20:1153]
+train_iterations = [200]
 train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
