@@ -10,19 +10,17 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-# Training data
-# train_files = ["-1e-3", "-9e-4", "-8e-4", "-7e-4", "-5e-4"]
 train_files = [
-       "wind_-5e-4_cooling_4e-8",
-       "wind_-1e-3_cooling_4e-8",
-       "wind_-2e-4_cooling_1e-8",
-       "wind_-1e-3_cooling_2e-8",
-       "wind_-5e-4_cooling_1e-8",
-       "wind_-2e-4_cooling_5e-8",
-       "wind_-5e-4_cooling_3e-8",
-       "wind_-2e-4_cooling_3e-8",
-       "wind_-1e-3_cooling_3e-8"
-       ]
+         "wind_-1e-3_heating_-4e-8",
+         "wind_-1e-3_heating_-1e-8",
+         "wind_-1e-3_heating_-3e-8",
+         "wind_-5e-4_heating_-5e-8",
+         "wind_-5e-4_heating_-3e-8",
+         "wind_-5e-4_heating_-1e-8",
+         "wind_-2e-4_heating_-5e-8",
+         "wind_-2e-4_heating_-3e-8",
+         "wind_-2e-4_heating_-1e-8",
+]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 # 
@@ -33,7 +31,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_9sim_windcooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_training_mpp_9sim_windheating_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
@@ -164,16 +162,6 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
-test_files = [
-       "wind_-5e-4_cooling_4e-8",
-       "wind_-1e-3_cooling_4e-8",
-       "wind_-2e-4_cooling_1e-8",
-       "wind_-1e-3_cooling_2e-8",
-       "wind_-5e-4_cooling_1e-8",
-       "wind_-2e-4_cooling_5e-8",
-       "wind_-5e-4_cooling_3e-8",
-       "wind_-2e-4_cooling_3e-8",
-       "wind_-1e-3_cooling_3e-8"
-       ]
+test_files = train_files
 
 animate_training_results(test_files, FILE_NAME, trange=1:1:1153)
