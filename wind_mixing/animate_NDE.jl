@@ -12,7 +12,7 @@ using FileIO
 PATH = joinpath(pwd(), "extracted_training_output")
 # PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-DATA_NAME = "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4"
+DATA_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted"
 DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
 ispath(DATA_PATH)
                     # FILE_PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"

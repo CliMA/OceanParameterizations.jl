@@ -46,7 +46,7 @@ close(file)
 # vw_NN = re(weights ./ 1f5)
 # wT_NN = re(weights ./ 1f5)
 
-tsteps = 1:25:1153
+tsteps = 1:1:10
 timestepper = ROCK4()
 n_simulations = length(train_files)
 solve_NDE_nonmutating(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper; 

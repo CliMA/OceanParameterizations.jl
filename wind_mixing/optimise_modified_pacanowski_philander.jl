@@ -7,14 +7,14 @@ using Flux
 train_files = ["-1e-3", "cooling_5e-8"]
 
 OUTPUT_PATH = joinpath(pwd(), "training_output")
-OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 FILE_PATH = joinpath(OUTPUT_PATH, "parameter_optimisation_mpp_wind_mixing_-1e-3_cooling_5e-8_2.jld2")
 
 # 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
-timestepper = ROCK4()
+timestepper = RadauIIA5()
 
 optimizers = [ADAM()]
 
-tsteps = 1:25:1153
-maxiters = 50
-parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH, n_simulations=length(train_files), ν₋=0.2f0)
+tsteps = 1:20:1153
+maxiters = 10
+parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH, n_simulations=length(train_files))

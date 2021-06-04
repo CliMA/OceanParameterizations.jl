@@ -30,7 +30,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_2"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
@@ -47,36 +47,25 @@ EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jl
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-#                         "NDE_training_modified_pacanowski_philander_1sim_-1e-3_diffusivity_1e-1_Ri_1e-1_epsilonweights_gradient_smallNN_scale_5e-3_rate_5e-3_extracted.jld2")
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
+                        "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2")
 
-# @assert isfile(FILE_PATH_NN)
-# file = jldopen(FILE_PATH_NN, "r")
+@assert isfile(FILE_PATH_NN)
+file = jldopen(FILE_PATH_NN, "r")
 
-# uw_NN = file["neural_network/uw"]
-# vw_NN = file["neural_network/vw"]
-# wT_NN = file["neural_network/wT"]
+uw_NN = file["neural_network/uw"]
+vw_NN = file["neural_network/vw"]
+wT_NN = file["neural_network/wT"]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-uw_NN = re(weights ./ 1f5)
-vw_NN = re(weights ./ 1f5)
-wT_NN = re(weights ./ 1f5)
-
-# uw_NN = re(zeros(Float32, length(weights)))
-# vw_NN = re(zeros(Float32, length(weights)))
-# wT_NN = re(zeros(Float32, length(weights)))
-
-# uw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
-# vw_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
-# wT_NN = Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs))
-
-# uw_NN(rand(96))
+# uw_NN = re(weights ./ 1f5)
+# vw_NN = re(weights ./ 1f5)
+# wT_NN = re(weights ./ 1f5)
 
 gradient_scaling = 5f-3
 train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
@@ -85,8 +74,8 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
 train_epochs = [1]
-train_tranges = [1:20:1153]
-train_iterations = [200]
+train_tranges = [1:9:1153]
+train_iterations = [120]
 train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
@@ -94,22 +83,8 @@ train_optimizers = [[ADAM(1e-4)]]
 # train_iterations = [5]
 # train_optimizers = [[ADAM(2e-4)]]
 
-# train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
-# train_epochs = [1 for i in 1:length(train_tranges)]
-# train_iterations = [50, 50, 100, 30, 20, 50, 150]
-# train_optimizers = [[ADAM(0.1), ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01)], [ADAM(0.01), ADAM(0.001), ADAM(5e-4), ADAM(2e-4)]]
-
-# train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:20:800, 1:35:1153]
-# train_epochs = [1 for i in 1:length(train_tranges)]
-# train_iterations = [30, 30, 50, 30, 200]
-# train_optimizers = [[[ADAM(0.01)] for i in 1:6]; [[ADAM(0.01), ADAM(1e-3)]]]
-# # train_optimizers = [[ADAM(1e-5)] for i in 1:6]
-
 
 timestepper = ROCK4()
-
-# train_optimizers = [[ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
-# train_optimizers=[[ADAM(5e-4)]]
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, unscaled)
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
