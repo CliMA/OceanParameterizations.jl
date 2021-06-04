@@ -5,15 +5,16 @@ using JLD2
 using FileIO
 
 using Oceananigans
-using Oceanostics
 using OceanParameterizations
 using WindMixing
 
 using Flux: Chain
+using Oceananigans.BuoyancyModels: BuoyancyField
+using Oceananigans.OutputReaders: FieldDataset
+using Oceananigans.Fields: FieldSlicer
+using Oceanostics.FlowDiagnostics: richardson_number_ccf!
 
-@inline tanh_step(x) = (1 - tanh(x)) / 2
-
-function modified_pacanowski_philander_diffusivity(model, ds, p; K=10)
+function modified_pacanowski_philander_diffusivity(model, constants, p; K=10)
     Nz = model.grid.Nz
 
     u = model.velocities.u
@@ -25,10 +26,11 @@ function modified_pacanowski_philander_diffusivity(model, ds, p; K=10)
     ΔRi = p["ΔRi"]
     Riᶜ = p["Riᶜ"]
     Pr = p["Pr"]
-    α = ds["parameters/thermal_expansion_coefficient"]
-    g = ds["parameters/gravitational_acceleration"]
+
+    α, g = constants.α, constants.g
 
     b = BuoyancyField(model)
+
 
     Ri = KernelComputedField(Center, Center, Face, richardson_number_ccf!, model,
                              computed_dependencies=(u, v, b), parameters=(dUdz_bg=0, dVdz_bg=0, N2_bg=0))
@@ -37,7 +39,7 @@ function modified_pacanowski_philander_diffusivity(model, ds, p; K=10)
     ν = zeros(Nz+1)
     κ = zeros(Nz+1)
 
-    for i in 1:Nz+1
+    for i in 2:Nz
         ν[i] = ν₀ + ν₋ * tanh_step((Ri[1, 1, i] - Riᶜ) / ΔRi)
     end
 
@@ -45,7 +47,7 @@ function modified_pacanowski_philander_diffusivity(model, ds, p; K=10)
 end
 
 # Note: This assumes a Prandtl number of Pr = 1.
-function modified_pacanowski_philander!(model, ds, Δt, p)
+function modified_pacanowski_philander!(model, constants, Δt, p)
     Nz = model.grid.Nz
     Δz = model.grid.Δz
 
@@ -53,7 +55,7 @@ function modified_pacanowski_philander!(model, ds, Δt, p)
     v = model.velocities.v
     T = model.tracers.T
 
-    ν = modified_pacanowski_philander_diffusivity(model, ds, p)
+    ν = modified_pacanowski_philander_diffusivity(model, constants, p)
 
     lower_diagonal = [-Δt/Δz^2 * ν[i]   for i in 2:Nz]
     upper_diagonal = [-Δt/Δz^2 * ν[i+1] for i in 1:Nz-1]
@@ -77,30 +79,24 @@ function modified_pacanowski_philander!(model, ds, Δt, p)
     return nothing
 end
 
-function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepath, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity)
+function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings; NN_filepath, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity)
     ρ₀ = 1027.0
     cₚ = 4000.0
     β  = 0.0
 
-    f = ds["parameters/coriolis_parameter"]
-    α = ds["parameters/thermal_expansion_coefficient"]
-    g = ds["parameters/gravitational_acceleration"]
+    f, α, g, Nz, Lz = constants.f, constants.α, constants.g, constants.Nz, constants.Lz
 
-    uw_flux = ds["parameters/boundary_condition_u_top"]
-    vw_flux = 0
-    wT_flux = ds["parameters/boundary_condition_θ_top"]
+    uw_flux, vw_flux, wT_flux = BCs.top.uw, BCs.top.vw, BCs.top.wT
 
-    ∂u₀∂z = ds["parameters/boundary_condition_u_bottom"]
-    ∂v₀∂z = ds["parameters/boundary_condition_u_bottom"]
-    ∂T₀∂z = ds["parameters/boundary_condition_θ_bottom"]
-
-    Nz = 32
-    Lz = ds["grid/Lz"]
+    ∂u₀∂z, ∂v₀∂z = BCs.bottom.u, BCs.bottom.v
 
     ## Grid setup
 
     topo = (Periodic, Periodic, Bounded)
     grid = RegularRectilinearGrid(topology=topo, size=(1, 1, Nz), extent=(1, 1, Lz))
+
+    T₀_les = constants.T₀
+    T₀ = reshape(coarse_grain(T₀_les, 32, Center), size(grid)...)
 
     ## Boundary conditions
 
@@ -113,6 +109,7 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     v_bcs = VVelocityBoundaryConditions(grid, top=v_bc_top, bottom=v_bc_bottom)
 
     T_bc_top = FluxBoundaryCondition(wT_flux)
+    ∂T₀∂z = (T₀[2] - T₀[1]) / grid.Δz
     T_bc_bottom = GradientBoundaryCondition(∂T₀∂z)
     T_bcs = TracerBoundaryConditions(grid, top=T_bc_top, bottom=T_bc_bottom)
 
@@ -123,19 +120,31 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     vw_NN = NN_file["neural_network/vw"]
     wT_NN = NN_file["neural_network/wT"]
 
-    u_scaling = NN_file["training_info/u_scaling"]
-    v_scaling = NN_file["training_info/v_scaling"]
-    T_scaling = NN_file["training_info/T_scaling"]
+    u_scaling = scalings.u
+    v_scaling = scalings.v
+    T_scaling = scalings.T
 
-    uw_scaling = NN_file["training_info/uw_scaling"]
-    vw_scaling = NN_file["training_info/vw_scaling"]
-    wT_scaling = NN_file["training_info/wT_scaling"]
+    uw_scaling = scalings.uw
+    vw_scaling = scalings.vw
+    wT_scaling = scalings.wT
 
-    diffusivity_params = NN_file["training_info/diffusivity_parameters"]
+    diffusivity_params = NN_file["training_info/parameters"]
     close(NN_file)
 
     μ_u, σ_u, μ_v, σ_v, μ_T, σ_T = u_scaling.μ, u_scaling.σ, v_scaling.μ, v_scaling.σ, T_scaling.μ, T_scaling.σ
     μ_uw, σ_uw, μ_vw, σ_vw, μ_wT, σ_wT = uw_scaling.μ, uw_scaling.σ, vw_scaling.μ, vw_scaling.σ, wT_scaling.μ, wT_scaling.σ
+
+    function diagnose_baseline_flux(model)
+        ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        ∂z_u_field = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.u))
+        ∂z_v_field = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
+        ∂z_T_field = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
+
+        uw = -ν .* interior(∂z_u_field)[1, 1, :]
+        vw = -ν .* interior(∂z_v_field)[1, 1, :]
+        wT = -ν .* interior(∂z_T_field)[1, 1, :]
+        return (; uw, vw, wT)
+    end
 
     function ∂z_uw(uw)
         uw_field = ZFaceField(CPU(), grid)
@@ -187,11 +196,11 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
         vw = enforce_fluxes_vw(inv(vw_scaling).(vw_NN(uvT)))
         wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)))
 
-        ν_velocities, ν_T = diffusivity_model(model, ds, diffusivity_params)
+        ν = diffusivity_model(model, constants, diffusivity_params)
 
-        ν∂u∂z = ν_velocities .* interior(∂u∂z)[:]
-        ν∂v∂z = ν_velocities .* interior(∂v∂z)[:]
-        ν∂T∂z = ν_T .* interior(∂T∂z)[:]
+        ν∂u∂z = ν .* interior(∂u∂z)[:]
+        ν∂v∂z = ν .* interior(∂v∂z)[:]
+        ν∂T∂z = ν .* interior(∂T∂z)[:]
 
         uw = uw .- ν∂u∂z
         vw = vw .- ν∂v∂z
@@ -244,18 +253,19 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     model_baseline = IncompressibleModel(
                        grid = grid,
                    coriolis = FPlane(f=f),
-        boundary_conditions = (u=u_bcs, v=v_bcs, T=T_bcs)
+        boundary_conditions = (u=u_bcs, v=v_bcs, T=T_bcs),
+                   buoyancy = SeawaterBuoyancy(equation_of_state=LinearEquationOfState(α=2e-4), constant_salinity=35.0)
+
     )
 
     model_neural_network = IncompressibleModel(
                        grid = grid,
                    coriolis = FPlane(f=f),
         boundary_conditions = (u=u_bcs, v=v_bcs, T=T_bcs),
-                    forcing = (u=u_forcing, v=v_forcing, T=T_forcing)
+                    forcing = (u=u_forcing, v=v_forcing, T=T_forcing),
+                   buoyancy = SeawaterBuoyancy(equation_of_state=LinearEquationOfState(α=2e-4), constant_salinity=35.0)
     )
 
-    T₀_les = Array(ds["timeseries/T/0"][1, 1, :])
-    T₀ = reshape(coarse_grain(T₀_les, 32, Center), size(grid)...)
     set!(model_baseline, T=T₀)
     set!(model_neural_network, T=T₀)
 
@@ -263,8 +273,12 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
 
     function progress_baseline(simulation)
         clock = simulation.model.clock
-        @info "Baseline: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
-        modified_pacanowski_philander!(simulation.model, ds, simulation.Δt, diffusivity_params)
+
+        if clock.iteration % 100 == 0
+            @info "Baseline: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        end
+
+        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params)
         return nothing
     end
 
@@ -272,7 +286,9 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
         model = simulation.model
         clock = simulation.model.clock
 
-        @info "Neural network: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        if clock.iteration % 100 == 0
+            @info "Neural network: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        end
 
         u = interior(model.velocities.u)[:]
         v = interior(model.velocities.v)[:]
@@ -283,7 +299,7 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
         ∂z_vw_NN .=  NN_vw_forcing(uvT)
         ∂z_wT_NN .=  NN_wT_forcing(uvT)
 
-        modified_pacanowski_philander!(simulation.model, ds, simulation.Δt, diffusivity_params)
+        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params)
 
         return nothing
     end
@@ -303,19 +319,21 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     )
 
     ## Output writing
-
     outputs_baseline = (
         u = model_baseline.velocities.u,
         v = model_baseline.velocities.v,
-        T = model_baseline.tracers.T
+        T = model_baseline.tracers.T,
+        uw = model -> diagnose_baseline_flux(model).uw,
+        vw = model -> diagnose_baseline_flux(model).vw,
+        wT = model -> diagnose_baseline_flux(model).wT,
     )
 
     simulation_baseline.output_writers[:solution] =
         JLD2OutputWriter(model_baseline, outputs_baseline,
             schedule = TimeInterval(600),
-                 dir = output_dir,
-              prefix = "oceananigans_baseline",
-               force = true
+              prefix = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_baseline"),
+               force = true,
+        # field_slicer = FieldSlicer(with_halos=true)
         )
 
     outputs_NN = (
@@ -330,9 +348,9 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     simulation_neural_network.output_writers[:solution] =
         JLD2OutputWriter(model_neural_network, outputs_NN,
             schedule = TimeInterval(600),
-                 dir = output_dir,
-              prefix = "oceananigans_modified_pacanowski_philander_NN",
-               force = true
+              prefix = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_modified_pacanowski_philander_NN"),
+               force = true,
+        # field_slicer = FieldSlicer(with_halos=true)
         )
 
     @info "Running baseline simulation..."
@@ -341,8 +359,9 @@ function oceananigans_modified_pacanowski_philander_nn(ds; output_dir, NN_filepa
     @info "Running modified pacanowski philander simulation + neural network..."
     run!(simulation_neural_network)
 
-    ds_baseline = FieldDataset("oceananigans_baseline.jld2")
-    ds_nn = FieldDataset("oceananigans_modified_pacanowski_philander_NN.jld2")
+    # ds_baseline = FieldDataset(joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_baseline.jld2"))
+    # ds_nn = FieldDataset(joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_modified_pacanowski_philander_NN.jld2"))
 
-    return ds_baseline, ds_nn
+    # return ds_baseline, ds_nn
+    return nothing
 end
