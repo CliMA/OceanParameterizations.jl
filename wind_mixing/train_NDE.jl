@@ -75,7 +75,7 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [120]
+train_iterations = [400]
 train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
