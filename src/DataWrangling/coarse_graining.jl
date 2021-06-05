@@ -1,11 +1,11 @@
 using Oceananigans.Grids: Center, Face
 
 """
-    coarse_grain(Φ, n, ::Type{Center})
+    coarse_grain(Φ, n, ::Center)
 
 Average or coarse grain a `Center`-centered field `Φ` down to size `n`. `Φ` is required to have evenly spaced points and `n` needs to evenly divide `length(Φ)`.
 """
-function coarse_grain(Φ, n, ::Type{Center})
+function coarse_grain(Φ, n, ::Center)
     N = length(Φ)
     Δ = Int(N / n)
     Φ̅ = similar(Φ, n)
@@ -16,47 +16,39 @@ function coarse_grain(Φ, n, ::Type{Center})
 end
 
 """
-    coarse_grain(Φ, n, ::Type{Face})
+    coarse_grain(Φ, n, ::Face)
 
 Average or coarse grain a `Face`-centered field `Φ` down to size `n`. `Φ` is required to have evenly spaced points. The values at the left and right endpoints of `Φ` will be preserved in the output.
 """
-function coarse_grain(Φ, n, ::Type{Face})
+function coarse_grain(Φ, n, ::Face)
     N = length(Φ)
     Φ̅ = similar(Φ, n)
     Δ = (N-2) / (n-2)
-    Φ̅[1], Φ̅[n] = Φ[1], Φ[N]
+
+    Φ̅[1] = Φ[1]
+    Φ̅[n] = Φ[N]
 
     if isinteger(Δ)
-        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Center)
+        Φ̅[2:n-1] .= coarse_grain(Φ[2:N-1], n-2, Center())
     else
         for i in 2:n-1
-            i1 = round(Int, 2 + (i-2)*Δ)
-            i2 = round(Int, 2 + (i-1)*Δ)
-            Φ̅[i] = mean(Φ[i1:i2])
+            i1 = 2 + (i-2)*Δ
+            i2 = 2 + (i-1)*Δ
+
+            # Like modf but with ::Int integer part.
+            f1, i1 = rem(i1, 1), trunc(Int, i1)
+            f2, i2 = rem(i2, 1), trunc(Int, i2)
+
+            left_contrib = (1 - f1) * Φ[i1]
+            right_contrib = f2 * Φ[i2]
+            middle_contrib = sum(Φ[i1+1:i2-1])
+
+            Φ̅[i] = (left_contrib + middle_contrib + right_contrib) / Δ
         end
     end
 
     return Φ̅
 end
 
-"""
-    coarse_grain_linear_interpolation(Φ, n, ::Type{Face})
-
-Average or coarse grain a `Face`-centered field `Φ` down to size `n` using linear interpolation. `Φ` is required to have evenly spaced points. The values at the left and right endpoints of `Φ` will be preserved in the output.
-"""
-function coarse_grain_linear_interpolation(Φ, n, ::Type{Face})
-    N = length(Φ)
-    Φ̅ = similar(Φ, n)
-    Φ̅[1] = Φ[1]
-    Φ̅[end] = Φ[end]
-    gap = (N-1)/(n-1)
-
-    for i=2:n-1
-        Φ̅[i] = 1 + (i-1)*gap
-    end
-
-    for i=2:n-1
-        Φ̅[i] = (floor(Φ̅[i])+1 - Φ̅[i]) * Φ[Int(floor(Φ̅[i]))] + (Φ̅[i] - floor(Φ̅[i])) * Φ[Int(floor(Φ̅[i]))+1]
-    end
-    return Φ̅
-end
+@deprecate coarse_grain(Φ, n, loc::Type{Center}) coarse_grain(Φ, n, loc::Center)
+@deprecate coarse_grain(Φ, n, loc::Type{Face}) coarse_grain(Φ, n, loc::Face)
