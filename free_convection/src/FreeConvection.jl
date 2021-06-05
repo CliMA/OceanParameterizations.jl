@@ -60,6 +60,8 @@ function __init__()
 
     @info "Registering data dependencies..."
 
+    ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
+
     for dd in LESBRARY_DATA_DEPS
         DataDeps.register(dd)
     end

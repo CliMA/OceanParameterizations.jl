@@ -12,7 +12,6 @@ using Oceananigans
 using OceanParameterizations
 using FreeConvection
 
-ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
 
 function parse_command_line_arguments()
@@ -71,7 +70,6 @@ ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
 validate_simulation_ids(ids_train, ids_test)
 
 output_dir = joinpath(@__DIR__, experiment_name)
-mkpath(output_dir)
 
 
 @info "Planting loggers..."
@@ -181,3 +179,5 @@ animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, tru
 
 # savefig(joinpath(output_dir, "les_flux_contribution.png"))
 =#
+
+# TODO: Save solutions to disk.
