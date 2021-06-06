@@ -197,12 +197,15 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=
     @info "Running convective adjustment simulation + neural network..."
     run!(simulation_neural_network)
 
-    ds_ca = NCDstack(filepath_CA)
-    ds_nn = NCDstack(filepath_NN)
+    ds_ca = NCDataset(filepath_CA)
+    ds_nn = NCDataset(filepath_NN)
 
-    T_ca = dropdims(Array(ds_ca[:T]), dims=(1, 2))
-    T_nn = dropdims(Array(ds_nn[:T]), dims=(1, 2))
-    wT_nn = Array(ds_nn[:wT])
+    T_ca = dropdims(Array(ds_ca["T"]), dims=(1, 2))
+    T_nn = dropdims(Array(ds_nn["T"]), dims=(1, 2))
+    wT_nn = Array(ds_nn["wT"])
+
+    close(ds_ca)
+    close(ds_nn)
 
     convective_adjustment_solution = (T=T_ca, wT=nothing)
     neural_network_solution = (T=T_nn, wT=wT_nn)
