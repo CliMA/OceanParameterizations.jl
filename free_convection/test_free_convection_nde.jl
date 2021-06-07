@@ -152,8 +152,10 @@ nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, al
 @info "Plotting loss(epoch)..."
 
 plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
-                title = "Free convection loss history",
-                filepath = joinpath(output_dir, "free_convection_nde_loss_history.png"))
+                filepath_prefix = joinpath(output_dir, "free_convection_nde_loss_history"))
+
+plot_epoch_loss_summary(FreeConvection.SIMULATION_IDS, nde_solution_history, true_solutions, T_scaling,
+                        filepath_prefix = joinpath(output_dir, "free_convection_nde_loss_history_summary"))
 
 
 @info "Plotting loss(time; epoch)..."

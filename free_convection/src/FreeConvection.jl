@@ -17,7 +17,9 @@ export
     oceananigans_convective_adjustment_nn, free_convection_kpp, free_convection_tke_mass_flux, optimize_kpp_parameters,
 
     # Testing
-    compute_nde_solution_history, plot_epoch_loss, animate_nde_loss, plot_comparisons, plot_loss_matrix,
+    compute_nde_solution_history,
+    plot_epoch_loss, plot_epoch_loss_summary,
+    animate_nde_loss, plot_comparisons, plot_loss_matrix,
 
     # Data
     validate_simulation_ids, load_data
