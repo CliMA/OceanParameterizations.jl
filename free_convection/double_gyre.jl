@@ -8,30 +8,59 @@ using Statistics
 using Printf
 
 using Oceananigans
-using Oceananigans.Grids
-using Oceananigans.Fields
-using Oceananigans.Advection
-using Oceananigans.AbstractOperations
-using Oceananigans.Diagnostics
-using Oceananigans.OutputWriters
-using Oceananigans.Utils
+using Oceananigans.Units
 
+using Dates: now, Second, format
+using Oceananigans.BuoyancyModels: g_Earth, ∂z_b
+using Oceananigans.Diagnostics: accurate_cell_advection_timescale
 using Oceananigans.Simulations: get_Δt
+
+## Progress
+
+mutable struct Progress
+    interval_start_time :: Float64
+end
+
+function (p::Progress)(sim)
+    wall_time = (time_ns() - p.interval_start_time) * 1e-9
+    progress = sim.model.clock.time / sim.stop_time
+    ETA = (1 - progress) / progress * sim.run_time
+    ETA_datetime = now() + Second(round(Int, ETA))
+
+    @info @sprintf("[%06.2f%%] Time: %s, iteration: %d, max(|u⃗|): (%.2e, %.2e) m/s, T: (min=%.2f, mean=%.2f, max=%.2f), CFL: %.2e",
+                   100 * progress,
+                   prettytime(sim.model.clock.time),
+                   sim.model.clock.iteration,
+                   maximum(abs, sim.model.velocities.u),
+                   maximum(abs, sim.model.velocities.v),
+                   minimum(sim.model.tracers.T),
+                   mean(sim.model.tracers.T),
+                   maximum(sim.model.tracers.T),
+                   sim.parameters.cfl(sim.model))
+
+    @info @sprintf("           ETA: %s (%s), Δ(wall time): %s / iteration",
+                   format(ETA_datetime, "yyyy-mm-dd HH:MM:SS"),
+                   prettytime(ETA),
+                   prettytime(wall_time / sim.iteration_interval))
+
+    p.interval_start_time = time_ns()
+
+    return nothing
+end
 
 ## Convective adjustment
 
 function convective_adjustment!(model, Δt, K)
     grid = model.grid
+    buoyancy = model.buoyancy
+    tracers = model.tracers
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Δz = model.grid.Δz
     T = model.tracers.T
 
-    ∂T∂z = ComputedField(@at (Center, Center, Center) ∂z(T))
-    compute!(∂T∂z)
-
     κ = zeros(Nx, Ny, Nz)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        κ[i, j, k] = ∂T∂z[i, j, k] < 0 ? K : 0
+        κ[i, j, k] = ∂z_b(i, j, k, grid, buoyancy, tracers) < 0 ? K : 0
     end
 
     T_interior = interior(T)
@@ -57,24 +86,21 @@ function convective_adjustment!(model, Δt, K)
     return nothing
 end
 
-## Grid setup
 
 @info "Grid setup..."
 
-km = kilometers
-topo = (Bounded, Bounded, Bounded)
-domain = (x=(-2000km, 2000km), y=(-3000km, 3000km), z=(-2km, 0))
-grid = RegularCartesianGrid(topology=topo, size=(96, 96, 32); domain...)
+grid = RegularLatitudeLongitudeGrid(size=(60, 60, 32), latitude=(15, 75), longitude=(0, 60), z=(-2kilometers, 0))
+
 
 ## Boundary conditions
 
 @info "Boundary conditions setup..."
 
-@inline wind_stress(x, y, t, p) = - p.τ * cos(2π * y / p.L)
-@inline u_bottom_stress(x, y, t, u, p) = - p.μ * p.H * u
-@inline v_bottom_stress(x, y, t, v, p) = - p.μ * p.H * v
+@inline wind_stress(λ, φ, t, p) = - p.τ * cos(2π * (φ - p.φ₀) / p.Lφ)
+@inline u_bottom_stress(λ, φ, t, u, p) = - p.μ * p.H * u
+@inline v_bottom_stress(λ, φ, t, v, p) = - p.μ * p.H * v
 
-wind_stress_params = (τ=1e-4, L=grid.Ly)
+wind_stress_params = (τ=1e-4, Lφ=grid.Ly, φ₀=15)
 wind_stress_bc = FluxBoundaryCondition(wind_stress, parameters=wind_stress_params)
 
 bottom_stress_params = (μ=1/30day, H=grid.Lz)
@@ -86,53 +112,42 @@ no_slip = ValueBoundaryCondition(0)
 u_bcs = UVelocityBoundaryConditions(grid,
        top = wind_stress_bc,
     bottom = u_bottom_stress_bc,
-     north = no_slip,
-     south = no_slip
+    #  north = no_slip,
+    #  south = no_slip
 )
 
 v_bcs = VVelocityBoundaryConditions(grid,
-      east = no_slip,
-      west = no_slip,
+    #   east = no_slip,
+    #   west = no_slip,
     bottom = v_bottom_stress_bc
 )
 
-w_bcs = WVelocityBoundaryConditions(grid,
-    north = no_slip,
-    south = no_slip,
-     east = no_slip,
-     west = no_slip
-)
-
-@inline T_reference(y, p) = p.T_mid + p.ΔT / p.Ly * y
-@inline temperature_flux(x, y, t, T, p) = @inbounds - p.μ * (T - T_reference(y, p))
+@inline T_reference(φ, p) = p.T_mid + p.ΔT / p.Lφ * (φ - p.φ₀)
+@inline temperature_flux(λ, φ, t, T, p) = @inbounds - p.μ * (T - T_reference(φ, p))
 
 T_min, T_max = 0, 30
-temperature_flux_params = (T_min=T_min, T_max=T_max, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Ly=grid.Ly)
+temperature_flux_params = (T_min=T_min, T_max=T_max, T_mid=(T_min+T_max)/2, ΔT=T_max-T_min, μ=1/day, Lφ=grid.Ly, φ₀=15)
 temperature_flux_bc = FluxBoundaryCondition(temperature_flux, field_dependencies=:T, parameters=temperature_flux_params)
 
 T_bcs = TracerBoundaryConditions(grid,
-    bottom = ValueBoundaryCondition(T_min),
-       top = temperature_flux_bc
+    # bottom = ValueBoundaryCondition(T_min),
+    top = temperature_flux_bc
 )
 
-## Turbulent diffusivity closure
-
-closure = AnisotropicDiffusivity(νh=500, νz=1e-2, κh=100, κz=1e-2)
 
 ## Model setup
 
 @info "Model setup..."
 
-model = IncompressibleModel(
+model = HydrostaticFreeSurfaceModel(
            architecture = CPU(),
                    grid = grid,
-            timestepper = :RungeKutta3,
-              advection = WENO5(),
-               coriolis = BetaPlane(latitude=45),
-               buoyancy = SeawaterBuoyancy(constant_salinity=true),
-                tracers = :T,
-                closure = closure,
-    boundary_conditions = (u=u_bcs, v=v_bcs, w=w_bcs, T=T_bcs)
+     momentum_advection = VectorInvariant(),
+         # free_surface = ExplicitFreeSurface(gravitational_acceleration=0.01g_Earth),
+           free_surface = ImplicitFreeSurface(gravitational_acceleration=g_Earth, tolerance=1e-6),
+               coriolis = HydrostaticSphericalCoriolis(scheme=VectorInvariantEnstrophyConserving()),
+                closure = HorizontallyCurvilinearAnisotropicDiffusivity(νh=5000, νz=1e-2, κh=1000, κz=1e-2),
+    boundary_conditions = (u=u_bcs, v=v_bcs, T=T_bcs)
 )
 
 ## Initial condition
@@ -140,55 +155,43 @@ model = IncompressibleModel(
 @info "Setting initial conditions..."
 
 # a stable density gradient with random noise superposed.
-T₀(x, y, z) = temperature_flux_params.T_min + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
+T₀(λ, φ, z) = temperature_flux_params.T_min + temperature_flux_params.ΔT/2 * (1 + z / grid.Lz)
 set!(model, T=T₀)
-
-# set!(model, T=temperature_flux_params.T_mid)
 
 ## Simulation setup
 
 @info "Setting up simulation..."
 
-u_max = FieldMaximum(abs, model.velocities.u)
-v_max = FieldMaximum(abs, model.velocities.v)
-w_max = FieldMaximum(abs, model.velocities.w)
+Δt = model.free_surface isa ImplicitFreeSurface ? 1hours : 10minutes
 
-wall_clock = time_ns()
+g = model.free_surface.gravitational_acceleration
+H = grid.Lz
+gravity_wave_speed = √(g * H)
+min_spacing = Oceananigans.Operators.Δxᶠᶠᵃ(1, grid.Ny, 1, grid)
+wave_propagation_time_scale = min_spacing / gravity_wave_speed
+gravity_wave_cfl = Δt / wave_propagation_time_scale
+@info @sprintf("Gravity wave CFL = %.4f", gravity_wave_cfl)
 
-function print_progress(simulation)
-    model = simulation.model
+cfl = CFL(Δt, accurate_cell_advection_timescale)
 
-    K = 10
-    convective_adjustment!(model, get_Δt(simulation), K)
-
-    T_interior = interior(model.tracers.T)
-    T_min, T_max = extrema(T_interior)
-    T_mean = mean(T_interior)
-
-    ## Print a progress message
-    msg = @sprintf("i: %04d, t: %s, Δt: %s, u_max = (%.1e, %.1e, %.1e) m/s, T: (min=%.2f, mean=%.2f, max=%.2f), wall time: %s\n",
-                   model.clock.iteration,
-                   prettytime(model.clock.time),
-                   prettytime(wizard.Δt),
-                   u_max(), v_max(), w_max(), T_min, T_mean, T_max,
-                   prettytime(1e-9 * (time_ns() - wall_clock)))
-
-    @info msg
-
-    return nothing
-end
-
-wizard = TimeStepWizard(cfl=0.5, diffusive_cfl=0.5, Δt=1hour, max_change=1.1, max_Δt=1hour)
-
-simulation = Simulation(model, Δt=wizard, stop_time=2years, iteration_interval=1, progress=print_progress)
+simulation = Simulation(model,
+                    Δt = Δt,
+             stop_time = 90days,
+    iteration_interval = 1,
+              progress = Progress(time_ns()),
+            parameters = (; cfl)
+)
 
 ## Set up output writers
 
 @info "Setting up output writers..."
 
 simulation.output_writers[:fields] =
-    NetCDFOutputWriter(model, merge(model.velocities, model.tracers),
-                       schedule=TimeInterval(1day), filepath="double_gyre.nc", mode="c")
+    JLD2OutputWriter(model, merge(model.velocities, model.tracers),
+            schedule = TimeInterval(1day),
+              prefix = "double_gyre",
+        field_slicer = FieldSlicer(with_halos=true),
+               force = true)
 
 ## Running the simulation
 
