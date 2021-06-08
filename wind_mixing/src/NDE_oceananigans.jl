@@ -25,19 +25,16 @@ function modified_pacanowski_philander_diffusivity(model, constants, p; K=10)
     ν₋ = p["ν₋"]
     ΔRi = p["ΔRi"]
     Riᶜ = p["Riᶜ"]
-    Pr = p["Pr"]
 
     α, g = constants.α, constants.g
 
     b = BuoyancyField(model)
-
 
     Ri = KernelComputedField(Center, Center, Face, richardson_number_ccf!, model,
                              computed_dependencies=(u, v, b), parameters=(dUdz_bg=0, dVdz_bg=0, N2_bg=0))
     compute!(Ri)
 
     ν = zeros(Nz+1)
-    κ = zeros(Nz+1)
 
     for i in 2:Nz
         ν[i] = ν₀ + ν₋ * tanh_step((Ri[1, 1, i] - Riᶜ) / ΔRi)
@@ -79,7 +76,8 @@ function modified_pacanowski_philander!(model, constants, Δt, p)
     return nothing
 end
 
-function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings; NN_filepath, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity)
+function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params; 
+            BASELINE_RESULTS_PATH, NN_RESULTS_PATH, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity)
     ρ₀ = 1027.0
     cₚ = 4000.0
     β  = 0.0
@@ -115,11 +113,6 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
 
     ## Neural network forcing
 
-    NN_file = jldopen(NN_filepath, "r")
-    uw_NN = NN_file["neural_network/uw"]
-    vw_NN = NN_file["neural_network/vw"]
-    wT_NN = NN_file["neural_network/wT"]
-
     u_scaling = scalings.u
     v_scaling = scalings.v
     T_scaling = scalings.T
@@ -127,92 +120,134 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
     uw_scaling = scalings.uw
     vw_scaling = scalings.vw
     wT_scaling = scalings.wT
-
-    diffusivity_params = NN_file["training_info/parameters"]
-    close(NN_file)
-
+    
     μ_u, σ_u, μ_v, σ_v, μ_T, σ_T = u_scaling.μ, u_scaling.σ, v_scaling.μ, v_scaling.σ, T_scaling.μ, T_scaling.σ
     μ_uw, σ_uw, μ_vw, σ_vw, μ_wT, σ_wT = uw_scaling.μ, uw_scaling.σ, vw_scaling.μ, vw_scaling.σ, wT_scaling.μ, wT_scaling.σ
 
-    function diagnose_baseline_flux(model)
+    function diagnose_baseline_flux_uw(model)
         ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
-        ∂z_u_field = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.u))
-        ∂z_v_field = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
-        ∂z_T_field = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
+        ∂u∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.u))
+        compute!(∂u∂z)
 
-        uw = -ν .* interior(∂z_u_field)[1, 1, :]
-        vw = -ν .* interior(∂z_v_field)[1, 1, :]
-        wT = -ν .* interior(∂z_T_field)[1, 1, :]
-        return (; uw, vw, wT)
+        uw = -ν .* interior(∂u∂z)[1, 1, :]
+        uw[end] = uw_flux
+        return uw
+    end
+
+    function diagnose_baseline_flux_vw(model)
+        ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        ∂v∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
+        compute!(∂v∂z)
+
+        vw = -ν .* interior(∂v∂z)[1, 1, :]
+        vw[end] = vw_flux
+        return vw
+    end
+
+    function diagnose_baseline_flux_wT(model)
+        ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
+        compute!(∂T∂z)
+
+        wT = -ν .* interior(∂T∂z)[1, 1, :]
+        wT[end] = wT_flux
+        return wT
     end
 
     function ∂z_uw(uw)
         uw_field = ZFaceField(CPU(), grid)
         set!(uw_field, reshape(uw, (1, 1, Nz+1)))
         Oceananigans.fill_halo_regions!(uw_field, CPU(), nothing, nothing)
-        ∂z_uw_field = ComputedField(@at (Center, Center, Center) ∂z(uw_field))
-        compute!(∂z_uw_field)
-        return interior(∂z_uw_field)[:]
+        ∂uw∂z = ComputedField(@at (Center, Center, Center) ∂z(uw_field))
+        compute!(∂uw∂z)
+        return interior(∂uw∂z)[:]
     end
 
     function ∂z_vw(vw)
         vw_field = ZFaceField(CPU(), grid)
         set!(vw_field, reshape(vw, (1, 1, Nz+1)))
         Oceananigans.fill_halo_regions!(vw_field, CPU(), nothing, nothing)
-        ∂z_vw_field = ComputedField(@at (Center, Center, Center) ∂z(vw_field))
-        compute!(∂z_vw_field)
-        return interior(∂z_vw_field)[:]
+        ∂vw∂z = ComputedField(@at (Center, Center, Center) ∂z(vw_field))
+        compute!(∂vw∂z)
+        return interior(∂vw∂z)[:]
     end
 
     function ∂z_wT(wT)
         wT_field = ZFaceField(CPU(), grid)
         set!(wT_field, reshape(wT, (1, 1, Nz+1)))
         Oceananigans.fill_halo_regions!(wT_field, CPU(), nothing, nothing)
-        ∂z_wT_field = ComputedField(@at (Center, Center, Center) ∂z(wT_field))
-        compute!(∂z_wT_field)
-        return interior(∂z_wT_field)[:]
+        ∂wT∂z = ComputedField(@at (Center, Center, Center) ∂z(wT_field))
+        compute!(∂wT∂z)
+        return interior(∂wT∂z)[:]
     end
 
     enforce_fluxes_uw(uw) = cat(0, uw, uw_flux, dims=1)
     enforce_fluxes_vw(vw) = cat(0, vw, vw_flux, dims=1)
     enforce_fluxes_wT(wT) = cat(0, wT, wT_flux, dims=1)
-
-    function diagnose_NN(model)
+    
+    function diagnose_NN_flux_uw(model)
         u = u_scaling.(interior(model.velocities.u)[:])
         v = v_scaling.(interior(model.velocities.v)[:])
         T = T_scaling.(interior(model.tracers.T)[:])
-
         uvT = [u; v; T]
 
         ∂u∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.u))
-        ∂v∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
-        ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
-
         compute!(∂u∂z)
-        compute!(∂v∂z)
-        compute!(∂T∂z)
 
-        uw = enforce_fluxes_uw(inv(uw_scaling).(uw_NN(uvT)))
-        vw = enforce_fluxes_vw(inv(vw_scaling).(vw_NN(uvT)))
-        wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)))
+        uw = enforce_fluxes_uw(inv(uw_scaling).(uw_NN(uvT)) .- inv(uw_scaling)(0))
 
         ν = diffusivity_model(model, constants, diffusivity_params)
 
         ν∂u∂z = ν .* interior(∂u∂z)[:]
+        uw = uw .- ν∂u∂z
+        return uw
+    end
+
+    function diagnose_NN_flux_vw(model)
+        u = u_scaling.(interior(model.velocities.u)[:])
+        v = v_scaling.(interior(model.velocities.v)[:])
+        T = T_scaling.(interior(model.tracers.T)[:])
+        uvT = [u; v; T]
+
+        ∂v∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
+        compute!(∂v∂z)
+
+        vw = enforce_fluxes_vw(inv(vw_scaling).(vw_NN(uvT)) .- inv(vw_scaling)(0))
+
+        ν = diffusivity_model(model, constants, diffusivity_params)
+
         ν∂v∂z = ν .* interior(∂v∂z)[:]
+
+        vw = vw .- ν∂v∂z
+
+        return vw
+    end
+
+    function diagnose_NN_flux_wT(model)
+        u = u_scaling.(interior(model.velocities.u)[:])
+        v = v_scaling.(interior(model.velocities.v)[:])
+        T = T_scaling.(interior(model.tracers.T)[:])
+        uvT = [u; v; T]
+
+        ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
+        compute!(∂T∂z)
+
+        wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)) .- inv(wT_scaling)(0))
+
+        ν = diffusivity_model(model, constants, diffusivity_params)
+
         ν∂T∂z = ν .* interior(∂T∂z)[:]
 
-        uw = uw .- ν∂u∂z
-        vw = vw .- ν∂v∂z
         wT = wT .- ν∂T∂z
 
-        return (; uw, vw, wT)
+        return wT
     end
 
     NN_uw_forcing = Chain(
         uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
         uw_NN,
         uw -> inv(uw_scaling).(uw),
+        uw -> uw .- inv(uw_scaling).(0),
         enforce_fluxes_uw,
         ∂z_uw
     )
@@ -221,6 +256,7 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
         uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
         vw_NN,
         vw -> inv(vw_scaling).(vw),
+        vw -> vw .- inv(vw_scaling).(0),
         enforce_fluxes_vw,
         ∂z_vw
     )
@@ -229,6 +265,7 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
         uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
         wT_NN,
         wT -> inv(wT_scaling).(wT),
+        wT -> wT .- inv(wT_scaling).(0),
         enforce_fluxes_wT,
         ∂z_wT
     )
@@ -323,15 +360,15 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
         u = model_baseline.velocities.u,
         v = model_baseline.velocities.v,
         T = model_baseline.tracers.T,
-        uw = model -> diagnose_baseline_flux(model).uw,
-        vw = model -> diagnose_baseline_flux(model).vw,
-        wT = model -> diagnose_baseline_flux(model).wT,
+        uw = model -> diagnose_baseline_flux_uw(model),
+        vw = model -> diagnose_baseline_flux_vw(model),
+        wT = model -> diagnose_baseline_flux_wT(model),
     )
 
     simulation_baseline.output_writers[:solution] =
         JLD2OutputWriter(model_baseline, outputs_baseline,
             schedule = TimeInterval(600),
-              prefix = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_baseline"),
+              prefix = BASELINE_RESULTS_PATH,
                force = true,
         # field_slicer = FieldSlicer(with_halos=true)
         )
@@ -340,15 +377,15 @@ function oceananigans_modified_pacanowski_philander_nn(constants, BCs, scalings;
          u = model_neural_network.velocities.u,
          v = model_neural_network.velocities.v,
          T = model_neural_network.tracers.T,
-        uw = model_neural_network -> diagnose_NN(model_neural_network).uw,
-        vw = model_neural_network -> diagnose_NN(model_neural_network).vw,
-        wT = model_neural_network -> diagnose_NN(model_neural_network).wT,
+        uw = model_neural_network -> diagnose_NN_flux_uw(model_neural_network),
+        vw = model_neural_network -> diagnose_NN_flux_vw(model_neural_network),
+        wT = model_neural_network -> diagnose_NN_flux_wT(model_neural_network),
     )
 
     simulation_neural_network.output_writers[:solution] =
         JLD2OutputWriter(model_neural_network, outputs_NN,
             schedule = TimeInterval(600),
-              prefix = joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_modified_pacanowski_philander_NN"),
+              prefix = NN_RESULTS_PATH,
                force = true,
         # field_slicer = FieldSlicer(with_halos=true)
         )
