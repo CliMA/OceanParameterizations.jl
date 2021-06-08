@@ -217,13 +217,16 @@ function plot_comparisons(ds, id, ids_train, nde_sol, kpp_sol, tke_sol, convecti
 end
 
 # TODO: Allow to selectively turn off different parameterizations.
-function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, convective_adjustment_sols, oceananigans_sols, T_scaling; filepath)
+function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, convective_adjustment_sols, oceananigans_sols, T_scaling; filepath_prefix,
+                          rows = ceil(Int, √length(datasets)),
+                          cols = ceil(Int, √length(datasets)),
+                          ylims = (1e-6, 1e-1))
 
     loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
 
-    plots = []
+    fig = Figure()
 
-    for (id, ds) in datasets
+    for (d, (id, ds)) in enumerate(datasets)
 
         T = ds["T"]
         wT = ds["wT"]
@@ -234,32 +237,41 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
         Nt = size(T, 4)
         times = T.times ./ days
 
-        kwargs = (linewidth=2, linealpha=0.8, grid=false, framestyle=:box, yaxis=(:log10, (1e-6, 1e-1)),
-                  xlabel="Time (days)", ylabel="Mean squared error", xlims=extrema(times), ylims=(1e-6, 1e-1),
-                  title = @sprintf("Q = %d W/m² (%s)", -4e6 * ds.metadata["temperature_flux"], id in ids_train ? "train" : "test"),
-                  legend=isempty(plots) ? :bottomright : nothing,
-                  foreground_color_legend=nothing, background_color_legend=nothing)
+        T_solution = [interior(ds["T"])[1, 1, :, n] for n in 1:Nt]
+        loss_nde = [loss(T_solution[n], nde_sols[id].T[:, n]) for n in 1:Nt]
+        loss_kpp = [loss(T_solution[n], kpp_sols[id].T[:, n]) for n in 1:Nt]
+        loss_tke = [loss(T_solution[n], tke_sols[id].T[:, n]) for n in 1:Nt]
+        loss_ca = [loss(T_solution[n], convective_adjustment_sols[id].T[:, n]) for n in 1:Nt]
+        loss_emb = [loss(T_solution[n], oceananigans_sols[id].T[:, n]) for n in 1:Nt]
 
-        loss_nde = [loss(interior(ds["T"])[1, 1, :, n], nde_sols[id].T[:, n]) for n in 1:Nt]
-        loss_kpp = [loss(interior(ds["T"])[1, 1, :, n], kpp_sols[id].T[:, n]) for n in 1:Nt]
-        loss_tke = [loss(interior(ds["T"])[1, 1, :, n], tke_sols[id].T[:, n]) for n in 1:Nt]
-        loss_ca = [loss(interior(ds["T"])[1, 1, :, n], convective_adjustment_sols[id].T[:, n]) for n in 1:Nt]
-        loss_emb = [loss(interior(ds["T"])[1, 1, :, n], oceananigans_sols[id].T[:, n]) for n in 1:Nt]
+        i = div(id-1, rows) + 1
+        j = rem(id-1, cols) + 1
+        ax_ij = fig[i, j] = Axis(fig, title="simulation $id", xlabel="Time (days)", ylabel="MSE", yscale=log10)
 
-        p = plot()
+        for loss_i in (loss_ca, loss_nde, loss_emb, loss_kpp, loss_tke)
+            replace!(x -> iszero(x) ? NaN : x, loss_i)
+        end
 
-        plot!(p, times, loss_ca, label="Convective adjustment", color="gray"; kwargs...)
-        plot!(p, times, loss_nde, label="NDE", color="forestgreen"; kwargs...)
-        plot!(p, times, loss_emb, label="Embedded", color="darkorange", linestyle=:dot; kwargs...)
-        plot!(p, times, loss_kpp, label="KPP", color="crimson"; kwargs...)
-        plot!(p, times, loss_tke, label="TKE mass flux", color="darkmagenta"; kwargs...)
+        lines!(ax_ij, times, loss_ca,  label="Convective adjustment")
+        lines!(ax_ij, times, loss_nde, label="NDE")
+        lines!(ax_ij, times, loss_emb, label="NDE (embedded)", linestyle=:dot)
+        lines!(ax_ij, times, loss_kpp, label="KPP")
+        lines!(ax_ij, times, loss_tke, label="CATKE")
 
-        push!(plots, p)
+        CairoMakie.xlims!(extrema(times)...)
+        CairoMakie.ylims!(ylims...)
+
+        i != rows && hidexdecorations!(ax_ij, grid=false)
+        j != 1 && hideydecorations!(ax_ij, grid=false)
+
+        # Add the legend after all axes have been plotted.
+        if d == length(datasets)
+            Legend(fig[0, :], ax_ij, orientation=:horizontal, tellwidth=false, tellheight=true, framevisible=false)
+        end
     end
 
-    P = plot(plots..., size=(800, 600), dpi=200)
+    save(filepath_prefix * ".png", fig, px_per_unit=2)
+    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
 
-    savefig(filepath)
-
-    return P
+    return nothing
 end

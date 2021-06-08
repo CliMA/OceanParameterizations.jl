@@ -125,7 +125,7 @@ end
 
 plot_loss_matrix(coarse_datasets, ids_train, nde_solutions, kpp_solutions, tke_solutions,
                  convective_adjustment_solutions, oceananigans_solutions, T_scaling,
-                 filepath = joinpath(output_dir, "loss_matrix_plots.png"))
+                 filepath_prefix = joinpath(output_dir, "loss_matrix_plots"))
 
 for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
