@@ -122,7 +122,7 @@ v_bcs = VVelocityBoundaryConditions(grid,
     bottom = v_bottom_stress_bc
 )
 
-@inline T_reference(φ, p) = p.T_mid + p.ΔT / p.Lφ * (φ - p.φ₀)
+@inline T_reference(φ, p) = p.T_min + p.ΔT / p.Lφ * (φ - p.φ₀)
 @inline temperature_flux(λ, φ, t, T, p) = @inbounds - p.μ * (T - T_reference(φ, p))
 
 T_min, T_max = 0, 30
@@ -130,7 +130,7 @@ temperature_flux_params = (T_min=T_min, T_max=T_max, T_mid=(T_min+T_max)/2, ΔT=
 temperature_flux_bc = FluxBoundaryCondition(temperature_flux, field_dependencies=:T, parameters=temperature_flux_params)
 
 T_bcs = TracerBoundaryConditions(grid,
-    # bottom = ValueBoundaryCondition(T_min),
+    bottom = ValueBoundaryCondition(T_min),
     top = temperature_flux_bc
 )
 
