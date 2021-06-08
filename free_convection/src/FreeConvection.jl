@@ -19,7 +19,8 @@ export
     # Testing
     compute_nde_solution_history,
     plot_epoch_loss, plot_epoch_loss_summary,
-    animate_nde_loss, plot_comparisons, plot_loss_matrix,
+    animate_nde_loss, plot_comparisons,
+    plot_loss_matrix, plot_initial_vs_final_loss_matrix,
 
     # Data
     validate_simulation_ids, load_data

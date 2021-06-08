@@ -275,3 +275,56 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
 
     return nothing
 end
+
+function plot_initial_vs_final_loss_matrix(datasets, ids_train, nde_sols, initial_nde_sols, T_scaling; filepath_prefix,
+                                           rows = ceil(Int, √length(datasets)),
+                                           cols = ceil(Int, √length(datasets)),
+                                           ylims = (1e-6, 1e-1))
+
+    loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
+
+    fig = Figure()
+
+    for (d, (id, ds)) in enumerate(datasets)
+
+        T = ds["T"]
+        wT = ds["wT"]
+        Nz = size(T, 3)
+        zc = znodes(T)
+        zf = znodes(wT)
+        H = abs(zf[1])
+        Nt = size(T, 4)
+        times = T.times ./ days
+
+        T_solution = [interior(ds["T"])[1, 1, :, n] for n in 1:Nt]
+        loss_nde = [loss(T_solution[n], nde_sols[id].T[:, n]) for n in 1:Nt]
+        loss_initial_nde = [loss(T_solution[n], initial_nde_sols[id].T[:, n]) for n in 1:Nt]
+
+        i = div(id-1, rows) + 1
+        j = rem(id-1, cols) + 1
+        ax_ij = fig[i, j] = Axis(fig, title="simulation $id", xlabel="Time (days)", ylabel="MSE", yscale=log10)
+
+        for loss_i in (loss_nde, loss_initial_nde)
+            replace!(x -> iszero(x) ? NaN : x, loss_i)
+        end
+
+        lines!(ax_ij, times, loss_nde, label="NDE (trained online)")
+        lines!(ax_ij, times, loss_initial_nde, label="trained on fluxes (offline)")
+
+        CairoMakie.xlims!(extrema(times)...)
+        CairoMakie.ylims!(ylims...)
+
+        i != rows && hidexdecorations!(ax_ij, grid=false)
+        j != 1 && hideydecorations!(ax_ij, grid=false)
+
+        # Add the legend after all axes have been plotted.
+        if d == length(datasets)
+            Legend(fig[0, :], ax_ij, orientation=:horizontal, tellwidth=false, tellheight=true, framevisible=false)
+        end
+    end
+
+    save(filepath_prefix * ".png", fig, px_per_unit=2)
+    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
+
+    return nothing
+end
