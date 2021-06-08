@@ -91,15 +91,26 @@ coarse_datasets = data.coarse_datasets
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 final_nn_filepath = joinpath(output_dir, "free_convection_final_neural_network.jld2")
+initial_nn_filepath = joinpath(output_dir, "free_convection_initial_neural_network.jld2")
 
-final_nn = jldopen(final_nn_filepath, "r")
-NN = final_nn["neural_network"]
-T_scaling = final_nn["T_scaling"]
-wT_scaling = final_nn["wT_scaling"]
-close(final_nn)
+file = jldopen(final_nn_filepath, "r")
+NN = file["neural_network"]
+T_scaling = file["T_scaling"]
+wT_scaling = file["wT_scaling"]
+close(file)
 
 function free_convection_neural_network(input)
     wT_interior = NN(input.temperature)
+    wT = cat(input.bottom_flux, wT_interior, input.top_flux, dims=1)
+    return wT
+end
+
+file = jldopen(initial_nn_filepath, "r")
+initial_NN = file["neural_network"]
+close(file)
+
+function free_convection_initial_neural_network(input)
+    wT_interior = initial_NN(input.temperature)
     wT = cat(input.bottom_flux, wT_interior, input.top_flux, dims=1)
     return wT
 end
@@ -111,6 +122,7 @@ true_solutions = Dict(id => (T=interior(ds["T"])[1, 1, :, :], wT=interior(ds["wT
 nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
 kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
 tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
+initial_nde_solutions = Dict(id => solve_nde(ds, initial_NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
 
 convective_adjustment_solutions = Dict()
 oceananigans_solutions = Dict()
@@ -125,7 +137,13 @@ end
 
 plot_loss_matrix(coarse_datasets, ids_train, nde_solutions, kpp_solutions, tke_solutions,
                  convective_adjustment_solutions, oceananigans_solutions, T_scaling,
-                 filepath_prefix = joinpath(output_dir, "loss_matrix_plots"))
+                 filepath_prefix = joinpath(output_dir, "loss_matrix_plots.png"))
+
+plot_initial_vs_final_loss_matrix(coarse_datasets, ids_train, nde_solutions, initial_nde_solutions, T_scaling,
+                                  filepath_prefix = joinpath(output_dir, "loss_matrix_plots_initial_vs_final.png"))
+
+
+@info "Plotting comparisons..."
 
 for (id, ds) in coarse_datasets
     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
