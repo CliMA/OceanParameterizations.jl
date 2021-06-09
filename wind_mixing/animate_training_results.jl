@@ -1,6 +1,6 @@
 using WindMixing
 
-DATA_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
+DATA_NAME = "NDE_training_mpp_9sim_windheating_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 
 test_files = [
     "-1e-3",       

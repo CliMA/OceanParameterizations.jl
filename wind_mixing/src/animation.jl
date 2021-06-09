@@ -773,7 +773,7 @@ end
 
 function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30, gif=false, mp4=true)
     DATA_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
-    OUTPUT_PATH = joinpath(pwd(), "Output", FILE_NAME)
+    OUTPUT_PATH = joinpath(pwd(), "NDE_output_diffeq", FILE_NAME)
 
     if !ispath(OUTPUT_PATH)
         mkdir(OUTPUT_PATH)
