@@ -380,7 +380,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         function cb(args...)
             if iter <= maxiters
                 @info "NDE, loss = $(args[2]), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
-                write_data_NDE_training(FILE_PATH, args[2], NN_constructions.uw(args[1][NN_ranges.uw]), NN_constructions.vw(args[1][NN_ranges.vw]), NN_constructions.wT(args[1][NN_ranges.wT]), stage)
+                write_data_NDE_training(FILE_PATH, args[2], NN_constructions.uw(args[1][NN_ranges.uw]), NN_constructions.vw(args[1][NN_ranges.vw]), NN_constructions.wT(args[1][NN_ranges.wT]), stage, opt)
             end
             iter += 1
             false
