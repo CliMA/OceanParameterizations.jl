@@ -15,7 +15,7 @@ PATH = joinpath(pwd(), "extracted_training_output")
 DATA_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
 ispath(DATA_PATH)
-FILE_PATH = joinpath(pwd(), "Output")
+FILE_PATH = joinpath(pwd(), "Output", "mpp")
 
 file = jldopen(DATA_PATH, "r")
 
@@ -35,8 +35,42 @@ uw_NN = re(zeros(Float32, length(weights)))
 vw_NN = re(zeros(Float32, length(weights)))
 wT_NN = re(zeros(Float32, length(weights)))
 
+to_run = ["-1e-3",                   
+          "-9e-4",                   
+          "-8e-4",                   
+          "-7e-4",                   
+          "-6e-4",                   
+          "-5e-4",                   
+          "-4e-4",                   
+          "-3e-4",                   
+          "-2e-4",                           
+          "wind_-5e-4_cooling_4e-8", 
+          "wind_-1e-3_cooling_4e-8", 
+          "wind_-2e-4_cooling_1e-8", 
+          "wind_-1e-3_cooling_2e-8", 
+          "wind_-5e-4_cooling_1e-8", 
+          "wind_-2e-4_cooling_5e-8", 
+          "wind_-5e-4_cooling_3e-8", 
+          "wind_-2e-4_cooling_3e-8", 
+          "wind_-1e-3_cooling_3e-8", 
+          "wind_-1e-3_heating_-4e-8",
+          "wind_-1e-3_heating_-1e-8",
+          "wind_-1e-3_heating_-3e-8",
+          "wind_-5e-4_heating_-5e-8",
+          "wind_-5e-4_heating_-3e-8",
+          "wind_-5e-4_heating_-1e-8",
+          "wind_-2e-4_heating_-5e-8",
+          "wind_-2e-4_heating_-3e-8",
+          "wind_-2e-4_heating_-1e-8",
+          "cooling_6e-8",            
+          "cooling_5e-8",            
+          "cooling_4e-8",            
+          "cooling_3e-8",            
+          "cooling_2e-8",            
+          "heating_-3e-8",
+          ]
 
-for test_file in keys(directories)
+for test_file in to_run
     @info "running $test_file"
     test_files = [test_file]
     𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
