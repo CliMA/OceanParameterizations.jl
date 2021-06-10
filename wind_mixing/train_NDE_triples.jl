@@ -12,16 +12,15 @@ BLAS.set_num_threads(1)
 
 # Training data
 train_files = [
-    "wind_-1e-3_heating_-4e-8",
-    "wind_-1e-3_heating_-1e-8",
-    "wind_-5e-4_heating_-3e-8",
-    "wind_-2e-4_heating_-5e-8",
-    "wind_-2e-4_heating_-1e-8",
-    "wind_-1e-3_cooling_4e-8",
-    "wind_-2e-4_cooling_1e-8",
-    "wind_-1e-3_cooling_2e-8",
-    "wind_-2e-4_cooling_5e-8",
-    "wind_-5e-4_cooling_3e-8",
+    "-1e-3",
+    "-9e-4",
+    "-8e-4",
+    "-7e-4",
+    "-6e-4",
+    "-5e-4",
+    "-4e-4",
+    "-3e-4",
+    "-2e-4",
     ]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
@@ -62,10 +61,10 @@ wT_NN = re(weights ./ 1f5)
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
 
-FILE_NAME = ["NDE_training_mpp_10sim_windcooling_windheating_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4",
-             "NDE_training_mpp_10sim_windcooling_windheating_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4",
-             "NDE_training_mpp_10sim_windcooling_windheating_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1.5e-2_rate_1e-4",
-             "NDE_training_mpp_10sim_windcooling_windheating_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_2e-2_rate_1e-4",
+FILE_NAME = ["NDE_training_mpp_9sim_wind_mixing_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4",
+             "NDE_training_mpp_9sim_wind_mixing_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4",
+             "NDE_training_mpp_9sim_wind_mixing_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1.5e-2_rate_1e-4",
+             "NDE_training_mpp_9sim_wind_mixing_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_2e-2_rate_1e-4",
               ][task_id]
 
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
@@ -173,7 +172,9 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
-uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
+# uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
+
+uw_NN_res, vw_NN_res, wT_NN_res =  train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
 
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 

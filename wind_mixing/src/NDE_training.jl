@@ -291,7 +291,7 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function calculate_profile_gradient(uvT, derivatives, constants)
+@views function calculate_profile_gradient(uvT, derivatives, constants)
     Nz = constants.Nz
     D_face = derivatives.face
     @inline ∂u∂z(uvT, i) = D_face * uvT[1:Nz, i]
@@ -361,7 +361,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     end
 
     function loss_gradient_NDE(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        # sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(checkpointing=false, autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
+
         sol_gradients = [calculate_profile_gradient(sol, derivatives, constants) for sol in sols]
         return mean(loss_gradient.(uvT_trains, sols, uvT_gradients, sol_gradients, gradient_scaling))
     end
@@ -372,7 +374,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         f_loss = OptimizationFunction(loss_NDE, GalacticOptim.AutoZygote())
     end
 
-    prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    # prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    prob_loss = OptimizationProblem(f_loss, @view(weights[:]), BCs)
 
     for i in 1:length(optimizers), epoch in 1:epochs
         iter = 1
