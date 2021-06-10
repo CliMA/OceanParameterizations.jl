@@ -757,6 +757,10 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
     diffusivity_params = extracted_training_file["training_info/parameters"]
 
+    if !ispath(OUTPUT_DIR)
+        mkdir(OUTPUT_DIR)
+    end
+
     for test_file in test_files
         @info "Starting $test_file"
         ds = jldopen(directories[test_file])
