@@ -14,7 +14,9 @@ train_files = [
 ]
 
 PATH = pwd()
-FILE_NAME = "parameter_optimisation_5sim_windcooling_SS_SW_WS_windheating_SS_WS"
+# PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
+
+FILE_NAME = "parameter_optimisation_5sim_windcooling_SS_SW_WS_windheating_SS_WS_4_params"
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
