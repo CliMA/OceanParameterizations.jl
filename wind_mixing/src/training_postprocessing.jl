@@ -764,6 +764,7 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     for test_file in test_files
         @info "Starting $test_file"
         ds = jldopen(directories[test_file])
+
         f = ds["parameters/coriolis_parameter"]
         α = ds["parameters/thermal_expansion_coefficient"]
         g = ds["parameters/gravitational_acceleration"]
@@ -801,7 +802,6 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
         BASELINE_RESULTS_PATH = joinpath(DIR_PATH, "baseline_oceananigans")
         NN_RESULTS_PATH = joinpath(DIR_PATH, "NN_oceananigans")
 
-
         oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params, 
                                                     BASELINE_RESULTS_PATH=BASELINE_RESULTS_PATH,
                                                     NN_RESULTS_PATH=NN_RESULTS_PATH,
@@ -816,8 +816,8 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-    BASELINE_SOL_PATH = joinpath(FILE_DIR, "baseline.jld2")
-    NDE_SOL_PATH = joinpath(FILE_DIR, "NN.jld2")
+    BASELINE_SOL_PATH = joinpath(FILE_DIR, "baseline_oceananigans.jld2")
+    NDE_SOL_PATH = joinpath(FILE_DIR, "NN_oceananigans.jld2")
 
     baseline_sol = jldopen(BASELINE_SOL_PATH)
     NDE_sol = jldopen(NDE_SOL_PATH)

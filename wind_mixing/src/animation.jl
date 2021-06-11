@@ -462,8 +462,11 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     zf_interior = zf[2:end-1]
     z_str = "z / m"
 
+    alpha=0.5
+    truth_linewidth = 7
+
     ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
-    u_lines = [lines!(ax_u, truth_u, zc, linewidth=3, color=colors.truth), 
+    u_lines = [lines!(ax_u, truth_u, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_u, test_u, zc, linewidth=3, color=colors.test)
                 ]
@@ -472,7 +475,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_u, minimum(zc), 0)
 
     ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
-    v_lines = [lines!(ax_v, truth_v, zc, linewidth=3, color=colors.truth), 
+    v_lines = [lines!(ax_v, truth_v, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_v, test_v, zc, linewidth=3, color=colors.test),
                 ]
@@ -481,7 +484,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_v, minimum(zc), 0)
 
     ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
-    T_lines = [lines!(ax_T, truth_T, zc, linewidth=3, color=colors.truth), 
+    T_lines = [lines!(ax_T, truth_T, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_T, test_T, zc, linewidth=3, color=colors.test)
                 ]
@@ -490,7 +493,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_T, minimum(zc), 0)
 
     ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
-    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=3, color=colors.truth), 
+    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_uw, test_uw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
                 lines!(ax_uw, test_uw, zf, linewidth=3, color=colors.test), 
@@ -499,7 +502,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_uw, minimum(zf), 0)
 
     ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
-    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=3, color=colors.truth), 
+    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_vw, test_vw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
                 lines!(ax_vw, test_vw, zf, linewidth=3, color=colors.test)]
@@ -507,7 +510,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_vw, minimum(zf), 0)
 
     ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
-    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=3, color=colors.truth), 
+    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_wT, test_wT_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
                 lines!(ax_wT, test_wT, zf, linewidth=3, color=colors.test)]
@@ -515,7 +518,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     CairoMakie.ylims!(ax_wT, minimum(zf), 0)
 
     ax_Ri = fig[1, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
-    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=3, color=colors.truth), 
+    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors.test)]
 
@@ -835,11 +838,11 @@ function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30
     savefig(joinpath(OUTPUT_PATH, "loss.pdf"))
 end
 
-function animate_training_results_oceananigans(test_files, timestep, FILE_NAME, OUTPUT_DIR)
+function animate_training_results_oceananigans(test_files, FILE_NAME, OUTPUT_DIR; timestep)
     EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
     extracted_training_file = jldopen(EXTRACTED_FILE_PATH)
     losses = extracted_training_file["losses"]
-    solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR, timestep=timestep)
+    # solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR, timestep=timestep)
 
     train_files = extracted_training_file["training_info/train_files"]
     train_parameters = extracted_training_file["training_info/parameters"]

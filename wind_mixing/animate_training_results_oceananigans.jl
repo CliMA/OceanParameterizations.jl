@@ -16,5 +16,5 @@ test_files = [
     "wind_-5e-4_cooling_3e-8",
 ]
 
-OCEANANIGANS_OUTPUT_DIR = joinpath(pwd(), "Output_o", FILE_NAME)
-animate_training_results_oceananigans(test_files, 60, FILE_NAME, OCEANANIGANS_OUTPUT_DIR)
+OCEANANIGANS_OUTPUT_DIR = joinpath("D:\\Output_o", FILE_NAME)
+animate_training_results_oceananigans(test_files, FILE_NAME, OCEANANIGANS_OUTPUT_DIR, timestep=60)

@@ -176,4 +176,4 @@ test_files = train_files
 animate_training_results(test_files, FILE_NAME, trange=1:1:1153)
 
 OCEANANIGANS_OUTPUT_DIR = joinpath(pwd(), "NDE_output_oceananigans", FILE_NAME)
-animate_training_results_oceananigans(test_files, 60, FILE_NAME, OUTPUT_DIR)
+animate_training_results_oceananigans(test_files, 60, FILE_NAME, OCEANANIGANS_OUTPUT_DIR)
