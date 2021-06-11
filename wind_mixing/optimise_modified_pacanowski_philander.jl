@@ -25,6 +25,6 @@ optimizers = [LBFGS()]
 
 tsteps = 1:20:1153
 maxiters = 200
-results, parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH, n_simulations=length(train_files))
+results, parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files))
 
 extract_parameters_modified_pacanowski_philander_optimisation(OUTPUT_PATH, EXTRACTED_OUTPUT_PATH)
