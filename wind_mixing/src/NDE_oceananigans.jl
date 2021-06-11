@@ -323,7 +323,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         model = simulation.model
         clock = simulation.model.clock
 
-        if clock.iteration % 100 == 0
+        if clock.iteration % 1000 == 0
             @info "Neural network: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
         end
 
@@ -372,6 +372,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
                force = true,
         # field_slicer = FieldSlicer(with_halos=true)
         )
+    @info "baseline file created?"
 
     outputs_NN = (
          u = model_neural_network.velocities.u,
@@ -389,6 +390,8 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
                force = true,
         # field_slicer = FieldSlicer(with_halos=true)
         )
+    @info "NN file created?"
+    
 
     @info "Running baseline simulation..."
     run!(simulation_baseline)
