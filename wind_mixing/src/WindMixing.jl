@@ -55,8 +55,6 @@ include("data_extraction.jl")
 include("NDE_oceananigans.jl")
 include("training_postprocessing.jl")
 
-BLAS.set_num_threads(1)
-
 function __init__()
     Logging.global_logger(OceananigansLogger())
 end
