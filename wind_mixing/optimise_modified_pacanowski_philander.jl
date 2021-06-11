@@ -3,18 +3,28 @@ using OceanParameterizations
 using OrdinaryDiffEq
 using DiffEqSensitivity
 using Flux
+using GalacticOptim
 
-train_files = ["-1e-3", "cooling_5e-8"]
+train_files = [       
+    "wind_-1e-3_cooling_4e-8",
+    "wind_-1e-3_cooling_2e-8",
+    "wind_-2e-4_cooling_5e-8",
+    "wind_-1e-3_heating_-4e-8",
+    "wind_-2e-4_heating_-5e-8",
+]
 
-OUTPUT_PATH = joinpath(pwd(), "training_output")
-# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
-FILE_PATH = joinpath(OUTPUT_PATH, "parameter_optimisation_mpp_wind_mixing_-1e-3_cooling_5e-8_2.jld2")
+PATH = pwd()
+FILE_NAME = "parameter_optimisation_5sim_windcooling_SS_SW_WS_windheating_SS_WS"
+OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 
-# 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
-timestepper = RadauIIA5()
+EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
 
-optimizers = [ADAM()]
+timestepper = ROCK4()
+
+optimizers = [LBFGS()]
 
 tsteps = 1:20:1153
-maxiters = 10
-parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH, n_simulations=length(train_files))
+maxiters = 200
+results, parameters = optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH, n_simulations=length(train_files))
+
+extract_parameters_modified_pacanowski_philander_optimisation(FILE_PATH, EXTRACTED_OUTPUT_PATH)
