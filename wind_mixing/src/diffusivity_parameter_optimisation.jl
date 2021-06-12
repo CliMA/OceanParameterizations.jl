@@ -1,5 +1,5 @@
 function DE(x, p, t, derivatives, scalings, constants, BCs)
-    ν₀, ν₋, ΔRi, Riᶜ = p
+    ν₀, ν₋, ΔRi, Riᶜ, Pr = p
 
     Nz, H, τ, f, g, α  = constants.Nz, constants.H, constants.τ, constants.f, constants.g, constants.α
     σ_uw, σ_vw, σ_wT = scalings.uw.σ, scalings.vw.σ, scalings.wT.σ
@@ -21,11 +21,9 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
     ν = ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
     # ν = zeros(Float32, 33)
 
-    Pr = constants.Pr
-
     ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
     ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); σ_v / σ_vw / H .* ν[2:end-1] .* ∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
-    ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); σ_T / σ_wT / H .* ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
+    ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); σ_T / σ_wT / H .* ν[2:end-1] ./ Pr .* ∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
     
     ∂u∂t = τ / H * σ_uw / σ_u .* derivatives.cell * ν∂u∂z .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
     ∂v∂t = τ / H * σ_vw / σ_v .* derivatives.cell * ν∂v∂z .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -34,13 +32,14 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH; n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0)
+function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH; n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0, Pr=1f0)
     𝒟 = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     
     ν₀_scaling = 1 / ν₀
     ν₋_scaling = 1 / ν₋
     ΔRi_scaling = 1 / ΔRi
     Riᶜ_scaling = 1 / Riᶜ
+    Pr_scaling = 1 / Pr
 
     function scale_parameter(parameter, scaling)
         return parameter * scaling
@@ -61,10 +60,10 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
         vw_scaling = 𝒟.scalings["vw"]
         wT_scaling = 𝒟.scalings["wT"]
 
-        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=1.67f-4, g=9.81f0, Pr=1f0)
-        scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling, parameters=[ν₀_scaling, ν₋_scaling, ΔRi_scaling, Riᶜ_scaling])
+        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=1.67f-4, g=9.81f0)
+        scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling, parameters=[ν₀_scaling, ν₋_scaling, ΔRi_scaling, Riᶜ_scaling, Pr_scaling])
         derivatives = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)))
-        parameters = [ν₀, ν₋, ΔRi, Riᶜ]
+        parameters = [ν₀, ν₋, ΔRi, Riᶜ, Pr]
         scaled_parameters = scale_parameter.(parameters, scalings.parameters)
 
         return constants, scalings, derivatives, scaled_parameters
@@ -79,7 +78,7 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
     tspan_train = (t_train[1], t_train[end])
     uvT_trains = [𝒟.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)][:, tsteps] for i in 0:n_simulations - 1]
 
-    @inline function BC(i) 
+    @inline function BC(i)
         index = n_steps * i + tsteps[1]
         return (uw=(bottom=𝒟.uw.scaled[1,index], top=𝒟.uw.scaled[end, index]),
                 vw=(bottom=𝒟.vw.scaled[1,index], top=𝒟.vw.scaled[end, index]),
@@ -99,7 +98,7 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
     end
 
     f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
-    prob_loss = OptimizationProblem(f_loss, scaled_parameters, lb=[0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0])
+    prob_loss = OptimizationProblem(f_loss, scaled_parameters, lb=[0f0, 0f0, 0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0, 10f0, 10f0])
 
     write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, maxiters, tsteps, unscale_parameter.(scaled_parameters, scalings.parameters), optimizers)
     res = 0
@@ -109,9 +108,9 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
         function cb(args...)
             if iter <= maxiters
                 parameters = args[1]
-                ν₀, ν₋, ΔRi, Riᶜ = unscale_parameter.(parameters, scalings.parameters)
+                ν₀, ν₋, ΔRi, Riᶜ, Pr = unscale_parameter.(parameters, scalings.parameters)
                 loss = args[2]
-                @info "ν₀ = $ν₀, ν₋ = $ν₋, ΔRi = $ΔRi, Riᶜ = $Riᶜ, loss = $loss, optimizer $i/$(length(optimizers)), iteration = $iter/$maxiters"
+                @info "ν₀ = $ν₀, ν₋ = $ν₋, ΔRi = $ΔRi, Riᶜ = $Riᶜ, Pr = $Pr, loss = $loss, optimizer $i/$(length(optimizers)), iteration = $iter/$maxiters"
                 write_data_modified_pacanowski_philander_optimisation(FILE_PATH, loss, parameters)
             end
             iter += 1
@@ -123,6 +122,5 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
     end
 
     ν₀, ν₋, ΔRi, Riᶜ = unscale_parameter.(scaled_parameters, scalings.parameters)
-    @info "ν₀ = $ν₀, ν₋ = $ν₋, ΔRi = $ΔRi, Riᶜ = $Riᶜ, loss = $loss"
-    return res, unscaled_parameters
+    @info "ν₀ = $ν₀, ν₋ = $ν₋, ΔRi = $ΔRi, Riᶜ = $Riᶜ, Pr = $Pr, loss = $loss"
 end

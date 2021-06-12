@@ -16,14 +16,14 @@ train_files = [
 PATH = pwd()
 # PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
 
-FILE_NAME = "parameter_optimisation_5sim_windcooling_SS_SW_WS_windheating_SS_WS_4_params"
+FILE_NAME = "parameter_optimisation_5sim_windcooling_SS_SW_WS_windheating_SS_WS_5_params_BFGS"
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
 
 timestepper = ROCK4()
 
-optimizers = [LBFGS()]
+optimizers = [BFGS()]
 
 tsteps = 1:20:1153
 maxiters = 200
