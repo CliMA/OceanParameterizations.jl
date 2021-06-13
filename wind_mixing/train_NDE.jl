@@ -11,14 +11,16 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 
 train_files = [
-        "-1e-3",       
-        "-7e-4",       
-        "-4e-4",       
-        "-2e-4",       
-        "cooling_5e-8",
-        "cooling_4e-8",
-        "cooling_3e-8",
-        "cooling_2e-8",
+    "wind_-1e-3_heating_-4e-8",
+    "wind_-1e-3_heating_-1e-8",
+    "wind_-5e-4_heating_-3e-8",
+    "wind_-2e-4_heating_-5e-8",
+    "wind_-2e-4_heating_-1e-8",
+    "wind_-1e-3_cooling_4e-8",
+    "wind_-2e-4_cooling_1e-8",
+    "wind_-1e-3_cooling_2e-8",
+    "wind_-2e-4_cooling_5e-8",
+    "wind_-5e-4_cooling_3e-8",
 ]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
@@ -30,10 +32,27 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_2"
+FILE_NAME = "NDE_10sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
+
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
+
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
+
+parameters_file = jldopen(PARAMETERS_PATH)
+mpp_parameters = parameters_file["parameters"]
+close(parameters_file)
+
+ν₀_initial = 1f-4
+ν₋_initial = 1f-1
+ΔRi_initial = 1f-1
+Riᶜ_initial = 0.25f0
+Pr_initial = 1f0
+
+mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+
+ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -47,35 +66,35 @@ EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jl
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-                        "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2")
+# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
+#                         "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2")
 
-@assert isfile(FILE_PATH_NN)
-file = jldopen(FILE_PATH_NN, "r")
+# @assert isfile(FILE_PATH_NN)
+# file = jldopen(FILE_PATH_NN, "r")
 
-uw_NN = file["neural_network/uw"]
-vw_NN = file["neural_network/vw"]
-wT_NN = file["neural_network/wT"]
+# uw_NN = file["neural_network/uw"]
+# vw_NN = file["neural_network/vw"]
+# wT_NN = file["neural_network/wT"]
 
-# N_inputs = 96
-# hidden_units = 400
-# N_outputs = 31
+N_inputs = 96
+hidden_units = 400
+N_outputs = 31
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-# uw_NN = re(weights ./ 1f5)
-# vw_NN = re(weights ./ 1f5)
-# wT_NN = re(weights ./ 1f5)
+uw_NN = re(weights ./ 1f5)
+vw_NN = re(weights ./ 1f5)
+wT_NN = re(weights ./ 1f5)
 
 gradient_scaling = 5f-3
-train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "ΔRi" => 1f-1, "Pr" => 1f0, "κ" => 10f0,
+train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Riᶜ" => Riᶜ, "Pr" => Pr, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [400]
+train_iterations = [200]
 train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
@@ -137,21 +156,24 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-    "-1e-3",       
-    "-9e-4",       
-    "-8e-4",       
-    "-7e-4",       
-    "-6e-4",       
-    "-5e-4",       
-    "-4e-4",       
-    "-3e-4",       
-    "-2e-4",       
-    "cooling_6e-8",
-    "cooling_5e-8",
-    "cooling_4e-8",
-    "cooling_3e-8",
-    "cooling_2e-8",
-    "cooling_1e-8",
+    "wind_-5e-4_cooling_4e-8", 
+    "wind_-1e-3_cooling_4e-8", 
+    "wind_-2e-4_cooling_1e-8", 
+    "wind_-1e-3_cooling_2e-8", 
+    "wind_-5e-4_cooling_1e-8", 
+    "wind_-2e-4_cooling_5e-8", 
+    "wind_-5e-4_cooling_3e-8", 
+    "wind_-2e-4_cooling_3e-8", 
+    "wind_-1e-3_cooling_3e-8", 
+    "wind_-1e-3_heating_-4e-8",
+    "wind_-1e-3_heating_-1e-8",
+    "wind_-1e-3_heating_-3e-8",
+    "wind_-5e-4_heating_-5e-8",
+    "wind_-5e-4_heating_-3e-8",
+    "wind_-5e-4_heating_-1e-8",
+    "wind_-2e-4_heating_-5e-8",
+    "wind_-2e-4_heating_-3e-8",
+    "wind_-2e-4_heating_-1e-8",
 ]
 
 animate_training_results(test_files, FILE_NAME, trange=1:1:1153)
