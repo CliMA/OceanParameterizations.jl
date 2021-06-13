@@ -108,10 +108,11 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
         function cb(args...)
             if iter <= maxiters
                 parameters = args[1]
-                ν₀, ν₋, ΔRi, Riᶜ, Pr = unscale_parameter.(parameters, scalings.parameters)
+                unscaled_parameters = unscale_parameter.(parameters, scalings.parameters)
+                ν₀, ν₋, ΔRi, Riᶜ, Pr = unscaled_parameters
                 loss = args[2]
                 @info "ν₀ = $ν₀, ν₋ = $ν₋, ΔRi = $ΔRi, Riᶜ = $Riᶜ, Pr = $Pr, loss = $loss, optimizer $i/$(length(optimizers)), iteration = $iter/$maxiters"
-                write_data_modified_pacanowski_philander_optimisation(FILE_PATH, loss, parameters)
+                write_data_modified_pacanowski_philander_optimisation(FILE_PATH, loss, unscaled_parameters)
             end
             iter += 1
             false
