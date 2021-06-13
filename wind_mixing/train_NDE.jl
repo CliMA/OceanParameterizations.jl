@@ -32,7 +32,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_10sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_10sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
@@ -86,7 +86,7 @@ uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
-gradient_scaling = 5f-3
+gradient_scaling = 1f-2
 train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Riᶜ" => Riᶜ, "Pr" => Pr, "κ" => 10f0,
                         "modified_pacanowski_philander" => true, "convective_adjustment" => false,
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
