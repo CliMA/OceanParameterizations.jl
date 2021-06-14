@@ -32,7 +32,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_10sim_windcooling_SW_WS_windheating_SW_WS_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_2e-4"
+FILE_NAME = "NDE_10sim_windcooling_SW_WS_windheating_SW_WS_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_3e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
@@ -102,7 +102,7 @@ train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Ri�
 train_epochs = [1]
 train_tranges = [1:9:1153]
 train_iterations = [200]
-train_optimizers = [[ADAM(2e-4)]]
+train_optimizers = [[ADAM(3e-4)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:1153]
