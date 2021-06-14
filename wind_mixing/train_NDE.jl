@@ -40,7 +40,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_18sim_windcooling_windheating_divide1f5_gradient_smallNN_swish_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_18sim_windcooling_windheating_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
@@ -94,7 +94,7 @@ N_inputs = 96
 hidden_units = 400
 N_outputs = 31
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, swish), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, leakyrelu), Dense(hidden_units, N_outputs)))
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
 
 uw_NN = re(weights ./ 1f5)
