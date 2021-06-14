@@ -40,33 +40,33 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_18sim_windcooling_windheating_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_18sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 @assert !isfile(FILE_PATH)
 
-# PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
 
-# parameters_file = jldopen(PARAMETERS_PATH)
-# mpp_parameters = parameters_file["parameters"]
-# close(parameters_file)
+parameters_file = jldopen(PARAMETERS_PATH)
+mpp_parameters = parameters_file["parameters"]
+close(parameters_file)
 
-# ν₀_initial = 1f-4
-# ν₋_initial = 1f-1
-# ΔRi_initial = 1f-1
-# Riᶜ_initial = 0.25f0
-# Pr_initial = 1f0
+ν₀_initial = 1f-4
+ν₋_initial = 1f-1
+ΔRi_initial = 1f-1
+Riᶜ_initial = 0.25f0
+Pr_initial = 1f0
 
-# mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
-# ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
 
-ν₀ = 1f-4
-ν₋ = 1f-1
-ΔRi = 1f-1
-Riᶜ = 0.25f0
-Pr = 1f0
+# ν₀ = 1f-4
+# ν₋ = 1f-1
+# ΔRi = 1f-1
+# Riᶜ = 0.25f0
+# Pr = 1f0
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
