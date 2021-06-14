@@ -32,9 +32,9 @@ minimum(losses)
 train_files = file["training_info/train_files"]
 train_parameters = file["training_info/parameters"]
 
-Plots.plot(1:1:length(losses), losses, yscale=:log10)
-Plots.xlabel!("Iteration")
-Plots.ylabel!("Loss mse")
+# Plots.plot(1:1:length(losses), losses, yscale=:log10)
+# Plots.xlabel!("Iteration")
+# Plots.ylabel!("Loss mse")
 # savefig(joinpath(PATH, "Output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
 # train_files = ["-1e-3"]
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
@@ -62,17 +62,13 @@ wT_NN = re(zeros(Float32, length(weights)))
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 trange = 1:1:1153
 plot_data = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
-                        # modified_pacanowski_philander=true, 
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                         # ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
-                        # Riᶜ=train_parameters["Riᶜ"], convective_adjustment=true,
-                        # smooth_NN=false, smooth_Ri=train_parameters["smooth_Ri"],
                         smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                         zero_weights=train_parameters["zero_weights"],
                         gradient_scaling=train_parameters["gradient_scaling"])
-                        # zero_weights=true)
 
 # WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
 

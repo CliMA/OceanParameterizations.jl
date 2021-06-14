@@ -473,7 +473,7 @@ function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, d
 end
 
 function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
-                              unscale=true, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.80665f0, f=1f-4,
+                              ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.80665f0, f=1f-4,
                               OUTPUT_PATH = "",
                               modified_pacanowski_philander=false, convective_adjustment=false,
                               smooth_NN=false, smooth_Ri=false,
@@ -515,6 +515,15 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
 
         sol_modified_pacanowski_philander = solve_NDE_mutating(zeros_uw_NN, zeros_vw_NN, zeros_wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper)
     end
+
+    BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+                    vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+                    wT=(top=𝒟test.wT.coarse[end, 1], bottom=𝒟test.wT.coarse[1, 1]))
+
+    ICs_unscaled = (u=𝒟test.u.coarse[:,1], v=𝒟test.v.coarse[:,1], T=𝒟test.T.coarse[:,1])
+
+    t = 𝒟test.t[trange]
+    sol_kpp = column_model_1D_kpp(constants, BCs_unscaled, ICs_unscaled, t, OceanTurb.KPP.Parameters())
 
     output = Dict()
 
@@ -558,6 +567,25 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         output["loss_modified_pacanowski_philander_gradient"] = mean(losses_modified_pacanowski_philander_gradient)
     end
 
+    uvT_kpp_scaled = [scalings.u.(sol_kpp.U); 
+                      scalings.v.(sol_kpp.V); 
+                      scalings.T.(sol_kpp.T)]
+
+    sol_kpp_gradient = calculate_profile_gradient(uvT_kpp_scaled, derivatives, constants)
+
+    losses_kpp = [loss(@view(uvT_kpp_scaled[:,i]), @view(𝒟test_uvT_scaled[:,i])) for i in 1:size(uvT_kpp_scaled, 2)]
+
+    losses_kpp_gradient = [loss_gradient(@view(𝒟test_uvT_scaled[:,i]), 
+                                         @view(uvT_kpp_scaled[:,i]), 
+                                         @view(𝒟test_uvT_scaled_gradient[:,i]), 
+                                         @view(sol_kpp_gradient[:,i]), 
+                                         gradient_scaling) for i in 1:size(uvT_kpp_scaled, 2)]
+
+    output["losses_kpp"] = losses_kpp
+    output["loss_kpp"] = mean(losses_kpp)
+    output["losses_kpp_gradient"] = losses_kpp_gradient .- losses_kpp
+    output["loss_kpp_gradient"] = mean(losses_kpp_gradient)
+
     truth_uw = 𝒟test.uw.coarse[:,trange]
     truth_vw = 𝒟test.vw.coarse[:,trange]
     truth_wT = 𝒟test.wT.coarse[:,trange]
@@ -581,9 +609,12 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     test_v = inv(scalings.v).(sol[Nz + 1:2Nz, :])
     test_T = inv(scalings.T).(sol[2Nz + 1: 3Nz, :])
 
+    test_u_kpp = sol_kpp.U
+    test_v_kpp = sol_kpp.V
+    test_T_kpp = sol_kpp.T
+
     depth_profile = 𝒟test.u.z
     depth_flux = 𝒟test.uw.z
-    t = 𝒟test.t[trange]
 
     truth_Ri = similar(𝒟test.uw.coarse[:,trange])
 
@@ -645,52 +676,29 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         output["test_Ri_modified_pacanowski_philander"] = test_Ri_modified_pacanowski_philander
     end
 
-    if !unscale
-        truth_uw .= scalings.uw.(𝒟test.uw.coarse[:,trange])
-        truth_vw .= scalings.vw.(𝒟test.vw.coarse[:,trange])
-        truth_wT .= scalings.wT.(𝒟test.wT.coarse[:,trange])
+    test_Ri_kpp = similar(truth_Ri)
 
-        truth_u .= scalings.u.(𝒟test.uvT_unscaled[1:Nz, trange])
-        truth_v .= scalings.v.(𝒟test.uvT_unscaled[Nz + 1:2Nz, trange])
-        truth_T .= scalings.T.(𝒟test.uvT_unscaled[2Nz + 1:3Nz, trange])
-
-        test_uw .= scalings.uw.(test_uw)
-        test_vw .= scalings.vw.(test_vw)
-        test_wT .= scalings.wT.(test_wT)
-
-        test_u .= scalings.u.(test_u)
-        test_v .= scalings.v.(test_v)
-        test_T .= scalings.w.(test_T)
-
-        if modified_pacanowski_philander
-            test_uw_modified_pacanowski_philander .= scalings.uw.(test_uw_modified_pacanowski_philander)
-            test_vw_modified_pacanowski_philander .= scalings.vw.(test_vw_modified_pacanowski_philander)
-            test_wT_modified_pacanowski_philander .= scalings.wT.(test_wT_modified_pacanowski_philander)
-    
-            test_u_modified_pacanowski_philander .= scalings.u.(test_u_modified_pacanowski_philander)
-            test_v_modified_pacanowski_philander .= scalings.v.(test_v_modified_pacanowski_philander)
-            test_T_modified_pacanowski_philander .= scalings.w.(test_T_modified_pacanowski_philander)
-
-            test_uw_NN_only .= scalings.uw.(test_uw_NN_only)
-            test_vw_NN_only .= scalings.vw.(test_vw_NN_only)
-            test_wT_NN_only .= scalings.wT.(test_wT_NN_only)
-        end
+    for i in 1:size(test_Ri_kpp,2)
+        test_Ri_kpp[:,i] .= local_richardson.(D_face * scalings.u.(@view(sol_kpp.U[:,i])), 
+                                              D_face * scalings.v.(@view(sol_kpp.V[:,i])), 
+                                              D_face * scalings.T.(@view(sol_kpp.T[:,i])), 
+                                              H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
     end
 
-    if unscale
-        test_uw .= test_uw .- test_uw[1, 1]
-        test_vw .= test_vw .- test_vw[1, 1] 
-        test_wT .= test_wT .- test_wT[1, 1]
+    output["test_Ri_kpp"] = test_Ri_kpp
 
-        if modified_pacanowski_philander
-            test_uw_modified_pacanowski_philander .= test_uw_modified_pacanowski_philander .- test_uw_modified_pacanowski_philander[1, 1]
-            test_vw_modified_pacanowski_philander .= test_vw_modified_pacanowski_philander .- test_vw_modified_pacanowski_philander[1, 1] 
-            test_wT_modified_pacanowski_philander .= test_wT_modified_pacanowski_philander .- test_wT_modified_pacanowski_philander[1, 1]
+    test_uw .= test_uw .- test_uw[1, 1]
+    test_vw .= test_vw .- test_vw[1, 1] 
+    test_wT .= test_wT .- test_wT[1, 1]
 
-            test_uw_NN_only .= test_uw_NN_only .- test_uw_NN_only[1, 1]
-            test_vw_NN_only .= test_vw_NN_only .- test_vw_NN_only[1, 1] 
-            test_wT_NN_only .= test_wT_NN_only .- test_wT_NN_only[1, 1]
-        end
+    if modified_pacanowski_philander
+        test_uw_modified_pacanowski_philander .= test_uw_modified_pacanowski_philander .- test_uw_modified_pacanowski_philander[1, 1]
+        test_vw_modified_pacanowski_philander .= test_vw_modified_pacanowski_philander .- test_vw_modified_pacanowski_philander[1, 1] 
+        test_wT_modified_pacanowski_philander .= test_wT_modified_pacanowski_philander .- test_wT_modified_pacanowski_philander[1, 1]
+
+        test_uw_NN_only .= test_uw_NN_only .- test_uw_NN_only[1, 1]
+        test_vw_NN_only .= test_vw_NN_only .- test_vw_NN_only[1, 1] 
+        test_wT_NN_only .= test_wT_NN_only .- test_wT_NN_only[1, 1]
     end
 
     output["truth_uw"] = truth_uw
@@ -726,6 +734,14 @@ function NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
         output["test_vw_NN_only"] = test_vw_NN_only
         output["test_wT_NN_only"] = test_wT_NN_only
     end
+
+    output["test_u_kpp"] = test_u_kpp
+    output["test_v_kpp"] = test_v_kpp
+    output["test_T_kpp"] = test_T_kpp
+    
+    output["test_uw_kpp"] = sol_kpp.UW
+    output["test_vw_kpp"] = sol_kpp.VW
+    output["test_wT_kpp"] = sol_kpp.WT
 
     if OUTPUT_PATH !== ""
         jldopen(OUTPUT_PATH, "w") do file

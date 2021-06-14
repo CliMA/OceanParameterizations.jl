@@ -369,9 +369,17 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     test_v_modified_pacanowski_philander = @lift data["test_v_modified_pacanowski_philander"][:,$frame]
     test_T_modified_pacanowski_philander = @lift data["test_T_modified_pacanowski_philander"][:,$frame]
 
+    test_u_kpp = @lift data["test_u_kpp"][:,$frame]
+    test_v_kpp = @lift data["test_v_kpp"][:,$frame]
+    test_T_kpp = @lift data["test_T_kpp"][:,$frame]
+
     test_uw_modified_pacanowski_philander = @lift data["test_uw_modified_pacanowski_philander"][:,$frame]
     test_vw_modified_pacanowski_philander = @lift data["test_vw_modified_pacanowski_philander"][:,$frame]
     test_wT_modified_pacanowski_philander = @lift data["test_wT_modified_pacanowski_philander"][:,$frame]
+
+    test_uw_kpp = @lift data["test_uw_kpp"][:,$frame]
+    test_vw_kpp = @lift data["test_vw_kpp"][:,$frame]
+    test_wT_kpp = @lift data["test_wT_kpp"][:,$frame]
 
     test_uw_NN_only = @lift data["test_uw_NN_only"][2:end-1,$frame]
     test_vw_NN_only = @lift data["test_vw_NN_only"][2:end-1,$frame]
@@ -380,46 +388,53 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     truth_Ri = @lift clamp.(data["truth_Ri"][:,$frame], -1, 2)
     test_Ri = @lift clamp.(data["test_Ri"][:,$frame], -1, 2)
     test_Ri_modified_pacanowski_philander = @lift clamp.(data["test_Ri_modified_pacanowski_philander"][:,$frame], -1, 2)
-    # test_Ri_NN_only = @lift clamp.(data["test_Ri_NN_only"][:,$frame], -1, 2)
+    test_Ri_kpp = @lift clamp.(data["test_Ri_kpp"][:,$frame], -1, 2)
 
     losses = data["losses"]
     losses_gradient = data["losses_gradient"]
     losses_modified_pacanowski_philander = data["losses_modified_pacanowski_philander"]
     losses_modified_pacanowski_philander_gradient = data["losses_modified_pacanowski_philander_gradient"]
+    losses_kpp = data["losses_kpp"]
+    losses_kpp_gradient = data["losses_kpp_gradient"]
 
-    losses .= losses .+ (losses .== 0) .* eps(Float32)
-    losses_gradient .= losses_gradient .+ (losses_gradient .== 0) .* eps(Float32)
-    losses_modified_pacanowski_philander .= losses_modified_pacanowski_philander .+ (
-                                                 losses_modified_pacanowski_philander .== 0) .* eps(Float32)
-    losses_modified_pacanowski_philander_gradient .= losses_modified_pacanowski_philander_gradient .+ (
-                                                          losses_modified_pacanowski_philander_gradient .== 0) .* eps(Float32)
+    function add_ϵ!(losses)
+        losses .= losses .+ (losses .== 0) .* eps(Float32)
+    end
+
+    add_ϵ!(losses)
+    add_ϵ!(losses_gradient)
+    add_ϵ!(losses_modified_pacanowski_philander)
+    add_ϵ!(losses_modified_pacanowski_philander_gradient)
+    add_ϵ!(losses_kpp)
+    add_ϵ!(losses_kpp_gradient)
 
     loss_point = @lift [losses[$frame]]
-
     loss_gradient_point = @lift [losses_gradient[$frame]]
     loss_modified_pacanowski_philander_point = @lift [losses_modified_pacanowski_philander[$frame]]
     loss_modified_pacanowski_philander_gradient_point = @lift [losses_modified_pacanowski_philander_gradient[$frame]]
+    loss_kpp_point = @lift [losses_kpp[$frame]]
+    loss_kpp_gradient_point = @lift [losses_kpp_gradient[$frame]]
 
-    u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"]), maximum(data["test_u_modified_pacanowski_philander"])])
-    u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"]), minimum(data["test_u_modified_pacanowski_philander"])])
+    u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"]), maximum(data["test_u_modified_pacanowski_philander"]), maximum(data["test_u_kpp"])])
+    u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"]), minimum(data["test_u_modified_pacanowski_philander"]), minimum(data["test_u_kpp"])])
 
-    v_max = maximum([maximum(data["truth_v"]), maximum(data["test_v"]), maximum(data["test_v_modified_pacanowski_philander"])])
-    v_min = minimum([minimum(data["truth_v"]), minimum(data["test_v"]), minimum(data["test_v_modified_pacanowski_philander"])])
+    v_max = maximum([maximum(data["truth_v"]), maximum(data["test_v"]), maximum(data["test_v_modified_pacanowski_philander"]), maximum(data["test_v_kpp"])])
+    v_min = minimum([minimum(data["truth_v"]), minimum(data["test_v"]), minimum(data["test_v_modified_pacanowski_philander"]), minimum(data["test_v_kpp"])])
 
-    T_max = maximum([maximum(data["truth_T"]), maximum(data["test_T"]), maximum(data["test_T_modified_pacanowski_philander"])])
-    T_min = minimum([minimum(data["truth_T"]), minimum(data["test_T"]), minimum(data["test_T_modified_pacanowski_philander"])])
+    T_max = maximum([maximum(data["truth_T"]), maximum(data["test_T"]), maximum(data["test_T_modified_pacanowski_philander"]), maximum(data["test_T_kpp"])])
+    T_min = minimum([minimum(data["truth_T"]), minimum(data["test_T"]), minimum(data["test_T_modified_pacanowski_philander"]), minimum(data["test_T_kpp"])])
 
-    uw_max = maximum([maximum(data["truth_uw"]), maximum(data["test_uw"]), maximum(data["test_uw_modified_pacanowski_philander"]), maximum(data["test_uw_NN_only"])])
-    uw_min = minimum([minimum(data["truth_uw"]), minimum(data["test_uw"]), minimum(data["test_uw_modified_pacanowski_philander"]), minimum(data["test_uw_NN_only"])])
+    uw_max = maximum([maximum(data["truth_uw"]), maximum(data["test_uw"]), maximum(data["test_uw_modified_pacanowski_philander"]), maximum(data["test_uw_kpp"]), maximum(data["test_uw_NN_only"])])
+    uw_min = minimum([minimum(data["truth_uw"]), minimum(data["test_uw"]), minimum(data["test_uw_modified_pacanowski_philander"]), minimum(data["test_uw_kpp"]), minimum(data["test_uw_NN_only"])])
 
-    vw_max = maximum([maximum(data["truth_vw"]), maximum(data["test_vw"]), maximum(data["test_vw_modified_pacanowski_philander"]), maximum(data["test_vw_NN_only"])])
-    vw_min = minimum([minimum(data["truth_vw"]), minimum(data["test_vw"]), minimum(data["test_vw_modified_pacanowski_philander"]), minimum(data["test_vw_NN_only"])])
+    vw_max = maximum([maximum(data["truth_vw"]), maximum(data["test_vw"]), maximum(data["test_vw_modified_pacanowski_philander"]), maximum(data["test_vw_kpp"]), maximum(data["test_vw_NN_only"])])
+    vw_min = minimum([minimum(data["truth_vw"]), minimum(data["test_vw"]), minimum(data["test_vw_modified_pacanowski_philander"]), minimum(data["test_vw_kpp"]), minimum(data["test_vw_NN_only"])])
     
-    wT_max = maximum([maximum(data["truth_wT"]), maximum(data["test_wT"]), maximum(data["test_wT_modified_pacanowski_philander"]), maximum(data["test_wT_NN_only"])])
-    wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"]), minimum(data["test_wT_modified_pacanowski_philander"]), minimum(data["test_wT_NN_only"])])
+    wT_max = maximum([maximum(data["truth_wT"]), maximum(data["test_wT"]), maximum(data["test_wT_modified_pacanowski_philander"]), maximum(data["test_wT_kpp"]), maximum(data["test_wT_NN_only"])])
+    wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"]), minimum(data["test_wT_modified_pacanowski_philander"]), minimum(data["test_wT_kpp"]), minimum(data["test_wT_NN_only"])])
 
-    losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"])])
-    losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end])])
+    losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"]), maximum(data["losses_kpp"]), maximum(data["losses_kpp_gradient"])])
+    losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end]), minimum(data["losses_kpp"][2:end]), minimum(data["losses_kpp_gradient"][2:end])])
 
     train_parameters = data["train_parameters"]
     ν₀ = train_parameters.ν₀
@@ -439,16 +454,20 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str, $scaling_str"
     
     fig = Figure(resolution=(1920, 1080))
-    color_palette = distinguishable_colors(9, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+    color_palette = distinguishable_colors(12, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     colors = (truth=color_palette[1], 
               test=color_palette[2], 
               test_modified_pacanoswki_philander=color_palette[3],
-              test_NN_only=color_palette[4])
-    colors_losses = (loss=color_palette[5],
-                     loss_modified_pacanowski_philander=color_palette[6],
-                     loss_gradient=color_palette[7],
-                     loss_gradient_modified_pacanowski_philander=color_palette[8],
-                     point=color_palette[9])
+              test_NN_only=color_palette[4],
+              test_kpp=color_palette[5])
+
+    colors_losses = (loss=color_palette[6],
+                     loss_modified_pacanowski_philander=color_palette[7],
+                     loss_kpp=color_palette[8],
+                     loss_gradient=color_palette[9],
+                     loss_gradient_modified_pacanowski_philander=color_palette[10],
+                     loss_gradient_kpp=color_palette[11],
+                     point=color_palette[12])
 
     u_str = "u / m s⁻¹"
     v_str = "v / m s⁻¹"
@@ -468,6 +487,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
     u_lines = [lines!(ax_u, truth_u, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_u, test_u_kpp, zc, linewidth=3, color=colors.test_kpp),
                 lines!(ax_u, test_u, zc, linewidth=3, color=colors.test)
                 ]
                 # lines!(ax_u, test_u_NN_only, zc, linewidth=3, color=colors[4])]
@@ -477,6 +497,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
     v_lines = [lines!(ax_v, truth_v, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_v, test_v_kpp, zc, linewidth=3, color=colors.test_kpp),
                 lines!(ax_v, test_v, zc, linewidth=3, color=colors.test),
                 ]
                 # lines!(ax_v, test_v_NN_only, zc, linewidth=3, color=colors[4])]
@@ -486,6 +507,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
     T_lines = [lines!(ax_T, truth_T, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_T, test_T_kpp, zc, linewidth=3, color=colors.test_kpp),
                 lines!(ax_T, test_T, zc, linewidth=3, color=colors.test)
                 ]
                 # lines!(ax_T, test_T_NN_only, zc, linewidth=3, color=colors[4])]
@@ -496,6 +518,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_uw, test_uw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_uw, test_uw_kpp, zf, linewidth=3, color=colors.test_kpp),
                 lines!(ax_uw, test_uw, zf, linewidth=3, color=colors.test), 
                 ]
     CairoMakie.xlims!(ax_uw, uw_min, uw_max)
@@ -505,6 +528,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_vw, test_vw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_vw, test_vw_kpp, zf, linewidth=3, color=colors.test_kpp),
                 lines!(ax_vw, test_vw, zf, linewidth=3, color=colors.test)]
     CairoMakie.xlims!(ax_vw, vw_min, vw_max)
     CairoMakie.ylims!(ax_vw, minimum(zf), 0)
@@ -513,6 +537,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
                 lines!(ax_wT, test_wT_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
+                lines!(ax_wT, test_wT_kpp, zf, linewidth=3, color=colors.test_kpp),
                 lines!(ax_wT, test_wT, zf, linewidth=3, color=colors.test)]
                 CairoMakie.xlims!(ax_wT, wT_min, wT_max)
     CairoMakie.ylims!(ax_wT, minimum(zf), 0)
@@ -520,6 +545,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     ax_Ri = fig[1, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
     Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
                 lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
+                lines!(ax_Ri, test_Ri_kpp, zf, linewidth=3, color=colors.test_kpp),
                 lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors.test)]
 
     CairoMakie.xlims!(ax_Ri, -1, 2)
@@ -529,11 +555,18 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     losses_lines = [lines!(ax_losses, times, losses, linewidth=3, color=colors_losses.loss),
                     lines!(ax_losses, times, losses_modified_pacanowski_philander, linewidth=3, color=colors_losses.loss_modified_pacanowski_philander),
                     lines!(ax_losses, times, losses_gradient, linewidth=3, color=colors_losses.loss_gradient),
-                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses.loss_gradient_modified_pacanowski_philander)]
+                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses.loss_gradient_modified_pacanowski_philander),
+                    lines!(ax_losses, times, losses_kpp, linewidth=3, color=colors_losses.loss_kpp),
+                    lines!(ax_losses, times, losses_kpp_gradient, linewidth=3, color=colors_losses.loss_gradient_kpp),
+                    ]
+
     losses_point = [CairoMakie.scatter!(ax_losses, time_point, loss_point, color=colors_losses.point),
                     CairoMakie.scatter!(ax_losses, time_point, loss_gradient_point, color=colors_losses.point),
                     CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, color=colors_losses.point)]                
+                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, color=colors_losses.point),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_kpp_point, color=colors_losses.point),
+                    CairoMakie.scatter!(ax_losses, time_point, loss_kpp_gradient_point, color=colors_losses.point),
+                    ]                
     
     CairoMakie.xlims!(ax_losses, times[1], times[end])
     CairoMakie.ylims!(ax_losses, losses_min, losses_max)
@@ -541,11 +574,15 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     legend = fig[1, 5] = Legend(fig, uw_lines, ["Oceananigans.jl LES", 
                                                 "Modified Pac-Phil Only", 
                                                 "NN Only",
+                                                "KPP",
                                                 "NN + Modified Pac-Phil"])
+
     legend = fig[2, 5] = Legend(fig, losses_lines, ["Profile Loss, NN + Modified Pac-Phil", 
                                                     "Profile Loss, Modified Pac-Phil Only", 
                                                     "Gradient Loss, NN + Modified Pac-Phil", 
-                                                    "Gradient Loss, Modified Pac-Phil Only"])
+                                                    "Gradient Loss, Modified Pac-Phil Only",
+                                                    "Profile Loss, KPP",
+                                                    "Gradient Loss, KPP"])
     # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
     subtitle = fig[end+1, :] = Label(fig, text=plot_subtitle, textsize=20)
