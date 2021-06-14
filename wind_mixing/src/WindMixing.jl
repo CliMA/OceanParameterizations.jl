@@ -26,6 +26,7 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans: OceananigansLogger
 using Oceananigans
 using OceanParameterizations
+import OceanTurb
 using JLD2
 using FileIO
 using BSON
@@ -54,6 +55,7 @@ include("diffusivity_parameter_optimisation.jl")
 include("data_extraction.jl")
 include("NDE_oceananigans.jl")
 include("training_postprocessing.jl")
+include("k_profile_parameterization.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
