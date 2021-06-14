@@ -11,16 +11,24 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 
 train_files = [
-    # "wind_-1e-3_heating_-4e-8",
+    "wind_-5e-4_cooling_4e-8", 
+    "wind_-1e-3_cooling_4e-8", 
+    "wind_-2e-4_cooling_1e-8", 
+    "wind_-1e-3_cooling_2e-8", 
+    "wind_-5e-4_cooling_1e-8", 
+    "wind_-2e-4_cooling_5e-8", 
+    "wind_-5e-4_cooling_3e-8", 
+    "wind_-2e-4_cooling_3e-8", 
+    "wind_-1e-3_cooling_3e-8", 
+    "wind_-1e-3_heating_-4e-8",
     "wind_-1e-3_heating_-1e-8",
-    # "wind_-5e-4_heating_-3e-8",
+    "wind_-1e-3_heating_-3e-8",
+    "wind_-5e-4_heating_-5e-8",
+    "wind_-5e-4_heating_-3e-8",
+    "wind_-5e-4_heating_-1e-8",
     "wind_-2e-4_heating_-5e-8",
-    # "wind_-2e-4_heating_-1e-8",
-    # "wind_-1e-3_cooling_4e-8",
-    # "wind_-2e-4_cooling_1e-8",
-    "wind_-1e-3_cooling_2e-8",
-    "wind_-2e-4_cooling_5e-8",
-    # "wind_-5e-4_cooling_3e-8",
+    "wind_-2e-4_heating_-3e-8",
+    "wind_-2e-4_heating_-1e-8",
 ]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
@@ -32,7 +40,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_10sim_windcooling_SW_WS_windheating_SW_WS_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_3e-4"
+FILE_NAME = "NDE_18sim_windcooling_windheating_divide1f5_gradient_smallNN_mish_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
@@ -86,7 +94,7 @@ N_inputs = 96
 hidden_units = 400
 N_outputs = 31
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, leakyrelu), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
 
 uw_NN = re(weights ./ 1f5)
@@ -101,8 +109,8 @@ train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Ri�
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [200]
-train_optimizers = [[ADAM(3e-4)]]
+train_iterations = [600]
+train_optimizers = [[ADAM(1e-4)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:1153]
