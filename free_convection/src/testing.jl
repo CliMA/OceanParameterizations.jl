@@ -67,12 +67,18 @@ function plot_epoch_loss_summary(ids, nde_solutions, true_solutions, T_scaling; 
          1 <= id <= 9  && return colors[1]
         10 <= id <= 12 && return colors[2]
         13 <= id <= 15 && return colors[3]
+        16 <= id <= 18 && return colors[4]
+        19 <= id <= 21 && return colors[5]
+        error("Invalid ID: $id")
     end
 
     function label(id)
          1 <= id <= 9  && return "training"
         10 <= id <= 12 && return "Qb interpolation"
         13 <= id <= 15 && return "Qb extrapolation"
+        16 <= id <= 18 && return "N² interpolation"
+        19 <= id <= 21 && return "N² extrapolation"
+        error("Invalid ID: $id")
     end
 
     for id in ids
@@ -83,14 +89,20 @@ function plot_epoch_loss_summary(ids, nde_solutions, true_solutions, T_scaling; 
 
     CairoMakie.xlims!(0, epochs)
 
-    entry1 = LineElement(color=color(1))
-    entry2 = LineElement(color=color(10))
-    entry3 = LineElement(color=color(13))
+    entry_ids = (1, 10, 13, 16, 19)
+    entries = [LineElement(color=color(id)) for id in entry_ids]
+    labels = [label(id) for id in entry_ids]
 
-    Legend(fig[1, 2], [entry1, entry2, entry3], [label(1), label(10), label(13)], framevisible=false)
+    Legend(fig[1, 2], entries, labels, framevisible=false)
 
-    save(filepath_prefix * ".png", fig, px_per_unit=2)
-    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
+    filepath_png = filepath_prefix * ".png"
+    filepath_pdf = filepath_prefix * ".pdf"
+
+    rm(filepath_png)
+    rm(filepath_pdf)
+
+    save(filepath_png, fig, px_per_unit=2)
+    save(filepath_pdf, fig, pt_per_unit=2)
 
     return nothing
 end

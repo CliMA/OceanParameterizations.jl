@@ -1,8 +1,8 @@
 using Oceananigans: Flat, Bounded, RegularRectilinearGrid
 
-ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary/neural_free_convection_training_data"
+ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/neural_free_convection_training_data"
 
-SIMULATION_IDS = 1:15
+SIMULATION_IDS = 1:21
 
 LESBRARY_DATA_DEPS = [
     DataDep("free_convection_$id",
