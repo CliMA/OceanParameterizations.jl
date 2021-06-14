@@ -101,7 +101,7 @@ train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Ri�
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [150]
+train_iterations = [200]
 train_optimizers = [[ADAM(2e-4)]]
 
 # train_epochs = [1]

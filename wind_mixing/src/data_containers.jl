@@ -39,6 +39,7 @@ directories = Dict(
     "wind_-2e-4_heating_-5e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-5.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
     "wind_-2e-4_heating_-3e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
     "wind_-2e-4_heating_-1e-8" => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "diurnal"                  => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2"
     )
 
 function read_les_output(filename::String)

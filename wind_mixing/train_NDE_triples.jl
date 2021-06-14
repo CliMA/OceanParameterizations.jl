@@ -11,17 +11,21 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 
 # Training data
+# train_files = [
+#     "wind_-1e-3_heating_-4e-8",
+#     "wind_-5e-4_cooling_4e-8",
+#     ]
+
 train_files = [
-    "wind_-1e-3_heating_-4e-8",
-    "wind_-5e-4_cooling_4e-8",
-    ]
+    "-1e-3"
+]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
@@ -53,7 +57,7 @@ wT_NN = re(weights ./ 1f5)
 
 task_id = parse(Int,ARGS[1]) + 1
 num_tasks = parse(Int,ARGS[2])
-
+task_id = 1
 FILE_NAME = ["NDE_training_mpp_2sim_windcooling_MS_windheating_SS_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4",
              "NDE_training_mpp_2sim_windcooling_MS_windheating_SS_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4",
              "NDE_training_mpp_2sim_windcooling_MS_windheating_SS_diffusivity_1e-1_Ri_1e-1_divide1f5_gradient_smallNN_scale_1.5e-2_rate_1e-4",
@@ -91,16 +95,16 @@ train_parameters = Dict("ν₀" => 1f-4, "ν₋" => 0.1f0, "Riᶜ" => 0.25f0, "�
                         "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
                         "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
 
-train_epochs = [1]
-train_tranges = [1:9:1153]
-train_iterations = [600]
-# train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
-train_optimizers = [[ADAM(1e-4)]]
-
 # train_epochs = [1]
-# train_tranges = [1:35:1153]
-# train_iterations = [5]
-# train_optimizers = [[ADAM(2e-4)]]
+# train_tranges = [1:9:1153]
+# train_iterations = [600]
+# # train_optimizers = [[[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]], [[ADAM(1e-4)]], [[ADAM(2e-4)]]][task_id]
+# train_optimizers = [[ADAM(1e-4)]]
+
+train_epochs = [1]
+train_tranges = [1:35:200]
+train_iterations = [3]
+train_optimizers = [[ADAM(2e-4)]]
 
 # train_tranges = [1:10:100, 1:10:200, 1:20:500, 1:30:700, 1:30:800, 1:30:900, 1:35:1153]
 # train_epochs = [1 for i in 1:length(train_tranges)]
@@ -114,7 +118,7 @@ train_optimizers = [[ADAM(1e-4)]]
 # # train_optimizers = [[ADAM(1e-5)] for i in 1:6]
 
 
-timestepper = ROCK4()
+timestepper = Rosenbrock23()
 
 # train_optimizers = [[ADAM(2e-4), ADAM(1e-4), ADAM(5e-5), RMSProp(1e-4)]]
 # train_optimizers=[[ADAM(5e-4)]]

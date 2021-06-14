@@ -15,7 +15,7 @@ using LinearAlgebra
 
 
 PATH = joinpath(pwd(), "extracted_training_output")
-DATA_NAME = "NDE_training_mpp_2sim_wind_mixing_-1e-3_cooling_5e-8_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_1e-4"
+DATA_NAME = "NDE_training_mpp_10sim_windcooling_windheating_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4"
 DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
 
 # file = jldopen(DATA_PATH, "r")
@@ -26,25 +26,12 @@ train_parameters = file["training_info/parameters"]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-test_files = ["cooling_5e-8"]
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
 close(file)
 [uw_NN(rand(96)) uw_NN(rand(96))]
-
-# N_inputs = 96
-# hidden_units = 400
-# N_outputs = 31
-
-# # weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, hidden_units, relu), Dense(hidden_units, N_outputs)))
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
-
-# uw_NN = re(zeros(Float32, length(weights)))
-# vw_NN = re(zeros(Float32, length(weights)))
-# wT_NN = re(zeros(Float32, length(weights)))
 
 constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters = prepare_parameters_NDE_training(
     𝒟train, uw_NN, vw_NN, wT_NN, 1f-4, 32, 9.81, 1.67f-4, 1f-4, 1f-1, 0.25f0, 0.1f0, 1f0, 10, (modified_pacanowski_philander=true, something=false))
@@ -53,21 +40,17 @@ test_files = ["-1e-3"]
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 BCs = prepare_BCs(𝒟test, scalings)
 uvT₀ = [scalings.u.(𝒟test.u.coarse[:,1]); scalings.v.(𝒟test.v.coarse[:,1]); scalings.T.(𝒟test.T.coarse[:,1])]
-inv(scalings.wT)(BCs.wT.top)
 trange = 1:1:1153
 ts = 𝒟test.t[trange] ./ constants.τ
-timestepper=ROCK4()
+timestepper = ImplicitEuler(autodiff=false)
 
-file = jldopen(DATA_PATH, "r")
-uw_NN = file["neural_network/uw"]
-vw_NN = file["neural_network/vw"]
-wT_NN = file["neural_network/wT"]
-close(file)
+Threads.nthreads() = 6
+BLAS.set_num_threads(4)
 
 @info "CPU"
-# sol = solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper=timestepper)
-@btime solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper=timestepper)
-@btime solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper=timestepper)
+sol = solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
+# @btime solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
+# @btime solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
 
 
 @info "CPU 40 threads"
