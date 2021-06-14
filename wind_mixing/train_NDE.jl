@@ -28,7 +28,7 @@ train_files = [
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
