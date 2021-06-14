@@ -62,8 +62,8 @@ function plot_epoch_loss_summary(ids, nde_solutions, true_solutions, T_scaling; 
     fig = Figure()
     ax1 = fig[1, 1] = Axis(fig, xlabel="Epoch", ylabel="Mean squared error", yscale=log10)
 
-    function color(id)
-        colors = CairoMakie.Makie.wong_colors()
+    function color(id; alpha=1.0)
+        colors = CairoMakie.Makie.wong_colors(alpha)
          1 <= id <= 9  && return colors[1]
         10 <= id <= 12 && return colors[2]
         13 <= id <= 15 && return colors[3]
@@ -98,11 +98,62 @@ function plot_epoch_loss_summary(ids, nde_solutions, true_solutions, T_scaling; 
     filepath_png = filepath_prefix * ".png"
     filepath_pdf = filepath_prefix * ".pdf"
 
-    rm(filepath_png)
-    rm(filepath_pdf)
+    # Protection from https://github.com/JuliaPlots/Makie.jl/issues/404
+    isfile(filepath_png) && rm(filepath_png)
+    isfile(filepath_pdf) && rm(filepath_pdf)
 
     save(filepath_png, fig, px_per_unit=2)
     save(filepath_pdf, fig, pt_per_unit=2)
+
+    return nothing
+end
+
+function plot_epoch_loss_summary_filled_curves(ids, nde_solutions, true_solutions, T_scaling; filepath_prefix, alpha=0.5)
+    epochs = length(nde_solutions[first(ids)])
+
+    fig = Figure()
+    ax1 = fig[1, 1] = Axis(fig, xlabel="Epoch", ylabel="Mean squared error", yscale=log10)
+
+    function color(id; alpha=1.0)
+        colors = CairoMakie.Makie.wong_colors(alpha)
+         1 <= id <= 9  && return colors[1]
+        10 <= id <= 12 && return colors[2]
+        13 <= id <= 15 && return colors[3]
+        16 <= id <= 18 && return colors[4]
+        19 <= id <= 21 && return colors[5]
+        error("Invalid ID: $id")
+    end
+
+    function label(id)
+         1 <= id <= 9  && return "training"
+        10 <= id <= 12 && return "Qb interpolation"
+        13 <= id <= 15 && return "Qb extrapolation"
+        16 <= id <= 18 && return "N² interpolation"
+        19 <= id <= 21 && return "N² extrapolation"
+        error("Invalid ID: $id")
+    end
+
+    loss_histories = Dict(
+        id => [Flux.mse(T_scaling.(true_solutions[id].T), T_scaling.(nde_solutions[id][e].T)) for e in 1:epochs]
+        for id in ids
+    )
+
+    for sub_ids in (1:9, 10:12, 13:15, 16:18, 19:21)
+        min_loss_training = [minimum([loss_histories[id][e] for id in sub_ids]) for e in 1:epochs]
+        max_loss_training = [maximum([loss_histories[id][e] for id in sub_ids]) for e in 1:epochs]
+        band!(ax1, 1:epochs, min_loss_training, max_loss_training, color=color(sub_ids[1]; alpha))
+    end
+
+    CairoMakie.xlims!(0, epochs)
+
+    entry_ids = (1, 10, 13, 16, 19)
+    entries = [PolyElement(color=color(id; alpha)) for id in entry_ids]
+    labels = [label(id) for id in entry_ids]
+
+    Legend(fig[1, 2], entries, labels, framevisible=false)
+
+    save(filepath_prefix * ".png", fig, px_per_unit=2)
+    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
 
     return nothing
 end

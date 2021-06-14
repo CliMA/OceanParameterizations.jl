@@ -143,28 +143,36 @@ plot_initial_vs_final_loss_matrix(coarse_datasets, ids_train, nde_solutions, ini
                                   filepath_prefix = joinpath(output_dir, "loss_matrix_plots_initial_vs_final.png"))
 
 
-@info "Plotting comparisons..."
+# @info "Plotting comparisons..."
 
-for (id, ds) in coarse_datasets
-    filepath = joinpath(output_dir, "free_convection_comparisons_$id")
-    plot_comparisons(ds, id, ids_train, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
-                     convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
-                     filepath = filepath, frameskip = 5)
-end
+# for (id, ds) in coarse_datasets
+#     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
+#     plot_comparisons(ds, id, ids_train, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
+#                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
+#                      filepath = filepath, frameskip = 5)
+# end
 
 
-@info "Animating what the neural network has learned..."
+# @info "Animating what the neural network has learned..."
 
-for (id, ds) in coarse_datasets
-    filepath = joinpath(output_dir, "learned_free_convection_$id")
-    animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-                                    filepath=filepath, frameskip=5)
-end
+# for (id, ds) in coarse_datasets
+#     filepath = joinpath(output_dir, "learned_free_convection_$id")
+#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+#                                     filepath=filepath, frameskip=5)
+# end
 
 
 @info "Computing NDE solution history..."
 
 nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
+
+nde_history_filepath = joinpath(output_dir, "free_convection_nde_history.jld2")
+
+jldopen(nde_history_filepath, "w") do file
+    file["nde_solution_history"] = nde_solution_history
+end
+
+close(file)
 
 
 @info "Plotting loss(epoch)..."
@@ -174,6 +182,11 @@ plot_epoch_loss(ids_train, ids_test, nde_solution_history, true_solutions, T_sca
 
 plot_epoch_loss_summary(FreeConvection.SIMULATION_IDS, nde_solution_history, true_solutions, T_scaling,
                         filepath_prefix = joinpath(output_dir, "free_convection_nde_loss_history_summary"))
+
+plot_epoch_loss_summary_filled_curves(
+    FreeConvection.SIMULATION_IDS, nde_solution_history, true_solutions, T_scaling,
+    filepath_prefix = joinpath(output_dir, "free_convection_nde_loss_history_summary_filled_curves")
+)
 
 
 @info "Plotting loss(time; epoch)..."
