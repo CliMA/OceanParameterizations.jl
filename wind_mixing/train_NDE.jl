@@ -32,7 +32,7 @@ OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterization
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_10sim_windcooling_SW_WS_windheating_SW_WS_divide1f5_gradient_smallNN_800_mish_scale_5e-3_rate_2e-4"
+FILE_NAME = "NDE_10sim_windcooling_SW_WS_windheating_SW_WS_divide1f5_gradient_smallNN_200_mish_scale_5e-3_rate_2e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
@@ -83,7 +83,7 @@ Pr = 1f0
 # wT_NN = file["neural_network/wT"]
 
 N_inputs = 96
-hidden_units = 800
+hidden_units = 200
 N_outputs = 31
 
 weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
