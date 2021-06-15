@@ -1,6 +1,5 @@
 module WindMixing
 
-using JLD2: FILE_GROW_SIZE
 export data, read_les_output,
        animate_prediction,
        mse, 
