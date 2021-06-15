@@ -46,7 +46,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_6sim_windcooling_SW_WS_MM_windheating_SW_WS_MM_$(params_type)_divide1f5_gradient_smallNN_$(hidden_units)_$(NN_type)_scale_5e-3_rate_$(Int(rate*1e4))e-4"
+FILE_NAME = "NDE_6sim_windcooling_SW_WS_MM_windheating_SW_WS_MM_$(params_type)_divide1f5_gradient_smallNN_$(hidden_units)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
