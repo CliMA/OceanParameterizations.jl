@@ -32,7 +32,9 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH; n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0, Pr=1f0)
+function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH;
+                                                n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0, Pr=1f0,
+                                                train_gradient=true, gradient_scaling=5f-3)
     𝒟 = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     
     ν₀_scaling = 1 / ν₀
@@ -78,6 +80,10 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
     tspan_train = (t_train[1], t_train[end])
     uvT_trains = [𝒟.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)][:, tsteps] for i in 0:n_simulations - 1]
 
+    if train_gradient
+        uvT_trains_gradient = [calculate_profile_gradient(uvT, derivatives, constants) for uvT in uvT_trains]
+    end
+
     @inline function BC(i)
         index = n_steps * i + tsteps[1]
         return (uw=(bottom=𝒟.uw.scaled[1,index], top=𝒟.uw.scaled[end, index]),
@@ -91,13 +97,25 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
 
     # Array(solve(ODEProblem((x, p, t) -> DE(x, p, t, derivatives, scalings, constants, BCs[1]), uvT₀s[1], tspan_train), ROCK4(), p=parameters))
 
-    function loss(parameters, p)
+    @inline function loss_mpp(parameters, p)
         unscaled_parameters = unscale_parameter.(parameters, scalings.parameters)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=unscaled_parameters, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
-        return mean(Flux.mse.(sols, uvT_trains))
+        return mean(loss.(sols, uvT_trains))
     end
 
-    f_loss = OptimizationFunction(loss, GalacticOptim.AutoZygote())
+    @inline function loss_gradient_mpp(parameters, p)
+        unscaled_parameters = unscale_parameter.(parameters, scalings.parameters)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=unscaled_parameters, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+        sol_gradients = [calculate_profile_gradient(sol, derivatives, constants) for sol in sols]
+        return mean(loss_gradient.(sols, uvT_trains, sol_gradients, uvT_trains_gradient, gradient_scaling))
+    end
+
+    if train_gradient
+        f_loss = OptimizationFunction(loss_gradient_mpp, GalacticOptim.AutoZygote())
+    else
+        f_loss = OptimizationFunction(loss_mpp, GalacticOptim.AutoZygote())
+    end
+
     prob_loss = OptimizationProblem(f_loss, scaled_parameters, lb=[0f0, 0f0, 0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0, 10f0, 10f0])
 
     write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, maxiters, tsteps, unscale_parameter.(scaled_parameters, scalings.parameters), optimizers)

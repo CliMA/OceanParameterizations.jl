@@ -29,17 +29,19 @@ train_files = [
 PATH = pwd()
 # PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
 
-FILE_NAME = "parameter_optimisation_18sim_windcooling_windheating_5params_GD"
+FILE_NAME = "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_scale_1e-3"
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
 
 timestepper = ROCK4()
 
-optimizers = [Descent()]
+optimizers = [BFGS()]
 
 tsteps = 1:20:1153
 maxiters = 200
-optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files))
+
+optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files),
+                                       train_gradient=true, gradient_scaling=1f-3)
 
 extract_parameters_modified_pacanowski_philander_optimisation(OUTPUT_PATH, EXTRACTED_OUTPUT_PATH)
