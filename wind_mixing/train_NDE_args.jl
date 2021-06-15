@@ -11,10 +11,10 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-NN_type = parse(String, ARGS[1])
+NN_type = ARGS[1]
 hidden_units = parse(Int,ARGS[2])
-rate = parse(Float64,ARGS[2])
-params_type = parse(String, ARGS[3])
+rate = parse(Float64,ARGS[3])
+params_type = ARGS[4]
 
 train_files = [
     # "wind_-5e-4_cooling_4e-8", 
