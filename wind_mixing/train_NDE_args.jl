@@ -12,8 +12,10 @@ BLAS.set_num_threads(1)
 
 NN_type = ARGS[1]
 # hidden_units = parse(Int,ARGS[2])
+NN_shape = parse(Int, ARGS[2])
 hidden_units = 400
-rate = parse(Float64,ARGS[2])
+# rate = parse(Float64,ARGS[2])
+rate = 2e-4
 # params_type = ARGS[4]
 params_type = "new"
 
@@ -47,7 +49,7 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_1sim_windcooling_WSnew_$(params_type)_divide1f5_gradient_smallNN_$(hidden_units)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
+FILE_NAME = "NDE_1sim_windcooling_WSnew_$(params_type)_divide1f5_gradient_smallNN_shape$(NN_shape)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
@@ -106,18 +108,28 @@ N_inputs = 96
 N_outputs = 31
 
 if NN_type == "mish"
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
+    activation = mish
 elseif NN_type == "swish"
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, swish), Dense(hidden_units, N_outputs)))
+    activation = swish
 elseif NN_type == "leakyrelu"
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, leakyrelu), Dense(hidden_units, N_outputs)))
+    activation = leakyrelu
 elseif NN_type == "relu"
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+    activation = relu
 else
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, tanh), Dense(hidden_units, N_outputs)))
+    activation = tanh
 end
 
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
+if NN_shape == 1
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, 400, activation), Dense(400, 400, activation), Dense(400, N_outputs)))
+elseif NN_shape == 2 
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, 800, activation), Dense(800, N_outputs)))
+elseif NN_shape == 3
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, 48, activation), Dense(48, 400, activation), Dense(400, N_outputs)))
+else
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, 48, activation), Dense(48, N_inputs, activation), Dense(N_inputs, 400, activation), Dense(400, N_outputs)))
+end
+
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
 
 uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
