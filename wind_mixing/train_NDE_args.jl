@@ -1,4 +1,3 @@
-using Base: String, Float64
 using Flux
 using WindMixing
 using JLD2
@@ -12,27 +11,29 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 
 NN_type = ARGS[1]
-hidden_units = parse(Int,ARGS[2])
-rate = parse(Float64,ARGS[3])
-params_type = ARGS[4]
+# hidden_units = parse(Int,ARGS[2])
+hidden_units = 400
+rate = parse(Float64,ARGS[2])
+# params_type = ARGS[4]
+params_type = "new"
 
 train_files = [
     # "wind_-5e-4_cooling_4e-8", 
     # "wind_-1e-3_cooling_4e-8", 
     # "wind_-2e-4_cooling_1e-8", 
-    "wind_-1e-3_cooling_2e-8", 
+    # "wind_-1e-3_cooling_2e-8", 
     # "wind_-5e-4_cooling_1e-8", 
-    "wind_-2e-4_cooling_5e-8", 
-    "wind_-5e-4_cooling_3e-8", 
-    # "wind_-2e-4_cooling_3e-8", 
+    # "wind_-2e-4_cooling_5e-8", 
+    # "wind_-5e-4_cooling_3e-8", 
+    "wind_-2e-4_cooling_3e-8", 
     # "wind_-1e-3_cooling_3e-8", 
     # "wind_-1e-3_heating_-4e-8",
-    "wind_-1e-3_heating_-1e-8",
+    # "wind_-1e-3_heating_-1e-8",
     # "wind_-1e-3_heating_-3e-8",
     # "wind_-5e-4_heating_-5e-8",
-    "wind_-5e-4_heating_-3e-8",
+    # "wind_-5e-4_heating_-3e-8",
     # "wind_-5e-4_heating_-1e-8",
-    "wind_-2e-4_heating_-5e-8",
+    # "wind_-2e-4_heating_-5e-8",
     # "wind_-2e-4_heating_-3e-8",
     # "wind_-2e-4_heating_-1e-8",
 ]
@@ -46,11 +47,13 @@ OUTPUT_PATH = joinpath(PATH, "training_output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_6sim_windcooling_SW_WS_MM_windheating_SW_WS_MM_$(params_type)_divide1f5_gradient_smallNN_$(hidden_units)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
+FILE_NAME = "NDE_1sim_windcooling_WSnew_$(params_type)_divide1f5_gradient_smallNN_$(hidden_units)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
+@assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
-@assert !isfile(FILE_PATH)
+
+VIDEO_PATH = joinpath(PATH, "Output")
 
 if params_type == "old"
     ν₀ = 1f-4
@@ -106,8 +109,12 @@ if NN_type == "mish"
     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
 elseif NN_type == "swish"
     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, swish), Dense(hidden_units, N_outputs)))
-else
+elseif NN_type == "leakyrelu"
     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, leakyrelu), Dense(hidden_units, N_outputs)))
+elseif NN_type == "relu"
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+else
+    weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, tanh), Dense(hidden_units, N_outputs)))
 end
 
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
@@ -124,7 +131,7 @@ train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Ri�
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [600]
+train_iterations = [300]
 train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
@@ -186,24 +193,25 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-    "wind_-5e-4_cooling_4e-8", 
-    "wind_-1e-3_cooling_4e-8", 
-    "wind_-2e-4_cooling_1e-8", 
-    "wind_-1e-3_cooling_2e-8", 
-    "wind_-5e-4_cooling_1e-8", 
-    "wind_-2e-4_cooling_5e-8", 
-    "wind_-5e-4_cooling_3e-8", 
+    # "wind_-5e-4_cooling_4e-8", 
+    # "wind_-1e-3_cooling_4e-8", 
+    # "wind_-2e-4_cooling_1e-8", 
+    # "wind_-1e-3_cooling_2e-8", 
+    # "wind_-5e-4_cooling_1e-8", 
+    # "wind_-2e-4_cooling_5e-8", 
+    # "wind_-5e-4_cooling_3e-8", 
     "wind_-2e-4_cooling_3e-8", 
-    "wind_-1e-3_cooling_3e-8", 
-    "wind_-1e-3_heating_-4e-8",
-    "wind_-1e-3_heating_-1e-8",
-    "wind_-1e-3_heating_-3e-8",
-    "wind_-5e-4_heating_-5e-8",
-    "wind_-5e-4_heating_-3e-8",
-    "wind_-5e-4_heating_-1e-8",
-    "wind_-2e-4_heating_-5e-8",
-    "wind_-2e-4_heating_-3e-8",
-    "wind_-2e-4_heating_-1e-8",
+    # "wind_-1e-3_cooling_3e-8", 
+    # "wind_-1e-3_heating_-4e-8",
+    # "wind_-1e-3_heating_-1e-8",
+    # "wind_-1e-3_heating_-3e-8",
+    # "wind_-5e-4_heating_-5e-8",
+    # "wind_-5e-4_heating_-3e-8",
+    # "wind_-5e-4_heating_-1e-8",
+    # "wind_-2e-4_heating_-5e-8",
+    # "wind_-2e-4_heating_-3e-8",
+    # "wind_-2e-4_heating_-1e-8",
 ]
 
-animate_training_results(test_files, FILE_NAME, trange=1:1:1153)
+animate_training_results(test_files, FILE_NAME,
+                         EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
