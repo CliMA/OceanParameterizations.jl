@@ -342,101 +342,125 @@ function animate_profiles_fluxes(data, FILE_PATH; dimensionless=true, fps=30, gi
     end
 end
 
-function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_trainings, training_types, fps=30, gif=false, mp4=true)
-    times = data["t"] ./ 86400
+function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_implicit, data_oceananigans, FILE_PATH; animation_type, n_trainings, training_types, fps=30, gif=false, mp4=true)
+    times = data_diffeq_explicit["t"] ./ 86400
 
     frame = Node(1)
 
     time_point = @lift [times[$frame]]
 
-    truth_u = @lift data["truth_u"][:,$frame]
-    truth_v = @lift data["truth_v"][:,$frame]
-    truth_T = @lift data["truth_T"][:,$frame]
+    u_data = [
+        data_diffeq_explicit["truth_u"],
+        data_diffeq_explicit["test_u_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_u_kpp"],
+        data_oceananigans["test_u"],
+        data_diffeq_explicit["test_u"], 
+        data_diffeq_implicit["test_u"],
+    ]
 
-    test_u = @lift data["test_u"][:,$frame]
-    test_v = @lift data["test_v"][:,$frame]
-    test_T = @lift data["test_T"][:,$frame]
+    v_data = [
+        data_diffeq_explicit["truth_v"],
+        data_diffeq_explicit["test_v_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_v_kpp"],
+        data_oceananigans["test_v"],
+        data_diffeq_explicit["test_v"], 
+        data_diffeq_implicit["test_v"],
+    ]
 
-    truth_uw = @lift data["truth_uw"][:,$frame]
-    truth_vw = @lift data["truth_vw"][:,$frame]
-    truth_wT = @lift data["truth_wT"][:,$frame]
+    T_data = [
+        data_diffeq_explicit["truth_T"],
+        data_diffeq_explicit["test_T_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_T_kpp"],
+        data_oceananigans["test_T"],
+        data_diffeq_explicit["test_T"], 
+        data_diffeq_implicit["test_T"],
+    ]
+    
+    uw_data = [
+        data_diffeq_explicit["truth_uw"],
+        data_diffeq_explicit["test_uw_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_uw_kpp"],
+        data_oceananigans["test_uw"],
+        data_diffeq_explicit["test_uw"], 
+        data_diffeq_implicit["test_uw"],
+        data_diffeq_explicit["test_uw_NN_only"][2:end-1,:],
+    ]
 
-    test_uw = @lift data["test_uw"][:,$frame]
-    test_vw = @lift data["test_vw"][:,$frame]
-    test_wT = @lift data["test_wT"][:,$frame]
+    vw_data = [
+        data_diffeq_explicit["truth_vw"],
+        data_diffeq_explicit["test_vw_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_vw_kpp"],
+        data_oceananigans["test_vw"],
+        data_diffeq_explicit["test_vw"], 
+        data_diffeq_implicit["test_vw"],
+        data_diffeq_explicit["test_vw_NN_only"][2:end-1,:],
+    ]
 
-    test_u_modified_pacanowski_philander = @lift data["test_u_modified_pacanowski_philander"][:,$frame]
-    test_v_modified_pacanowski_philander = @lift data["test_v_modified_pacanowski_philander"][:,$frame]
-    test_T_modified_pacanowski_philander = @lift data["test_T_modified_pacanowski_philander"][:,$frame]
+    wT_data = [
+        data_diffeq_explicit["truth_wT"],
+        data_diffeq_explicit["test_wT_modified_pacanowski_philander"],
+        data_diffeq_explicit["test_wT_kpp"],
+        data_oceananigans["test_wT"],
+        data_diffeq_explicit["test_wT"], 
+        data_diffeq_implicit["test_wT"],
+        data_diffeq_explicit["test_wT_NN_only"][2:end-1,:],
+    ]
 
-    test_u_kpp = @lift data["test_u_kpp"][:,$frame]
-    test_v_kpp = @lift data["test_v_kpp"][:,$frame]
-    test_T_kpp = @lift data["test_T_kpp"][:,$frame]
+    Ri_data = [
+        clamp.(data_diffeq_explicit["truth_Ri"], -1, 2),
+        clamp.(data_diffeq_explicit["test_Ri_modified_pacanowski_philander"], -1, 2),
+        clamp.(data_diffeq_explicit["test_Ri_kpp"], -1, 2),
+        clamp.(data_oceananigans["test_Ri"], -1, 2),
+        clamp.(data_diffeq_explicit["test_Ri"], -1, 2),
+        clamp.(data_diffeq_implicit["test_Ri"], -1, 2),
+    ]
 
-    test_uw_modified_pacanowski_philander = @lift data["test_uw_modified_pacanowski_philander"][:,$frame]
-    test_vw_modified_pacanowski_philander = @lift data["test_vw_modified_pacanowski_philander"][:,$frame]
-    test_wT_modified_pacanowski_philander = @lift data["test_wT_modified_pacanowski_philander"][:,$frame]
+    losses_data = [
+        clamp.(data_diffeq_explicit["losses_modified_pacanowski_philander_gradient"], 1f-5, 10),
+        clamp.(data_diffeq_explicit["losses_kpp_gradient"], 1f-5, 10),
+        clamp.(data_oceananigans["losses_gradient"], 1f-5, 10),
+        clamp.(data_diffeq_explicit["losses_gradient"], 1f-5, 10),
+        clamp.(data_diffeq_implicit["losses_gradient"], 1f-5, 10),
+        clamp.(data_diffeq_explicit["losses_modified_pacanowski_philander"], 1f-5, 10),
+        clamp.(data_diffeq_explicit["losses_kpp"], 1f-5, 10),
+        clamp.(data_oceananigans["losses"], 1f-5, 10),
+        clamp.(data_diffeq_explicit["losses"], 1f-5, 10),
+        clamp.(data_diffeq_implicit["losses"], 1f-5, 10),
+    ]
 
-    test_uw_kpp = @lift data["test_uw_kpp"][:,$frame]
-    test_vw_kpp = @lift data["test_vw_kpp"][:,$frame]
-    test_wT_kpp = @lift data["test_wT_kpp"][:,$frame]
-
-    test_uw_NN_only = @lift data["test_uw_NN_only"][2:end-1,$frame]
-    test_vw_NN_only = @lift data["test_vw_NN_only"][2:end-1,$frame]
-    test_wT_NN_only = @lift data["test_wT_NN_only"][2:end-1,$frame]
-
-    truth_Ri = @lift clamp.(data["truth_Ri"][:,$frame], -1, 2)
-    test_Ri = @lift clamp.(data["test_Ri"][:,$frame], -1, 2)
-    test_Ri_modified_pacanowski_philander = @lift clamp.(data["test_Ri_modified_pacanowski_philander"][:,$frame], -1, 2)
-    test_Ri_kpp = @lift clamp.(data["test_Ri_kpp"][:,$frame], -1, 2)
-
-    losses = data["losses"]
-    losses_gradient = data["losses_gradient"]
-    losses_modified_pacanowski_philander = data["losses_modified_pacanowski_philander"]
-    losses_modified_pacanowski_philander_gradient = data["losses_modified_pacanowski_philander_gradient"]
-    losses_kpp = data["losses_kpp"]
-    losses_kpp_gradient = data["losses_kpp_gradient"]
-
-    function add_ϵ!(losses)
+    @inline function add_ϵ!(losses)
         losses .= losses .+ (losses .== 0) .* eps(Float32)
     end
 
-    add_ϵ!(losses)
-    add_ϵ!(losses_gradient)
-    add_ϵ!(losses_modified_pacanowski_philander)
-    add_ϵ!(losses_modified_pacanowski_philander_gradient)
-    add_ϵ!(losses_kpp)
-    add_ϵ!(losses_kpp_gradient)
+    add_ϵ!.(losses_data)
 
-    loss_point = @lift [losses[$frame]]
-    loss_gradient_point = @lift [losses_gradient[$frame]]
-    loss_modified_pacanowski_philander_point = @lift [losses_modified_pacanowski_philander[$frame]]
-    loss_modified_pacanowski_philander_gradient_point = @lift [losses_modified_pacanowski_philander_gradient[$frame]]
-    loss_kpp_point = @lift [losses_kpp[$frame]]
-    loss_kpp_gradient_point = @lift [losses_kpp_gradient[$frame]]
+    u_frames = [@lift data[:,$frame] for data in u_data]
+    v_frames = [@lift data[:,$frame] for data in v_data]
+    T_frames = [@lift data[:,$frame] for data in T_data]
 
-    u_max = maximum([maximum(data["truth_u"]), maximum(data["test_u"]), maximum(data["test_u_modified_pacanowski_philander"]), maximum(data["test_u_kpp"])])
-    u_min = minimum([minimum(data["truth_u"]), minimum(data["test_u"]), minimum(data["test_u_modified_pacanowski_philander"]), minimum(data["test_u_kpp"])])
-
-    v_max = maximum([maximum(data["truth_v"]), maximum(data["test_v"]), maximum(data["test_v_modified_pacanowski_philander"]), maximum(data["test_v_kpp"])])
-    v_min = minimum([minimum(data["truth_v"]), minimum(data["test_v"]), minimum(data["test_v_modified_pacanowski_philander"]), minimum(data["test_v_kpp"])])
-
-    T_max = maximum([maximum(data["truth_T"]), maximum(data["test_T"]), maximum(data["test_T_modified_pacanowski_philander"]), maximum(data["test_T_kpp"])])
-    T_min = minimum([minimum(data["truth_T"]), minimum(data["test_T"]), minimum(data["test_T_modified_pacanowski_philander"]), minimum(data["test_T_kpp"])])
-
-    uw_max = maximum([maximum(data["truth_uw"]), maximum(data["test_uw"]), maximum(data["test_uw_modified_pacanowski_philander"]), maximum(data["test_uw_kpp"]), maximum(data["test_uw_NN_only"])])
-    uw_min = minimum([minimum(data["truth_uw"]), minimum(data["test_uw"]), minimum(data["test_uw_modified_pacanowski_philander"]), minimum(data["test_uw_kpp"]), minimum(data["test_uw_NN_only"])])
-
-    vw_max = maximum([maximum(data["truth_vw"]), maximum(data["test_vw"]), maximum(data["test_vw_modified_pacanowski_philander"]), maximum(data["test_vw_kpp"]), maximum(data["test_vw_NN_only"])])
-    vw_min = minimum([minimum(data["truth_vw"]), minimum(data["test_vw"]), minimum(data["test_vw_modified_pacanowski_philander"]), minimum(data["test_vw_kpp"]), minimum(data["test_vw_NN_only"])])
+    uw_frames = [@lift data[:,$frame] for data in uw_data]
+    vw_frames = [@lift data[:,$frame] for data in vw_data]
+    wT_frames = [@lift data[:,$frame] for data in wT_data]
     
-    wT_max = maximum([maximum(data["truth_wT"]), maximum(data["test_wT"]), maximum(data["test_wT_modified_pacanowski_philander"]), maximum(data["test_wT_kpp"]), maximum(data["test_wT_NN_only"])])
-    wT_min = minimum([minimum(data["truth_wT"]), minimum(data["test_wT"]), minimum(data["test_wT_modified_pacanowski_philander"]), minimum(data["test_wT_kpp"]), minimum(data["test_wT_NN_only"])])
+    Ri_frames = [@lift data[:,$frame] for data in Ri_data]
 
-    losses_max = maximum([maximum(data["losses"]), maximum(data["losses_gradient"]), maximum(data["losses_modified_pacanowski_philander"]), maximum(data["losses_modified_pacanowski_philander_gradient"]), maximum(data["losses_kpp"]), maximum(data["losses_kpp_gradient"])])
-    losses_min = minimum([minimum(data["losses"][2:end]), minimum(data["losses_gradient"][2:end]), minimum(data["losses_modified_pacanowski_philander"][2:end]), minimum(data["losses_modified_pacanowski_philander_gradient"][2:end]), minimum(data["losses_kpp"][2:end]), minimum(data["losses_kpp_gradient"][2:end])])
+    losses_point_frames = [@lift [data[$frame]] for data in losses_data]
 
-    train_parameters = data["train_parameters"]
+    @inline function find_lims(datasets)
+        return maximum(maximum.(datasets)), minimum(minimum.(datasets))
+    end
+
+    u_max, u_min = find_lims(u_data)
+    v_max, v_min = find_lims(v_data)
+    T_max, T_min = find_lims(T_data)
+
+    uw_max, uw_min = find_lims(uw_data)
+    vw_max, vw_min = find_lims(vw_data)
+    wT_max, wT_min = find_lims(wT_data)
+    
+    losses_max, losses_min = find_lims(losses_data)
+
+    train_parameters = data_diffeq_explicit["train_parameters"]
     ν₀ = train_parameters.ν₀
     ν₋ = train_parameters.ν₋
     ΔRi = train_parameters.ΔRi
@@ -444,7 +468,7 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     Pr = train_parameters.Pr
     gradient_scaling = train_parameters.gradient_scaling
 
-    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data["truth_uw"][end, 1] data["truth_wT"][end, 1]
+    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data_diffeq_explicit["truth_uw"][end, 1] data_diffeq_explicit["truth_wT"][end, 1]
     plot_title = @lift "$animation_type Data: $BC_str, Time = $(round(times[$frame], digits=2)) days"
 
     diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
@@ -452,22 +476,12 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     scaling_str = @sprintf "Gradient Scaling = %.1e" gradient_scaling
 
     plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str, $scaling_str"
-    
-    fig = Figure(resolution=(1920, 1080))
-    color_palette = distinguishable_colors(12, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
-    colors = (truth=color_palette[1], 
-              test=color_palette[2], 
-              test_modified_pacanoswki_philander=color_palette[3],
-              test_NN_only=color_palette[4],
-              test_kpp=color_palette[5])
 
-    colors_losses = (loss=color_palette[6],
-                     loss_modified_pacanowski_philander=color_palette[7],
-                     loss_kpp=color_palette[8],
-                     loss_gradient=color_palette[9],
-                     loss_gradient_modified_pacanowski_philander=color_palette[10],
-                     loss_gradient_kpp=color_palette[11],
-                     point=color_palette[12])
+    fig = Figure(resolution=(1920, 1080))
+    
+    color_palette = distinguishable_colors(length(uw_data)+length(losses_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+    colors = [color_palette[i] for i in 1:length(uw_data)]
+    colors_losses = [color_palette[i] for i in length(uw_data) + 1:length(color_palette)]
 
     u_str = "u / m s⁻¹"
     v_str = "v / m s⁻¹"
@@ -476,117 +490,112 @@ function animate_profiles_fluxes_comparison(data, FILE_PATH; animation_type, n_t
     vw_str = "vw / m² s⁻²"
     wT_str = "wT / m s⁻¹ °C"
 
-    zc = data["depth_profile"]
-    zf = data["depth_flux"]
+    zc = data_diffeq_explicit["depth_profile"]
+    zf = data_diffeq_explicit["depth_flux"]
     zf_interior = zf[2:end-1]
     z_str = "z / m"
 
     alpha=0.5
     truth_linewidth = 7
+    linewidth = 3
+
 
     ax_u = fig[1, 1] = Axis(fig, xlabel=u_str, ylabel=z_str)
-    u_lines = [lines!(ax_u, truth_u, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_u, test_u_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_u, test_u_kpp, zc, linewidth=3, color=colors.test_kpp),
-                lines!(ax_u, test_u, zc, linewidth=3, color=colors.test)
-                ]
-                # lines!(ax_u, test_u_NN_only, zc, linewidth=3, color=colors[4])]
-    CairoMakie.xlims!(ax_u, u_min, u_max)
-    CairoMakie.ylims!(ax_u, minimum(zc), 0)
-
     ax_v = fig[1, 2] = Axis(fig, xlabel=v_str, ylabel=z_str)
-    v_lines = [lines!(ax_v, truth_v, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_v, test_v_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_v, test_v_kpp, zc, linewidth=3, color=colors.test_kpp),
-                lines!(ax_v, test_v, zc, linewidth=3, color=colors.test),
-                ]
-                # lines!(ax_v, test_v_NN_only, zc, linewidth=3, color=colors[4])]
-    CairoMakie.xlims!(ax_v, v_min, v_max)
-    CairoMakie.ylims!(ax_v, minimum(zc), 0)
-
-    ax_T = fig[1, 3] = Axis(fig, xlabel=T_str, ylabel=z_str)
-    T_lines = [lines!(ax_T, truth_T, zc, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_T, test_T_modified_pacanowski_philander, zc, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_T, test_T_kpp, zc, linewidth=3, color=colors.test_kpp),
-                lines!(ax_T, test_T, zc, linewidth=3, color=colors.test)
-                ]
-                # lines!(ax_T, test_T_NN_only, zc, linewidth=3, color=colors[4])]
-    CairoMakie.xlims!(ax_T, T_min, T_max)
-    CairoMakie.ylims!(ax_T, minimum(zc), 0)
-
+    ax_T = fig[1, 3:4] = Axis(fig, xlabel=T_str, ylabel=z_str)
+    ax_Ri = fig[1, 5] = Axis(fig, xlabel="Ri", ylabel=z_str)
     ax_uw = fig[2, 1] = Axis(fig, xlabel=uw_str, ylabel=z_str)
-    uw_lines = [lines!(ax_uw, truth_uw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_uw, test_uw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_uw, test_uw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
-                lines!(ax_uw, test_uw_kpp, zf, linewidth=3, color=colors.test_kpp),
-                lines!(ax_uw, test_uw, zf, linewidth=3, color=colors.test), 
-                ]
-    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
-    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
-
     ax_vw = fig[2, 2] = Axis(fig, xlabel=vw_str, ylabel=z_str)
-    vw_lines = [lines!(ax_vw, truth_vw, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_vw, test_vw_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_vw, test_vw_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
-                lines!(ax_vw, test_vw_kpp, zf, linewidth=3, color=colors.test_kpp),
-                lines!(ax_vw, test_vw, zf, linewidth=3, color=colors.test)]
-    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
-    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
-
     ax_wT = fig[2, 3] = Axis(fig, xlabel=wT_str, ylabel=z_str)
-    wT_lines = [lines!(ax_wT, truth_wT, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_wT, test_wT_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_wT, test_wT_NN_only, zf_interior, linewidth=3, color=colors.test_NN_only),
-                lines!(ax_wT, test_wT_kpp, zf, linewidth=3, color=colors.test_kpp),
-                lines!(ax_wT, test_wT, zf, linewidth=3, color=colors.test)]
-                CairoMakie.xlims!(ax_wT, wT_min, wT_max)
-    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
-
-    ax_Ri = fig[1, 4] = Axis(fig, xlabel="Ri", ylabel=z_str)
-    Ri_lines = [lines!(ax_Ri, truth_Ri, zf, linewidth=truth_linewidth, color=(colors.truth, alpha)), 
-                lines!(ax_Ri, test_Ri_modified_pacanowski_philander, zf, linewidth=3, color=colors.test_modified_pacanoswki_philander),
-                lines!(ax_Ri, test_Ri_kpp, zf, linewidth=3, color=colors.test_kpp),
-                lines!(ax_Ri, test_Ri, zf, linewidth=3, color=colors.test)]
-
-    CairoMakie.xlims!(ax_Ri, -1, 2)
-    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
-
     ax_losses = fig[2, 4] = Axis(fig, xlabel="Time / days", ylabel="Loss", yscale=CairoMakie.log10)
-    losses_lines = [lines!(ax_losses, times, losses, linewidth=3, color=colors_losses.loss),
-                    lines!(ax_losses, times, losses_modified_pacanowski_philander, linewidth=3, color=colors_losses.loss_modified_pacanowski_philander),
-                    lines!(ax_losses, times, losses_gradient, linewidth=3, color=colors_losses.loss_gradient),
-                    lines!(ax_losses, times, losses_modified_pacanowski_philander_gradient, linewidth=3, color=colors_losses.loss_gradient_modified_pacanowski_philander),
-                    lines!(ax_losses, times, losses_kpp, linewidth=3, color=colors_losses.loss_kpp),
-                    lines!(ax_losses, times, losses_kpp_gradient, linewidth=3, color=colors_losses.loss_gradient_kpp),
-                    ]
-
-    losses_point = [CairoMakie.scatter!(ax_losses, time_point, loss_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_gradient_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_modified_pacanowski_philander_gradient_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_kpp_point, color=colors_losses.point),
-                    CairoMakie.scatter!(ax_losses, time_point, loss_kpp_gradient_point, color=colors_losses.point),
-                    ]                
     
+    legend_sublayout = GridLayout()
+    fig[2, 5] = legend_sublayout
+
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    CairoMakie.xlims!(ax_Ri, -1, 2)
     CairoMakie.xlims!(ax_losses, times[1], times[end])
+
+    CairoMakie.ylims!(ax_u, minimum(zc), 0)
+    CairoMakie.ylims!(ax_v, minimum(zc), 0)
+    CairoMakie.ylims!(ax_T, minimum(zc), 0)
+    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
+    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
+    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
+    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
     CairoMakie.ylims!(ax_losses, losses_min, losses_max)
 
-    legend = fig[1, 5] = Legend(fig, uw_lines, ["Oceananigans.jl LES", 
-                                                "Modified Pac-Phil Only", 
-                                                "NN Only",
-                                                "KPP",
-                                                "NN + Modified Pac-Phil"])
+    u_lines = [
+         lines!(ax_u, u_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_u, u_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(u_data)]
+    ]
 
-    legend = fig[2, 5] = Legend(fig, losses_lines, ["Profile Loss, NN + Modified Pac-Phil", 
-                                                    "Profile Loss, Modified Pac-Phil Only", 
-                                                    "Gradient Loss, NN + Modified Pac-Phil", 
-                                                    "Gradient Loss, Modified Pac-Phil Only",
-                                                    "Profile Loss, KPP",
-                                                    "Gradient Loss, KPP"])
-    # legend = fig[1, 4] = Legend(fig, u_lines, ["Oceananigans.jl LES", "NN + Modified Pac-Phil", "Modified Pac-Phil Only"])
+    v_lines = [
+         lines!(ax_v, v_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_v, v_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(v_data)]
+    ]
+
+    T_lines = [
+         lines!(ax_T, T_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_T, T_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(T_data)]
+    ]
+
+    uw_lines = [
+         lines!(ax_uw, uw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+         lines!(ax_uw, uw_frames[end], zf_interior, linewidth=3, color=colors[end]);
+        [lines!(ax_uw, uw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(uw_data)-1]
+    ]
+
+   vw_lines = [
+         lines!(ax_vw, vw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+         lines!(ax_vw, vw_frames[end], zf_interior, linewidth=3, color=colors[end]);
+        [lines!(ax_vw, vw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(vw_data)-1]
+    ]
+
+    wT_lines = [
+        lines!(ax_wT, wT_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+        lines!(ax_wT, wT_frames[end], zf_interior, linewidth=3, color=colors[end]);
+       [lines!(ax_wT, wT_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(wT_data)-1]
+   ]
+
+    Ri_lines = [
+         lines!(ax_Ri, Ri_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_Ri, Ri_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
+    ]
+
+    losses_lines = [lines!(ax_losses, times, losses_data[i], linewidth=linewidth, color=colors_losses[i]) for i in 1:length(losses_data)]
+
+    losses_point = [CairoMakie.scatter!(ax_losses, time_point, point, color=colors_losses[end]) for point in losses_point_frames] 
+    
+    legend = Legend(fig, uw_lines, ["LES", 
+                                    "NN Only",
+                                    "Modified Pac-Phil Only", 
+                                    "KPP",
+                                    "Oceananigans, Implicit",
+                                    "DiffEq, Explicit",
+                                    "DiffEq, Implicit"
+                                    ])
+
+    legend_loss = Legend(fig, losses_lines, ["Profile Loss, Modified Pac-Phil Only", 
+                                             "Profile Loss, KPP",
+                                             "Profile Loss, Oceananigans, Implicit", 
+                                             "Profile Loss, DiffEq, Explicit", 
+                                             "Profile Loss, DiffEq, Implicit",
+                                             "Gradient Loss, Modified Pac-Phil Only", 
+                                             "Gradient Loss, KPP",
+                                             "Gradient Loss, Oceananigans, Implicit", 
+                                             "Gradient Loss, DiffEq, Explicit", 
+                                             "Gradient Loss, DiffEq, Implicit"])
+    legend_sublayout[:v] = [legend, legend_loss]
+
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
     subtitle = fig[end+1, :] = Label(fig, text=plot_subtitle, textsize=20)
-
+    
     trim!(fig.layout)
 
     print_frame = maximum([1, Int(floor(length(times)/20))])
@@ -811,9 +820,14 @@ function generate_training_types_str(FILE_NAME)
     return training_types
 end
 
-function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30, gif=false, mp4=true)
-    DATA_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
-    OUTPUT_PATH = joinpath(pwd(), "NDE_output_diffeq", FILE_NAME)
+function animate_training_results(test_files, FILE_NAME; 
+                                  EXTRACTED_DATA_DIR, OUTPUT_DIR,
+                                  timestep=60, trange=1:1:1153, 
+                                  fps=30, gif=false, mp4=true,
+                                  explicit_timestepper=ROCK4(), implicit_timestepper=RadauIIA5(autodiff=false))
+
+    DATA_PATH = joinpath(EXTRACTED_DATA_DIR, "$(FILE_NAME)_extracted.jld2")
+    OUTPUT_PATH = joinpath(OUTPUT_DIR, FILE_NAME)
 
     if !ispath(OUTPUT_PATH)
         mkdir(OUTPUT_PATH)
@@ -834,18 +848,60 @@ function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
     training_types = generate_training_types_str(FILE_NAME)
 
+    ν₀ = train_parameters["ν₀"]
+    ν₋ = train_parameters["ν₋"]
+    ΔRi = train_parameters["ΔRi"]
+    Riᶜ = train_parameters["Riᶜ"]
+    Pr = train_parameters["Pr"]
+
+    @info "Plotting Loss..."
+    Plots.plot(1:1:length(losses), losses, yscale=:log10)
+    Plots.xlabel!("Iteration")
+    Plots.ylabel!("Loss mse")
+    savefig(joinpath(OUTPUT_PATH, "loss.pdf"))
+
+    @info "Solving NDE: Oceananigans"
+    solve_oceananigans_modified_pacanowski_philander_nn(test_files, DATA_PATH, OUTPUT_PATH; timestep=timestep)
+
     for test_file in test_files
         @info "Generating Data: $test_file"
         𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 
-        @info "Solving NDE: $test_file"
-        plot_data = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        @info "Processing $test_file solution"
+        if test_file in train_files
+            SOL_DIR = joinpath(OUTPUT_PATH, "train_$test_file")
+            animation_type = "Training"
+        else
+            SOL_DIR = joinpath(OUTPUT_PATH, "test_$test_file")
+            animation_type = "Testing"
+        end
+
+        @info "Solving NDE: $test_file, Explicit timestepper"
+        plot_data_explicit = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                                ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
-                                Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
+                                ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
+                                convective_adjustment=train_parameters["convective_adjustment"],
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
-                                gradient_scaling=train_parameters["gradient_scaling"])
+                                gradient_scaling=train_parameters["gradient_scaling"],
+                                timestepper=explicit_timestepper,
+                                OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_explicit.jld2"))
+
+        @info "Solving NDE: $test_file, Implicit timestepper"
+        plot_data_implicit = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+                                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+                                ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
+                                convective_adjustment=train_parameters["convective_adjustment"],
+                                smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+                                zero_weights=train_parameters["zero_weights"],
+                                gradient_scaling=train_parameters["gradient_scaling"],
+                                timestepper=implicit_timestepper,
+                                OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_implicit.jld2"))
+
+        plot_data_oceananigans = NDE_profile_oceananigans(SOL_DIR, train_files, [test_file],
+                                            ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
+                                            gradient_scaling=train_parameters["gradient_scaling"],
+                                            OUTPUT_PATH=joinpath(SOL_DIR, "solution_oceananigans.jld2"))
         
         if test_file in train_files
             animation_type = "Training"
@@ -860,60 +916,55 @@ function animate_training_results(test_files, FILE_NAME; trange=1:1:1153, fps=30
             VIDEO_NAME = "test_$test_file"
         end
 
-        VIDEO_PATH = joinpath(OUTPUT_PATH, "$VIDEO_NAME")
+        VIDEO_PATH = joinpath(SOL_DIR, "$VIDEO_NAME")
 
         @info "Animating $test_file Video"
-        animate_profiles_fluxes_comparison(plot_data, VIDEO_PATH, fps=fps, gif=gif, mp4=mp4, 
+
+        animate_profiles_fluxes_comparison(plot_data_explicit, plot_data_implicit, plot_data_oceananigans, VIDEO_PATH, fps=fps, gif=gif, mp4=mp4, 
                                                 animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
         @info "$test_file Animation Completed"
     end
-
-    @info "Plotting Loss..."
-    Plots.plot(1:1:length(losses), losses, yscale=:log10)
-    Plots.xlabel!("Iteration")
-    Plots.ylabel!("Loss mse")
-    savefig(joinpath(OUTPUT_PATH, "loss.pdf"))
 end
 
-function animate_training_results_oceananigans(test_files, FILE_NAME, OUTPUT_DIR; timestep)
-    EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
-    extracted_training_file = jldopen(EXTRACTED_FILE_PATH)
-    losses = extracted_training_file["losses"]
-    # solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR, timestep=timestep)
+# function animate_training_results_oceananigans(test_files, FILE_NAME, OUTPUT_DIR; timestep)
+#     EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
+#     extracted_training_file = jldopen(EXTRACTED_FILE_PATH)
+#     losses = extracted_training_file["losses"]
+#     # solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR, timestep=timestep)
 
-    train_files = extracted_training_file["training_info/train_files"]
-    train_parameters = extracted_training_file["training_info/parameters"]
+#     train_files = extracted_training_file["training_info/train_files"]
+#     train_parameters = extracted_training_file["training_info/parameters"]
 
-    close(extracted_training_file)
+#     close(extracted_training_file)
 
-    for test_file in test_files
-        @info "Processing $test_file solution"
-        if test_file in train_files
-            SOL_DIR = joinpath(OUTPUT_DIR, "train_$test_file")
-            animation_type = "Training"
-        else
-            SOL_DIR = joinpath(OUTPUT_DIR, "test_$test_file")
-            animation_type = "Testing"
-        end
+#     for test_file in test_files
+#         @info "Processing $test_file solution"
+#         if test_file in train_files
+#             SOL_DIR = joinpath(OUTPUT_DIR, "train_$test_file")
+#             animation_type = "Training"
+#         else
+#             SOL_DIR = joinpath(OUTPUT_DIR, "test_$test_file")
+#             animation_type = "Testing"
+#         end
 
-        plot_data = NDE_profile_oceananigans(SOL_DIR, train_files, [test_file],
-                                        ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], 
-                                        ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], Pr=train_parameters["Pr"], 
-                                        gradient_scaling=train_parameters["gradient_scaling"],
-                                        OUTPUT_PATH=joinpath(SOL_DIR, "profiles_fluxes.jld2"))
+#         plot_data = NDE_profile_oceananigans(SOL_DIR, train_files, [test_file],
+#                                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], 
+#                                         ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], Pr=train_parameters["Pr"], 
+#                                         gradient_scaling=train_parameters["gradient_scaling"],
+#                                         OUTPUT_PATH=joinpath(SOL_DIR, "profiles_fluxes.jld2"))
 
-        n_trainings = length(train_files)
-        training_types = generate_training_types_str(FILE_NAME)
-        VIDEO_NAME = "profiles_fluxes_comparison_animation"
+#         n_trainings = length(train_files)
+#         training_types = generate_training_types_str(FILE_NAME)
+#         VIDEO_NAME = "profiles_fluxes_comparison_animation"
 
-        @info "Animating $test_file solution"
-        animate_profiles_fluxes_comparison(plot_data, joinpath(SOL_DIR, VIDEO_NAME), fps=30, 
-                                                        animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
-    end
+#         @info "Animating $test_file solution"
+#         animate_profiles_fluxes_comparison(plot_data, joinpath(SOL_DIR, VIDEO_NAME), fps=30, 
+#                                                         animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
+#     end
 
-    @info "Plotting Loss..."
-    Plots.plot(1:1:length(losses), losses, yscale=:log10)
-    Plots.xlabel!("Iteration")
-    Plots.ylabel!("Loss mse")
-    savefig(joinpath(OUTPUT_DIR, "loss.pdf"))
-end
+#     @info "Plotting Loss..."
+#     Plots.plot(1:1:length(losses), losses, yscale=:log10)
+#     Plots.xlabel!("Iteration")
+#     Plots.ylabel!("Loss mse")
+#     savefig(joinpath(OUTPUT_DIR, "loss.pdf"))
+# end
