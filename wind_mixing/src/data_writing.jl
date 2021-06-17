@@ -25,55 +25,53 @@ function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train
     end
 end
 
-function write_data_NDE_training(FILE_PATH, loss, uw_NN, vw_NN, wT_NN, stage, optimizer)
+function write_data_NDE_training(FILE_PATH, losses, uw_NN, vw_NN, wT_NN, stage, optimizer)
     jldopen(FILE_PATH, "a") do file
-        if !haskey(file, "training_data/loss/$stage")
-            file["training_data/loss/$stage/1"] = loss
-        else
-            count = length(keys(file["training_data/loss/$stage"])) + 1
-            file["training_data/loss/$stage/$count"] = loss
-        end
+        profile_loss = losses.u + losses.v + losses.T
+        gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
+        total_loss = profile_loss + gradient_loss
 
-        if !haskey(file, "training_data/neural_network/uw/$stage")
+        if !haskey(file, "training_data/loss/total/$stage")
+            file["training_data/loss/total/$stage/1"] = total_loss
+            file["training_data/loss/profile/$stage/1"] = profile_loss
+            file["training_data/loss/gradient/$stage/1"] = gradient_loss
+
+            file["training_data/loss/u/$stage/1"] = losses.u
+            file["training_data/loss/v/$stage/1"] = losses.v
+            file["training_data/loss/T/$stage/1"] = losses.T
+
+            file["training_data/loss/∂u∂z/$stage/1"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/$stage/1"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/$stage/1"] = losses.∂T∂z
+
             file["training_data/neural_network/uw/$stage/1"] = uw_NN
-        else
-            count = length(keys(file["training_data/neural_network/uw/$stage"])) + 1
-            file["training_data/neural_network/uw/$stage/$count"] = uw_NN
-        end
-
-        if !haskey(file, "training_data/neural_network/vw/$stage")
             file["training_data/neural_network/vw/$stage/1"] = vw_NN
-        else
-            count = length(keys(file["training_data/neural_network/vw/$stage"])) + 1
-            file["training_data/neural_network/vw/$stage/$count"] = vw_NN
-        end
-
-        if !haskey(file, "training_data/neural_network/wT/$stage")
             file["training_data/neural_network/wT/$stage/1"] = wT_NN
+
+            file["training_data/optimizer/η/$stage/1"] = optimizer.eta
+            file["training_data/optimizer/β/$stage/1"] = optimizer.beta
+            file["training_data/optimizer/state/$stage/1"] = optimizer.state
         else
-            count = length(keys(file["training_data/neural_network/wT/$stage"])) + 1
+            count = length(keys(file["training_data/loss/total/$stage"])) + 1
+            file["training_data/loss/total/$stage/$count"] = total_loss
+            file["training_data/loss/profile/$stage/$count"] = profile_loss
+            file["training_data/loss/gradient/$stage/$count"] = gradient_loss
+
+            file["training_data/loss/u/$stage/$count"] = losses.u
+            file["training_data/loss/v/$stage/$count"] = losses.v
+            file["training_data/loss/T/$stage/$count"] = losses.T
+
+            file["training_data/loss/∂u∂z/$stage/$count"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/$stage/$count"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/$stage/$count"] = losses.∂T∂z
+
+            file["training_data/neural_network/uw/$stage/$count"] = uw_NN
+            file["training_data/neural_network/vw/$stage/$count"] = vw_NN
             file["training_data/neural_network/wT/$stage/$count"] = wT_NN
-        end
 
-        if !haskey(file, "training_data/η/$stage")
-            file["training_data/η/$stage/1"] = optimizer.eta
-        else
-            count = length(keys(file["training_data/η/$stage"])) + 1
-            file["training_data/η/$stage/$count"] = optimizer.eta
-        end
-
-        if !haskey(file, "training_data/β/$stage")
-            file["training_data/β/$stage/1"] = optimizer.beta
-        else
-            count = length(keys(file["training_data/β/$stage"])) + 1
-            file["training_data/β/$stage/$count"] = optimizer.beta
-        end
-
-        if !haskey(file, "training_data/state/$stage")
-            file["training_data/state/$stage/1"] = optimizer.state
-        else
-            count = length(keys(file["training_data/state/$stage"])) + 1
-            file["training_data/state/$stage/$count"] = optimizer.state
+            file["training_data/optimizer/η/$stage/$count"] = optimizer.eta
+            file["training_data/optimizer/β/$stage/$count"] = optimizer.beta
+            file["training_data/optimizer/state/$stage/$count"] = optimizer.state
         end
     end
 end
