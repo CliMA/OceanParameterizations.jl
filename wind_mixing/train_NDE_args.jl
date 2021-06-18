@@ -14,6 +14,10 @@ params_type = ARGS[1]
 T_fraction = parse(Float32, ARGS[2])
 NN_type = ARGS[3]
 
+# params_type = "old"
+# T_fraction = parse(Float32, "0.8")
+# NN_type = "relu"
+
 train_files = [
   "wind_-5e-4_cooling_3e-8_new",   
   # "wind_-5e-4_cooling_1e-8_new",   
@@ -48,9 +52,10 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_2sim_windcooling_SS_windheating_SS_$(NN_type)_divide1f5_gradient_smallNN_$(NN_type)_scale_5e-3_rate_2e-4_T$(T_fraction)"
+# FILE_NAME = "NDE_2sim_windcooling_SS_windheating_SS_$(NN_type)_divide1f5_gradient_smallNN_$(NN_type)_scale_5e-3_rate_2e-4_T$(T_fraction)"
+FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
-@assert !isfile(FILE_PATH)
+# @assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
@@ -122,7 +127,7 @@ uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
-gradient_scaling = 5f-3
+# gradient_scaling = 5f-3
 training_fractions = (T=T_fraction, ∂T∂z=T_fraction, profile=0.5f0)
 train_parameters = Dict(
                                "ν₀" => ν₀, 
@@ -138,13 +143,13 @@ train_parameters = Dict(
                         "smooth_Ri" => false, 
                    "train_gradient" => true,
                      "zero_weights" => true, 
-                 "gradient_scaling" => gradient_scaling, 
+                #  "gradient_scaling" => gradient_scaling, 
                "training_fractions" => training_fractions
     )
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [200]
+train_iterations = [3]
 train_optimizers = [[ADAM(2e-4)]]
 
 # train_epochs = [1]
@@ -176,7 +181,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                         smooth_Ri = train_parameters["smooth_Ri"], 
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
-                                                 gradient_scaling = train_parameters["gradient_scaling"],
+                                                #  gradient_scaling = train_parameters["gradient_scaling"],
                                                training_fractions = train_parameters["training_fractions"]
                                     )
         else
@@ -191,7 +196,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                         smooth_Ri = train_parameters["smooth_Ri"],
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
-                                                 gradient_scaling = train_parameters["gradient_scaling"],
+                                                #  gradient_scaling = train_parameters["gradient_scaling"],
                                                training_fractions = train_parameters["training_fractions"]
                                                 )
         end
@@ -206,28 +211,27 @@ extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
   "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
+  # "wind_-5e-4_cooling_1e-8_new",   
+  # "wind_-2e-4_cooling_3e-8_new",   
+  # "wind_-2e-4_cooling_1e-8_new",   
+  # "wind_-5e-4_heating_-3e-8_new",  
+  # "wind_-2e-4_heating_-1e-8_new",  
+  # "wind_-2e-4_heating_-3e-8_new",  
+  # "wind_-5e-4_heating_-1e-8_new",  
 
   "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
+#   "wind_-3.5e-4_heating_-2e-8_new",
 
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+#   "wind_-5e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_cooling_3e-8_new", 
+#   "wind_-3.5e-4_cooling_1e-8_new", 
+#   "wind_-2e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_heating_-3e-8_new",
+#   "wind_-3.5e-4_heating_-1e-8_new",
+#   "wind_-2e-4_heating_-2e-8_new",  
+#   "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 
-
-animate_training_results(test_files, DATA_NAME,
+animate_training_results(test_files, FILE_NAME,
                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
