@@ -323,8 +323,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     u_trains, v_trains, T_trains = split_u.(uvT_trains, Nz), split_v.(uvT_trains, Nz), split_T.(uvT_trains, Nz)
 
     if train_gradient
-        u_trains_gradients, v_trains_gradients, T_trains_gradients, = ∂_∂z.(u_trains, D_face), ∂_∂z.(v_trains, D_face), ∂_∂z.(T_trains, D_face)    
-    end    
+        u_trains_gradients = [∂_∂z(sol, D_face) for sol in u_trains]
+        v_trains_gradients = [∂_∂z(sol, D_face) for sol in v_trains]
+        T_trains_gradients = [∂_∂z(sol, D_face) for sol in T_trains]
+    end
 
     @info "Setting up equations and boundary conditions"
 
@@ -352,7 +354,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             v_loss = mean(loss.(v_trains, v_sols))
             T_loss = mean(loss.(T_trains, T_sols))
             if train_gradient
-                u_sols_gradients, v_sols_gradients, T_sols_gradients, = ∂_∂z.(u_sols, D_face), ∂_∂z.(v_sols, D_face), ∂_∂z.(T_sols, D_face)
+                u_sols_gradients = [∂_∂z(sol, D_face) for sol in u_sols]
+                v_sols_gradients = [∂_∂z(sol, D_face) for sol in v_sols]
+                T_sols_gradients = [∂_∂z(sol, D_face) for sol in T_sols]
+
                 ∂u∂z_loss = mean(loss.(u_trains_gradients, u_sols_gradients))
                 ∂v∂z_loss = mean(loss.(v_trains_gradients, v_sols_gradients))
                 ∂T∂z_loss = mean(loss.(T_trains_gradients, T_sols_gradients))
@@ -389,7 +394,10 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]
 
         u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
-        u_sols_gradients, v_sols_gradients, T_sols_gradients, = ∂_∂z.(u_sols, D_face), ∂_∂z.(v_sols, D_face), ∂_∂z.(T_sols, D_face)
+
+        u_sols_gradients = [∂_∂z(sol, D_face) for sol in u_sols]
+        v_sols_gradients = [∂_∂z(sol, D_face) for sol in v_sols]
+        T_sols_gradients = [∂_∂z(sol, D_face) for sol in T_sols]
 
         u_loss = mean(loss.(u_trains, u_sols))
         v_loss = mean(loss.(v_trains, v_sols))
