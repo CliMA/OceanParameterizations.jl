@@ -297,6 +297,24 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
                     zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing)
     @assert !modified_pacanowski_philander || !convective_adjustment
 
+    train_parameters = Dict(
+                               "ν₀" => ν₀, 
+                               "ν₋" => ν₋, 
+                              "ΔRi" => ΔRi, 
+                              "Riᶜ" => Riᶜ, 
+                               "Pr" => Pr, 
+                                "κ" => κ,
+    "modified_pacanowski_philander" => modified_pacanowski_philander, 
+            "convective_adjustment" => convective_adjustment,
+                   "smooth_profile" => smooth_profile, 
+                        "smooth_NN" => smooth_NN, 
+                        "smooth_Ri" => smooth_Ri, 
+                   "train_gradient" => train_gradient,
+                     "zero_weights" => zero_weights, 
+                 "gradient_scaling" => gradient_scaling, 
+               "training_fractions" => training_fractions
+    )
+
     if zero_weights
         @assert modified_pacanowski_philander
     end
@@ -422,19 +440,36 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     prob_loss = OptimizationProblem(f_loss, @view(weights[:]), BCs)
 
+    @inline function rounded_percentage(num, den)
+        return round(num / den * 100, sigdigits=3)
+    end
+
+    @info "Writing metadata"
+
+    write_metadata_NDE_training(FILE_PATH, train_files, epochs, tsteps, train_parameters, loss_scalings, train_optimizers, uw_NN, vw_NN, wT_NN)
+
     @info "Starting Training"
     for i in 1:length(optimizers), epoch in 1:epochs
         iter = 1
         opt = optimizers[i]
         function cb(args...)
             if iter <= maxiters
-                # weights = args[1]
                 total_loss = args[2]
                 losses = args[3]
                 loss_scalings = args[4]
                 profile_loss = losses.u + losses.v + losses.T
                 gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
-                @info "loss = $(total_loss): profile = $profile_loss (u = $(losses.u), v = $(losses.v), T = $(losses.T)) , gradient=$gradient_loss (u = $(losses.∂u∂z), v = $(losses.∂v∂z), T = $(losses.∂T∂z)), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
+
+                profile_percent = rounded_percentage(profile_loss, total_loss)
+                gradient_percent = rounded_percentage(gradient_loss, total_loss)
+                u_percent = rounded_percentage(losses.u, total_loss)
+                v_percent = rounded_percentage(losses.v, total_loss)
+                T_percent = rounded_percentage(losses.T, total_loss)
+                ∂u∂z_percent = rounded_percentage(losses.∂u∂z, total_loss)
+                ∂v∂z_percent = rounded_percentage(losses.∂v∂z, total_loss)
+                ∂T∂z_percent = rounded_percentage(losses.∂T∂z, total_loss)
+
+                @info "loss = $(total_loss): profile $(profile_percent)%, gradient $(gradient_percent)%, u $(u_percent), v $(v_percent)%, T $(T_percent) ∂u∂z $(∂u∂z_percent), ∂v∂z $(∂v∂z_percent)%, ∂T∂z $(∂T∂z_percent)%, stage $stage, opt $i/$(length(optimizers)), epoch $epoch/$epochs, iter $iter/$maxiters"
                 write_data_NDE_training(FILE_PATH, losses, loss_scalings,
                                     NN_constructions.uw(args[1][NN_ranges.uw]), 
                                     NN_constructions.vw(args[1][NN_ranges.vw]), 
