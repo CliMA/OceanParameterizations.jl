@@ -10,34 +10,31 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-NN_type = ARGS[1]
-# hidden_units = parse(Int,ARGS[2])
-NN_shape = parse(Int, ARGS[2])
-hidden_units = 400
-# rate = parse(Float64,ARGS[2])
-rate = 2e-4
-# params_type = ARGS[4]
-params_type = "new"
+params_type = ARGS[1]
+T_fraction = parse(Float32, ARGS[2])
+NN_type = ARGS[3]
 
 train_files = [
-    # "wind_-5e-4_cooling_4e-8", 
-    # "wind_-1e-3_cooling_4e-8", 
-    # "wind_-2e-4_cooling_1e-8", 
-    # "wind_-1e-3_cooling_2e-8", 
-    # "wind_-5e-4_cooling_1e-8", 
-    # "wind_-2e-4_cooling_5e-8", 
-    # "wind_-5e-4_cooling_3e-8", 
-    "wind_-2e-4_cooling_3e-8", 
-    # "wind_-1e-3_cooling_3e-8", 
-    # "wind_-1e-3_heating_-4e-8",
-    # "wind_-1e-3_heating_-1e-8",
-    # "wind_-1e-3_heating_-3e-8",
-    # "wind_-5e-4_heating_-5e-8",
-    # "wind_-5e-4_heating_-3e-8",
-    # "wind_-5e-4_heating_-1e-8",
-    # "wind_-2e-4_heating_-5e-8",
-    # "wind_-2e-4_heating_-3e-8",
-    # "wind_-2e-4_heating_-1e-8",
+  "wind_-5e-4_cooling_3e-8_new",   
+  # "wind_-5e-4_cooling_1e-8_new",   
+  # "wind_-2e-4_cooling_3e-8_new",   
+  # "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_heating_-3e-8_new",  
+  # "wind_-2e-4_heating_-1e-8_new",  
+  # "wind_-2e-4_heating_-3e-8_new",  
+  # "wind_-5e-4_heating_-1e-8_new",  
+
+  # "wind_-3.5e-4_cooling_2e-8_new", 
+  # "wind_-3.5e-4_heating_-2e-8_new",
+
+  # "wind_-5e-4_cooling_2e-8_new",   
+  # "wind_-3.5e-4_cooling_3e-8_new", 
+  # "wind_-3.5e-4_cooling_1e-8_new", 
+  # "wind_-2e-4_cooling_2e-8_new",   
+  # "wind_-3.5e-4_heating_-3e-8_new",
+  # "wind_-3.5e-4_heating_-1e-8_new",
+  # "wind_-2e-4_heating_-2e-8_new",  
+  # "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
@@ -47,38 +44,45 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
-EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
+VIDEO_PATH = joinpath(PATH, "Output")
 
-FILE_NAME = "NDE_1sim_windcooling_WSnew_$(params_type)_divide1f5_gradient_smallNN_shape$(NN_shape)_$(NN_type)_scale_5e-3_rate_$(Int(round(rate*1e4)))e-4"
+EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
+EXTRACTED_OUTPUT_PATH = OUTPUT_PATH
+
+FILE_NAME = "NDE_18sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_mish_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
-VIDEO_PATH = joinpath(PATH, "Output")
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
+
+parameters_file = jldopen(PARAMETERS_PATH)
+mpp_parameters = parameters_file["parameters"]
+close(parameters_file)
 
 if params_type == "old"
-    ν₀ = 1f-4
-    ν₋ = 1f-1
-    ΔRi = 1f-1
-    Riᶜ = 0.25f0
-    Pr = 1f0
+  ν₀ = 1f-4
+  ν₋ = 1f-1
+  ΔRi = 1f-1
+  Riᶜ = 0.25f0
+  Pr = 1f0
 else
-    PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
 
-    parameters_file = jldopen(PARAMETERS_PATH)
-    mpp_parameters = parameters_file["parameters"]
-    close(parameters_file)
+  parameters_file = jldopen(PARAMETERS_PATH)
+  mpp_parameters = parameters_file["parameters"]
+  close(parameters_file)
 
-    ν₀_initial = 1f-4
-    ν₋_initial = 1f-1
-    ΔRi_initial = 1f-1
-    Riᶜ_initial = 0.25f0
-    Pr_initial = 1f0
+  ν₀_initial = 1f-4
+  ν₋_initial = 1f-1
+  ΔRi_initial = 1f-1
+  Riᶜ_initial = 0.25f0
+  Pr_initial = 1f0
 
-    mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+  mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
-    ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
 end
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -104,126 +108,133 @@ end
 # wT_NN = file["neural_network/wT"]
 
 N_inputs = 96
-# hidden_units = 400
+hidden_units = 400
 N_outputs = 31
 
 if NN_type == "mish"
-    activation = mish
+  activation = mish
 elseif NN_type == "swish"
-    activation = swish
+  activation = swish
 elseif NN_type == "leakyrelu"
-    activation = leakyrelu
+  activation = leakyrelu
 elseif NN_type == "relu"
-    activation = relu
+  activation = relu
 else
-    activation = tanh
+  activation = tanh
 end
 
-if NN_shape == 1
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, 400, activation), Dense(400, 400, activation), Dense(400, N_outputs)))
-elseif NN_shape == 2 
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, 800, activation), Dense(800, N_outputs)))
-elseif NN_shape == 3
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, 48, activation), Dense(48, 400, activation), Dense(400, N_outputs)))
-else
-    weights, re = Flux.destructure(Chain(Dense(N_inputs, 48, activation), Dense(48, N_inputs, activation), Dense(N_inputs, 400, activation), Dense(400, N_outputs)))
-end
-
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, mish), Dense(hidden_units, N_outputs)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, N_outputs)))
 
 uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
 gradient_scaling = 5f-3
-train_parameters = Dict("ν₀" => ν₀, "ν₋" => ν₋, "ΔRi" => ΔRi, "Riᶜ" => Riᶜ, "Pr" => Pr, "κ" => 10f0,
-                        "modified_pacanowski_philander" => true, "convective_adjustment" => false,
-                        "smooth_profile" => false, "smooth_NN" => false, "smooth_Ri" => false, "train_gradient" => true,
-                        "zero_weights" => true, "unscaled" => false, "gradient_scaling" => gradient_scaling)
+training_fractions = (T=T_fraction, ∂T∂z=T_fraction, profile=0.5f0)
+train_parameters = Dict(
+                               "ν₀" => ν₀, 
+                               "ν₋" => ν₋, 
+                              "ΔRi" => ΔRi, 
+                              "Riᶜ" => Riᶜ, 
+                               "Pr" => Pr, 
+                                "κ" => 10f0,
+    "modified_pacanowski_philander" => true, 
+            "convective_adjustment" => false,
+                   "smooth_profile" => false, 
+                        "smooth_NN" => false, 
+                        "smooth_Ri" => false, 
+                   "train_gradient" => true,
+                     "zero_weights" => true, 
+                 "gradient_scaling" => gradient_scaling, 
+               "training_fractions" => training_fractions
+    )
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [300]
-train_optimizers = [[ADAM(rate)]]
+train_iterations = [200]
+train_optimizers = [[ADAM(2e-4)]]
 
 # train_epochs = [1]
-# train_tranges = [1:20:1153]
+# train_tranges = [1:20:200]
 # train_iterations = [5]
 # train_optimizers = [[ADAM(2e-4)]]
 
 
 timestepper = ROCK4()
 
-function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, unscaled)
+function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
-    if unscaled
-        for i in 1:length(train_epochs)
-            @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
-            # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
-            if train_parameters["modified_pacanowski_philander"]
-                uw_NN, vw_NN, wT_NN = train_NDE_unscaled(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
-                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], convective_adjustment=train_parameters["convective_adjustment"],
-                ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], 
-                κ=train_parameters["κ"],
-                smooth_profile=train_parameters["smooth_profile"], smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"], train_gradient=train_parameters["train_gradient"],
-                gradient_scaling=train_parameters["gradient_scaling"])
-            else
-                uw_NN, vw_NN, wT_NN = train_NDE_unscaled(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
-                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], convective_adjustment=train_parameters["convective_adjustment"],
-                κ=train_parameters["κ"],
-                smooth_profile=train_parameters["smooth_profile"], smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"], train_gradient=train_parameters["train_gradient"],
-                gradient_scaling=train_parameters["gradient_scaling"])
-            end
-        end
-    else
-        for i in 1:length(train_epochs)
-            @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
-            # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
-            if train_parameters["modified_pacanowski_philander"]
-                uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
-                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], convective_adjustment=train_parameters["convective_adjustment"],
-                ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], 
-                κ=train_parameters["κ"],
-                smooth_profile=train_parameters["smooth_profile"], smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"], train_gradient=train_parameters["train_gradient"],
-                zero_weights = train_parameters["zero_weights"],
-                gradient_scaling=train_parameters["gradient_scaling"])
-            else
-                uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, n_simulations=length(train_files), maxiters=train_iterations[i], 
-                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], convective_adjustment=train_parameters["convective_adjustment"],
-                κ=train_parameters["κ"],
-                smooth_profile=train_parameters["smooth_profile"], smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"], train_gradient=train_parameters["train_gradient"],
-                zero_weights = train_parameters["zero_weights"],
-                gradient_scaling=train_parameters["gradient_scaling"])
-            end
+    for i in 1:length(train_epochs)
+        @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
+        # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
+        if train_parameters["modified_pacanowski_philander"]
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
+                                                    n_simulations = length(train_files), 
+                                                         maxiters = train_iterations[i], 
+                                    modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
+                                            convective_adjustment = train_parameters["convective_adjustment"],
+                                                               ν₀ = train_parameters["ν₀"], 
+                                                               ν₋ = train_parameters["ν₋"], 
+                                                              ΔRi = train_parameters["ΔRi"], 
+                                                              Riᶜ = train_parameters["Riᶜ"], 
+                                                                κ = train_parameters["κ"],
+                                                   smooth_profile = train_parameters["smooth_profile"], 
+                                                        smooth_NN = train_parameters["smooth_NN"], 
+                                                        smooth_Ri = train_parameters["smooth_Ri"], 
+                                                   train_gradient = train_parameters["train_gradient"],
+                                                     zero_weights = train_parameters["zero_weights"],
+                                                 gradient_scaling = train_parameters["gradient_scaling"],
+                                               training_fractions = train_parameters["training_fractions"]
+                                    )
+        else
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
+                                                    n_simulations = length(train_files), 
+                                                         maxiters = train_iterations[i], 
+                                    modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
+                                            convective_adjustment = train_parameters["convective_adjustment"],
+                                                                κ = train_parameters["κ"],
+                                                   smooth_profile = train_parameters["smooth_profile"],
+                                                        smooth_NN = train_parameters["smooth_NN"], 
+                                                        smooth_Ri = train_parameters["smooth_Ri"],
+                                                   train_gradient = train_parameters["train_gradient"],
+                                                     zero_weights = train_parameters["zero_weights"],
+                                                 gradient_scaling = train_parameters["gradient_scaling"],
+                                               training_fractions = train_parameters["training_fractions"]
+                                                )
         end
     end
     return uw_NN, vw_NN, wT_NN
 end
 
-uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper, train_parameters["unscaled"])
-             
+uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+                                    uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-    # "wind_-5e-4_cooling_4e-8", 
-    # "wind_-1e-3_cooling_4e-8", 
-    # "wind_-2e-4_cooling_1e-8", 
-    # "wind_-1e-3_cooling_2e-8", 
-    # "wind_-5e-4_cooling_1e-8", 
-    # "wind_-2e-4_cooling_5e-8", 
-    # "wind_-5e-4_cooling_3e-8", 
-    "wind_-2e-4_cooling_3e-8", 
-    # "wind_-1e-3_cooling_3e-8", 
-    # "wind_-1e-3_heating_-4e-8",
-    # "wind_-1e-3_heating_-1e-8",
-    # "wind_-1e-3_heating_-3e-8",
-    # "wind_-5e-4_heating_-5e-8",
-    # "wind_-5e-4_heating_-3e-8",
-    # "wind_-5e-4_heating_-1e-8",
-    # "wind_-2e-4_heating_-5e-8",
-    # "wind_-2e-4_heating_-3e-8",
-    # "wind_-2e-4_heating_-1e-8",
+  "wind_-5e-4_cooling_3e-8_new",   
+  "wind_-5e-4_cooling_1e-8_new",   
+  "wind_-2e-4_cooling_3e-8_new",   
+  "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_heating_-3e-8_new",  
+  "wind_-2e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-3e-8_new",  
+  "wind_-5e-4_heating_-1e-8_new",  
+
+  "wind_-3.5e-4_cooling_2e-8_new", 
+  "wind_-3.5e-4_heating_-2e-8_new",
+
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
 ]
 
-animate_training_results(test_files, FILE_NAME,
+
+
+animate_training_results(test_files, DATA_NAME,
                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
