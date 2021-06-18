@@ -25,13 +25,14 @@ function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train
     end
 end
 
-function write_data_NDE_training(FILE_PATH, losses, uw_NN, vw_NN, wT_NN, stage, optimizer)
+function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN, wT_NN, stage, optimizer)
     jldopen(FILE_PATH, "a") do file
         profile_loss = losses.u + losses.v + losses.T
         gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
         total_loss = profile_loss + gradient_loss
 
         if !haskey(file, "training_data/loss/total/$stage")
+            file["training_info/loss_scalings"] = loss_scalings
             file["training_data/loss/total/$stage/1"] = total_loss
             file["training_data/loss/profile/$stage/1"] = profile_loss
             file["training_data/loss/gradient/$stage/1"] = gradient_loss
@@ -114,7 +115,7 @@ function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
     end
 end
 
-function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts)
+function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, loss_scalings, opts)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files
@@ -122,6 +123,7 @@ function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, tr
         training_info["train_tranges"] = train_tranges
         training_info["optimizers"] = opts
         training_info["parameters"] = train_parameters
+        training_info["loss_scalings"] = loss_scalings
 
         training_data = JLD2.Group(file, "training_data")
         loss = JLD2.Group(training_data, "loss")
@@ -129,21 +131,42 @@ function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, tr
     end
 end
 
-function write_data_modified_pacanowski_philander_optimisation(FILE_PATH, loss, parameters)
-    jldopen(FILE_PATH, "a") do file
-        if !haskey(file, "training_data/loss")
-            file["training_data/loss/1"] = loss
-        else
-            count = length(keys(file["training_data/loss"])) + 1
-            file["training_data/loss/$count"] = loss
-        end
+function write_data_modified_pacanowski_philander_optimisation(FILE_PATH, losses, parameters)
+    profile_loss = losses.u + losses.v + losses.T
+    gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
+    total_loss = profile_loss + gradient_loss
 
-        if !haskey(file, "training_data/parameters")
+    jldopen(FILE_PATH, "a") do file
+        if !haskey(file, "training_data/loss/total")
+            file["training_data/loss/total/1"] = total_loss
+            file["training_data/loss/profile/1"] = profile_loss
+            file["training_data/loss/gradient/1"] = gradient_loss
+
+            file["training_data/loss/u/1"] = losses.u
+            file["training_data/loss/v/1"] = losses.v
+            file["training_data/loss/T/1"] = losses.T
+
+            file["training_data/loss/∂u∂z/1"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/1"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/1"] = losses.∂T∂z
+            
             file["training_data/parameters/1"] = parameters
         else
-            count = length(keys(file["training_data/parameters"])) + 1
+            count = length(keys(file["training_data/loss/total"])) + 1
+
+            file["training_data/loss/total/$count"] = total_loss
+            file["training_data/loss/profile/$count"] = profile_loss
+            file["training_data/loss/gradient/$count"] = gradient_loss
+
+            file["training_data/loss/u/$count"] = losses.u
+            file["training_data/loss/v/$count"] = losses.v
+            file["training_data/loss/T/$count"] = losses.T
+
+            file["training_data/loss/∂u∂z/$count"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/$count"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/$count"] = losses.∂T∂z
+
             file["training_data/parameters/$count"] = parameters
         end
-
     end
 end
