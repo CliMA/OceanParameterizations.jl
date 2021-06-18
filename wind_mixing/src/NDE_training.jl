@@ -291,60 +291,6 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function loss(a, b)
-    return Flux.mse(a, b)    
-end
-
-@views split_u(uvT, Nz) = uvT[1:Nz, :]
-@views split_v(uvT, Nz) = uvT[Nz+1:2Nz, :]
-@views split_T(uvT, Nz) = uvT[2Nz+1:3Nz, :]
-
-@views ∂_∂z(profile, D_face) = hcat([D_face * profile[:,i] for i in 1:size(profile, 2)]...)
-
-# function losses_NDE(sol, data, data_gradient, constants, derivatives)
-#     Nz = constants.Nz
-#     D_face = derivatives.face
-    
-#     ∂z(profile) = ∂_∂z(profile, D_face)
-
-#     u_data, v_data, T_data = split_uvT(data, Nz)
-#     u_sol, v_sol, T_sol = split_uvT(sol, Nz)
-
-#     ∂u∂z_data, ∂v∂z_data, ∂T∂z_data = data_gradient.u, data_gradient.v, data_gradient.T
-#     ∂u∂z_sol, ∂v∂z_sol, ∂T∂z_sol = ∂z(u_sol), ∂z(v_sol), ∂z(T_sol)
-
-#     u_loss, v_loss, T_loss = loss(u_data, u_sol), loss(v_data, v_sol), loss(T_data, T_sol)
-#     ∂u∂z_loss, ∂v∂z_loss, ∂T∂z_loss = loss(∂u∂z_data, ∂u∂z_sol), loss(∂v∂z_data, ∂v∂z_sol), loss(∂T∂z_data, ∂T∂z_sol)
-#     return (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=∂u∂z_loss, ∂v∂z=∂v∂z_loss, ∂T∂z=∂T∂z_loss)
-# end
-
-function calculate_training_scalings(losses, fractions)
-    velocity_scaling = (1 - fractions.T) / fractions.T * losses.T / (losses.u + losses.v)
-    velocity_gradient_scaling = (1 - fractions.∂T∂z) / fractions.∂T∂z * losses.∂T∂z / (losses.∂u∂z + losses.∂v∂z)
-
-    profile_loss = velocity_scaling * (losses.u + losses.v) + losses.T
-    gradient_loss = velocity_gradient_scaling * (losses.∂u∂z + losses.∂v∂z) + losses.∂T∂z
-
-    total_gradient_scaling = (1 - fractions.profile) / fractions.profile * profile_loss / gradient_loss
-    return (   u = velocity_scaling, 
-               v = velocity_scaling, 
-               T = 1, 
-            ∂u∂z = total_gradient_scaling * velocity_gradient_scaling,
-            ∂v∂z = total_gradient_scaling * velocity_gradient_scaling,
-            ∂T∂z = total_gradient_scaling ) 
-end
-
-function apply_training_scaling(losses, scalings)
-    return (
-        u = scalings.u * losses.u,
-        v = scalings.v * losses.v,
-        T = scalings.T * losses.T,
-        ∂u∂z = scalings.∂u∂z * losses.∂u∂z,
-        ∂v∂z = scalings.∂v∂z * losses.∂v∂z,
-        ∂T∂z = scalings.∂T∂z * losses.∂T∂z,
-    )
-end
-
 function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=2f-4, g=9.80665f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
@@ -374,8 +320,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
     t_train = 𝒟train.t[:,1][tsteps]
     uvT_trains = [𝒟train.uvT_scaled[:,n_steps * i + 1:n_steps * (i + 1)][:, tsteps] for i in 0:n_simulations - 1]
 
+    u_trains, v_trains, T_trains = split_u.(uvT_trains, Nz), split_v.(uvT_trains, Nz), split_T.(uvT_trains, Nz)
+
     if train_gradient
-        u_trains, v_trains, T_trains = split_u.(uvT_trains, Nz), split_v.(uvT_trains, Nz), split_T.(uvT_trains, Nz)
         u_trains_gradients, v_trains_gradients, T_trains_gradients, = ∂_∂z.(u_trains, D_face), ∂_∂z.(v_trains, D_face), ∂_∂z.(T_trains, D_face)    
     end    
 
@@ -394,9 +341,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
 
     prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
 
-    function determine_training_scalings()
+    function determine_loss_scalings()
         if training_fractions === nothing
-            training_scalings = (u=1, v=1, T=1, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
+            loss_scalings = (u=1, v=1, T=1, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
         else
             sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
             u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
@@ -416,14 +363,14 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
             end
 
             losses = (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=∂u∂z_loss, ∂v∂z=∂v∂z_loss, ∂T∂z=∂T∂z_loss)
-            training_scalings = calculate_training_scalings(losses, training_fractions)
+            loss_scalings = calculate_loss_scalings(losses, training_fractions, train_gradient)
         end
-        return training_scalings
+        return loss_scalings
     end
 
     @info "Determining training scalings"
 
-    training_scalings = determine_training_scalings()
+    loss_scalings = determine_loss_scalings()
 
     function loss_NDE(weights, BCs)
         sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
@@ -433,9 +380,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         T_loss = mean(loss.(T_trains, T_sols))
 
         losses = (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=0, ∂v∂z=0, ∂T∂z=0)
-        scaled_losses = apply_training_scaling(losses, training_scalings)
+        scaled_losses = apply_loss_scalings(losses, loss_scalings)
 
-        return sum(scaled_losses), scaled_losses
+        return sum(scaled_losses), scaled_losses, loss_scalings
     end
 
     function loss_gradient_NDE(weights, BCs)
@@ -452,9 +399,9 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         ∂T∂z_loss = mean(loss.(T_trains_gradients, T_sols_gradients))
         
         losses = (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=∂u∂z_loss, ∂v∂z=∂v∂z_loss, ∂T∂z=∂T∂z_loss)
-        scaled_losses = apply_training_scaling(losses, training_scalings)
+        scaled_losses = apply_loss_scalings(losses, loss_scalings)
 
-        return sum(scaled_losses), scaled_losses
+        return sum(scaled_losses), scaled_losses, loss_scalings
     end
 
     @info "Setting up optimization problem"
@@ -476,10 +423,11 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
                 # weights = args[1]
                 total_loss = args[2]
                 losses = args[3]
+                loss_scalings = args[4]
                 profile_loss = losses.u + losses.v + losses.T
                 gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
-                @info "NDE, loss = $(total_loss) (profile = $profile_loss, gradient=$gradient_loss), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
-                write_data_NDE_training(FILE_PATH, losses, 
+                @info "loss = $(total_loss): profile = $profile_loss (u = $(losses.u), v = $(losses.v), T = $(losses.T)) , gradient=$gradient_loss (u = $(losses.∂u∂z), v = $(losses.∂v∂z), T = $(losses.∂T∂z)), stage $stage, optimizer $i/$(length(optimizers)), epoch $epoch/$epochs, iteration = $iter/$maxiters"
+                write_data_NDE_training(FILE_PATH, losses, loss_scalings,
                                     NN_constructions.uw(args[1][NN_ranges.uw]), 
                                     NN_constructions.vw(args[1][NN_ranges.vw]), 
                                     NN_constructions.wT(args[1][NN_ranges.wT]), 

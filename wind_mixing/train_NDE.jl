@@ -36,11 +36,12 @@ train_files = [
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
+EXTRACTED_OUTPUT_PATH = OUTPUT_PATH
 
 FILE_NAME = "NDE_18sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_mish_scale_5e-3_rate_1e-4"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
@@ -105,7 +106,7 @@ vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
 gradient_scaling = 5f-3
-training_fractions = (T=0.8f0, ∂T∂z=0.8f0, profile=0.8f0)
+training_fractions = (T=0.8f0, ∂T∂z=0.8f0, profile=0.5f0)
 train_parameters = Dict(
                                "ν₀" => ν₀, 
                                "ν₋" => ν₋, 
@@ -159,8 +160,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
                                                  gradient_scaling = train_parameters["gradient_scaling"],
-                                                 training_fractions = nothing
-                                              #  training_fractions = train_parameters["training_fractions"]
+                                               training_fractions = train_parameters["training_fractions"]
                                     )
         else
             uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 

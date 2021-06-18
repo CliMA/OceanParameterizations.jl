@@ -9,7 +9,7 @@ export data, read_les_output,
        train_NDE, train_NN,
        oceananigans_modified_pacanowski_philander_nn,
        solve_NDE_mutating, solve_oceananigans_modified_pacanowski_philander_nn,
-       NDE_profile, NDE_profile_oceananigans, NDE_profile_unscaled, NDE_profile_mutating,
+       NDE_profile, NDE_profile_oceananigans,
        animate_NN, animate_profile, animate_flux, animate_profile_flux, animate_profiles, animate_local_richardson_profile,
        animate_profiles_fluxes, animate_training_data_profiles_fluxes, animate_profiles_fluxes_comparison, 
        animate_training_results, animate_training_results_oceananigans,
@@ -55,6 +55,7 @@ include("data_extraction.jl")
 include("NDE_oceananigans.jl")
 include("training_postprocessing.jl")
 include("k_profile_parameterization.jl")
+include("loss.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
