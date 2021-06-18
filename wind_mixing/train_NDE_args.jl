@@ -54,12 +54,6 @@ FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
-PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
-
-parameters_file = jldopen(PARAMETERS_PATH)
-mpp_parameters = parameters_file["parameters"]
-close(parameters_file)
-
 if params_type == "old"
   ν₀ = 1f-4
   ν₋ = 1f-1
