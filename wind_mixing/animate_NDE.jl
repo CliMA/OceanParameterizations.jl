@@ -32,6 +32,14 @@ minimum(losses)
 train_files = file["training_info/train_files"]
 train_parameters = file["training_info/parameters"]
 
+if haskey(file["training_info"], "loss_scalings")
+    loss_scalings = file["training_info/loss_scalings"]
+elseif haskey(train_parameters, "gradient_scaling")
+    gradient_scaling = train_parameters["gradient_scaling"]
+    loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
+end
+
+
 # Plots.plot(1:1:length(losses), losses, yscale=:log10)
 # Plots.xlabel!("Iteration")
 # Plots.ylabel!("Loss mse")
@@ -45,30 +53,31 @@ uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
 
+
 close(file)
 [uw_NN(rand(96)) uw_NN(rand(96))]
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, relu), Dense(hidden_units, N_outputs)))
 
-uw_NN = re(zeros(Float32, length(weights)))
-vw_NN = re(zeros(Float32, length(weights)))
-wT_NN = re(zeros(Float32, length(weights)))
+# uw_NN = re(zeros(Float32, length(weights)))
+# vw_NN = re(zeros(Float32, length(weights)))
+# wT_NN = re(zeros(Float32, length(weights)))
 
 
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
 trange = 1:1:1153
-plot_data = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                         # ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 
                         Riᶜ=train_parameters["Riᶜ"], convective_adjustment=train_parameters["convective_adjustment"],
                         smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                         zero_weights=train_parameters["zero_weights"],
-                        gradient_scaling=train_parameters["gradient_scaling"])
+                        loss_scalings=loss_scalings)
 
 # WindMixing.animate_profiles_fluxes(plot_data, joinpath(FILE_PATH, VIDEO_NAME), dimensionless=false, SIMULATION_NAME=SIMULATION_NAME)
 
@@ -76,7 +85,7 @@ animation_type = "Training"
 n_trainings = length(train_files)
 training_types = "Wind Mixing, Free Convection"
 VIDEO_NAME = "test"
-animate_profiles_fluxes_comparison(plot_data, joinpath(FILE_PATH, VIDEO_NAME), fps=30, 
+animate_profiles_fluxes_comparison(plot_data, plot_data, plot_data, joinpath(FILE_PATH, VIDEO_NAME), fps=30, 
                                                 animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
 
 

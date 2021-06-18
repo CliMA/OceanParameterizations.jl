@@ -415,18 +415,28 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
         clamp.(data_diffeq_implicit["test_Ri"], -1, 2),
     ]
 
+    @inline function lowclamp(value, lo)
+        if value >= lo
+            return value
+        else
+            return lo
+        end
+    end
+
     losses_data = [
-        clamp.(data_diffeq_explicit["losses_modified_pacanowski_philander_gradient"], 1f-5, 10),
-        clamp.(data_diffeq_explicit["losses_kpp_gradient"], 1f-5, 10),
-        clamp.(data_oceananigans["losses_gradient"], 1f-5, 10),
-        clamp.(data_diffeq_explicit["losses_gradient"], 1f-5, 10),
-        clamp.(data_diffeq_implicit["losses_gradient"], 1f-5, 10),
-        clamp.(data_diffeq_explicit["losses_modified_pacanowski_philander"], 1f-5, 10),
-        clamp.(data_diffeq_explicit["losses_kpp"], 1f-5, 10),
-        clamp.(data_oceananigans["losses"], 1f-5, 10),
-        clamp.(data_diffeq_explicit["losses"], 1f-5, 10),
-        clamp.(data_diffeq_implicit["losses"], 1f-5, 10),
+        lowclamp.(data_diffeq_explicit["losses_modified_pacanowski_philander_gradient"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_kpp_gradient"], 1f-5),
+        lowclamp.(data_oceananigans["losses_gradient"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_gradient"], 1f-5),
+        lowclamp.(data_diffeq_implicit["losses_gradient"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_modified_pacanowski_philander"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_kpp"], 1f-5),
+        lowclamp.(data_oceananigans["losses"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses"], 1f-5),
+        lowclamp.(data_diffeq_implicit["losses"], 1f-5),
     ]
+
+    @show maximum.(losses_data)
 
     @inline function add_ϵ!(losses)
         losses .= losses .+ (losses .== 0) .* eps(Float32)
@@ -466,22 +476,20 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
     ΔRi = train_parameters.ΔRi
     Riᶜ = train_parameters.Riᶜ
     Pr = train_parameters.Pr
-    gradient_scaling = train_parameters.gradient_scaling
+    loss_scalings = train_parameters.loss_scalings
 
     BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data_diffeq_explicit["truth_uw"][end, 1] data_diffeq_explicit["truth_wT"][end, 1]
     plot_title = @lift "$animation_type Data: $BC_str, Time = $(round(times[$frame], digits=2)) days"
 
     diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
 
-    scaling_str = @sprintf "Gradient Scaling = %.1e" gradient_scaling
+    scaling_str = @sprintf "Loss Scalings: u = %.1e, v = %.1e, T = %.1e, ∂u∂z = %.1e, ∂v∂z = %.1e, ∂T∂z = %.1e" loss_scalings.u loss_scalings.v loss_scalings.T loss_scalings.∂u∂z loss_scalings.∂v∂z loss_scalings.∂T∂z
 
-    plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str, $scaling_str"
+    plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str \n $scaling_str"
 
     fig = Figure(resolution=(1920, 1080))
     
-    color_palette = distinguishable_colors(length(uw_data)+length(losses_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
-    colors = [color_palette[i] for i in 1:length(uw_data)]
-    colors_losses = [color_palette[i] for i in length(uw_data) + 1:length(color_palette)]
+    colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
     u_str = "u / m s⁻¹"
     v_str = "v / m s⁻¹"
@@ -547,19 +555,19 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
 
     uw_lines = [
          lines!(ax_uw, uw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-         lines!(ax_uw, uw_frames[end], zf_interior, linewidth=3, color=colors[end]);
+         lines!(ax_uw, uw_frames[end], zf_interior, linewidth=3, color=colors[end-1]);
         [lines!(ax_uw, uw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(uw_data)-1]
     ]
 
    vw_lines = [
          lines!(ax_vw, vw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-         lines!(ax_vw, vw_frames[end], zf_interior, linewidth=3, color=colors[end]);
+         lines!(ax_vw, vw_frames[end], zf_interior, linewidth=3, color=colors[end-1]);
         [lines!(ax_vw, vw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(vw_data)-1]
     ]
 
     wT_lines = [
         lines!(ax_wT, wT_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-        lines!(ax_wT, wT_frames[end], zf_interior, linewidth=3, color=colors[end]);
+        lines!(ax_wT, wT_frames[end], zf_interior, linewidth=3, color=colors[end-1]);
        [lines!(ax_wT, wT_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(wT_data)-1]
    ]
 
@@ -568,9 +576,12 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
         [lines!(ax_Ri, Ri_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
     ]
 
-    losses_lines = [lines!(ax_losses, times, losses_data[i], linewidth=linewidth, color=colors_losses[i]) for i in 1:length(losses_data)]
+    losses_lines =  [
+        [lines!(ax_losses, times, losses_data[i], linewidth=linewidth, color=colors[i+1]) for i in 1:Int(length(losses_data)/2)];
+        [lines!(ax_losses, times, losses_data[Int(i+length(losses_data)/2)], linewidth=linewidth, color=colors[i+1], linestyle=:dot) for i in 1:Int(length(losses_data)/2)];
+    ]
 
-    losses_point = [CairoMakie.scatter!(ax_losses, time_point, point, color=colors_losses[end]) for point in losses_point_frames] 
+    losses_point = [CairoMakie.scatter!(ax_losses, time_point, point, color=colors[end]) for point in losses_point_frames] 
     
     legend = Legend(fig, uw_lines, ["LES", 
                                     "NN Only",
@@ -835,13 +846,28 @@ function animate_training_results(test_files, FILE_NAME;
 
     @info "Loading Data"
     file = jldopen(DATA_PATH, "r")
-    losses = file["losses"]
+    if haskey(file, "losses/total")
+        losses = file["losses/total"]
+    else
+        losses = file["losses"]
+    end
+
     @info "Training Loss = $(minimum(losses))"
     train_files = file["training_info/train_files"]
     train_parameters = file["training_info/parameters"]
     uw_NN = file["neural_network/uw"]
     vw_NN = file["neural_network/vw"]
     wT_NN = file["neural_network/wT"]
+
+    if haskey(file["training_info"], "loss_scalings")
+        loss_scalings = file["training_info/loss_scalings"]
+    elseif haskey(train_parameters, "gradient_scaling")
+        gradient_scaling = train_parameters["gradient_scaling"]
+        loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
+    else
+        loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=1f0, ∂v∂z=1f0, ∂T∂z=1f0)
+    end
+
     close(file)
 
     @info "Loading Training Data"
@@ -877,30 +903,32 @@ function animate_training_results(test_files, FILE_NAME;
         end
 
         @info "Solving NDE: $test_file, Explicit timestepper"
-        plot_data_explicit = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        plot_data_explicit = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
                                 convective_adjustment=train_parameters["convective_adjustment"],
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
-                                gradient_scaling=train_parameters["gradient_scaling"],
+                                loss_scalings=loss_scalings,
                                 timestepper=explicit_timestepper,
                                 OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_explicit.jld2"))
 
         @info "Solving NDE: $test_file, Implicit timestepper"
-        plot_data_implicit = NDE_profile_mutating(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        plot_data_implicit = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
                                 convective_adjustment=train_parameters["convective_adjustment"],
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
-                                gradient_scaling=train_parameters["gradient_scaling"],
+                                loss_scalings=loss_scalings,
                                 timestepper=implicit_timestepper,
                                 OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_implicit.jld2"))
 
+        @info "Solving NDE: $test_file, Oceananigans"
+
         plot_data_oceananigans = NDE_profile_oceananigans(SOL_DIR, train_files, [test_file],
                                             ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
-                                            gradient_scaling=train_parameters["gradient_scaling"],
+                                            loss_scalings=loss_scalings,
                                             OUTPUT_PATH=joinpath(SOL_DIR, "solution_oceananigans.jld2"))
         
         if test_file in train_files
@@ -925,46 +953,3 @@ function animate_training_results(test_files, FILE_NAME;
         @info "$test_file Animation Completed"
     end
 end
-
-# function animate_training_results_oceananigans(test_files, FILE_NAME, OUTPUT_DIR; timestep)
-#     EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
-#     extracted_training_file = jldopen(EXTRACTED_FILE_PATH)
-#     losses = extracted_training_file["losses"]
-#     # solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR, timestep=timestep)
-
-#     train_files = extracted_training_file["training_info/train_files"]
-#     train_parameters = extracted_training_file["training_info/parameters"]
-
-#     close(extracted_training_file)
-
-#     for test_file in test_files
-#         @info "Processing $test_file solution"
-#         if test_file in train_files
-#             SOL_DIR = joinpath(OUTPUT_DIR, "train_$test_file")
-#             animation_type = "Training"
-#         else
-#             SOL_DIR = joinpath(OUTPUT_DIR, "test_$test_file")
-#             animation_type = "Testing"
-#         end
-
-#         plot_data = NDE_profile_oceananigans(SOL_DIR, train_files, [test_file],
-#                                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], 
-#                                         ΔRi=train_parameters["ΔRi"], Riᶜ=train_parameters["Riᶜ"], Pr=train_parameters["Pr"], 
-#                                         gradient_scaling=train_parameters["gradient_scaling"],
-#                                         OUTPUT_PATH=joinpath(SOL_DIR, "profiles_fluxes.jld2"))
-
-#         n_trainings = length(train_files)
-#         training_types = generate_training_types_str(FILE_NAME)
-#         VIDEO_NAME = "profiles_fluxes_comparison_animation"
-
-#         @info "Animating $test_file solution"
-#         animate_profiles_fluxes_comparison(plot_data, joinpath(SOL_DIR, VIDEO_NAME), fps=30, 
-#                                                         animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
-#     end
-
-#     @info "Plotting Loss..."
-#     Plots.plot(1:1:length(losses), losses, yscale=:log10)
-#     Plots.xlabel!("Iteration")
-#     Plots.ylabel!("Loss mse")
-#     savefig(joinpath(OUTPUT_DIR, "loss.pdf"))
-# end
