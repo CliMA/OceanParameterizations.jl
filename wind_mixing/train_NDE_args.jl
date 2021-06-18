@@ -49,7 +49,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 EXTRACTED_OUTPUT_PATH = OUTPUT_PATH
 
-FILE_NAME = "NDE_18sim_windcooling_windheating_18sim5paramsBFGS_divide1f5_gradient_smallNN_mish_scale_5e-3_rate_1e-4"
+FILE_NAME = "NDE_2sim_windcooling_SS_windheating_SS_$(NN_type)_divide1f5_gradient_smallNN_$(NN_type)_scale_5e-3_rate_2e-4_T$(T_fraction)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
