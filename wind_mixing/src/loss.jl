@@ -44,3 +44,52 @@ end
 @views function loss_per_tstep(a, b)
     return [loss(a[:,i], b[:,i]) for i in 1:size(a, 2)]
 end
+
+function plot_loss(losses::NamedTuple, OUTPUT_PATH)
+    profile_losses = losses.u .+ losses.v .+ losses.T
+    gradient_losses = losses.∂u∂z .+ losses.∂v∂z .+ losses.∂T∂z
+
+    x = 1:length(losses.u)
+    fig = Figure()
+    ax_top = Axis(fig[1, 1], yscale=log10)
+    ax_bot = Axis(fig[2, 1], yscale=log10)
+
+    ax_top.xlabel = "Epochs"
+    ax_bot.xlabel = "Epochs"
+
+    ax_top.ylabel = "Losses"
+    ax_bot.ylabel = "Losses"
+
+    u_line = CairoMakie.lines!(ax_top, x, losses.u)
+    v_line = CairoMakie.lines!(ax_top, x, losses.v)
+    T_line = CairoMakie.lines!(ax_top, x, losses.T)
+
+    ∂u∂z_line = CairoMakie.lines!(ax_top, x, losses.∂u∂z)
+    ∂v∂z_line = CairoMakie.lines!(ax_top, x, losses.∂v∂z)
+    ∂T∂z_line = CairoMakie.lines!(ax_top, x, losses.∂T∂z)
+
+    profile_line = CairoMakie.lines!(ax_bot, x, profile_losses)
+    gradient_line = CairoMakie.lines!(ax_bot, x, gradient_losses)
+
+    legend = fig[:,2] = Legend(fig, [u_line, v_line, T_line, ∂v∂z_line, ∂v∂z_line, ∂T∂z_line, profile_line, gradient_line],
+                                ["u", "v", "T", "∂u/∂z", "∂v/∂z", "∂T/∂z", "profile", "gradient"])
+
+    trim!(fig.layout)
+
+    save(OUTPUT_PATH, fig)
+end
+
+function plot_loss(losses, OUTPUT_PATH)
+    x = 1:length(losses)
+    fig = Figure()
+    ax = Axis(fig[1, 1], yscale=log10)
+
+    ax.xlabel = "Epochs"
+    ax.ylabel = "Total Loss"
+
+    line = CairoMakie.lines!(ax, x, losses)
+
+    trim!(fig.layout)
+
+    save(OUTPUT_PATH, fig)
+end

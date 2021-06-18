@@ -843,11 +843,18 @@ function animate_training_results(test_files, FILE_NAME;
     if !ispath(OUTPUT_PATH)
         mkdir(OUTPUT_PATH)
     end
-
+    
     @info "Loading Data"
     file = jldopen(DATA_PATH, "r")
     if haskey(file, "losses/total")
-        losses = file["losses/total"]
+        losses = (
+            u = file["losses/u"],
+            v = file["losses/v"],
+            T = file["losses/T"],
+            ∂u∂z = file["losses/∂u∂z"],
+            ∂v∂z = file["losses/∂v∂z"],
+            ∂T∂z = file["losses/∂T∂z"],
+        )
     else
         losses = file["losses"]
     end
@@ -881,10 +888,7 @@ function animate_training_results(test_files, FILE_NAME;
     Pr = train_parameters["Pr"]
 
     @info "Plotting Loss..."
-    Plots.plot(1:1:length(losses), losses, yscale=:log10)
-    Plots.xlabel!("Iteration")
-    Plots.ylabel!("Loss mse")
-    savefig(joinpath(OUTPUT_PATH, "loss.pdf"))
+    plot_loss(losses, joinpath(OUTPUT_PATH, "loss.pdf"))
 
     @info "Solving NDE: Oceananigans"
     solve_oceananigans_modified_pacanowski_philander_nn(test_files, DATA_PATH, OUTPUT_PATH; timestep=timestep)
