@@ -110,6 +110,8 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
             @info "Writing Training Info"
             file["training_info/train_files"] = train_files
             file["training_info/parameters"] = train_parameters
+            file["training_info/loss_scalings"] = loss_scalings
+
             file["losses/total"] = losses.total
             file["losses/profile"] = losses.profile
             file["losses/gradient"] = losses.gradient
