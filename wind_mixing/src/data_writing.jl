@@ -32,7 +32,7 @@ function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN,
         total_loss = profile_loss + gradient_loss
 
         if !haskey(file, "training_data/loss/total/$stage")
-            training_info["loss_scalings"] = loss_scalings
+            file["training_info/loss_scalings"] = loss_scalings
             file["training_data/loss/total/$stage/1"] = total_loss
             file["training_data/loss/profile/$stage/1"] = profile_loss
             file["training_data/loss/gradient/$stage/1"] = gradient_loss
