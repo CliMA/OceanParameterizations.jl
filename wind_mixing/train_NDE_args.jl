@@ -16,11 +16,11 @@ params_type = "old"
 T_fraction = parse(Float32, ARGS[1])
 NN_type = ARGS[2]
 
-rate_str = ARGS[3]
+N_sims = parse(Int, ARGS[3])
+
+rate_str = ARGS[4]
 rate = parse(Float64, rate_str)
 
-# N_sims = parse(Int, ARGS[3])
-N_sims = 18
 
 # params_type = "old"
 # T_fraction = parse(Float32, "0.8")
