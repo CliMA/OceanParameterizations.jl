@@ -14,12 +14,13 @@ BLAS.set_num_threads(1)
 params_type = "old"
 T_fraction = parse(Float32, ARGS[1])
 NN_type = ARGS[2]
+N_sims = parse(Int, ARGS[3])
 
 # params_type = "old"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
-train_files = [
+train_files_all = [
   "wind_-5e-4_cooling_3e-8_new",   
   "wind_-5e-4_cooling_1e-8_new",   
   "wind_-2e-4_cooling_3e-8_new",   
@@ -32,15 +33,17 @@ train_files = [
   "wind_-3.5e-4_cooling_2e-8_new", 
   "wind_-3.5e-4_heating_-2e-8_new",
 
-  # "wind_-5e-4_cooling_2e-8_new",   
-  # "wind_-3.5e-4_cooling_3e-8_new", 
-  # "wind_-3.5e-4_cooling_1e-8_new", 
-  # "wind_-2e-4_cooling_2e-8_new",   
-  # "wind_-3.5e-4_heating_-3e-8_new",
-  # "wind_-3.5e-4_heating_-1e-8_new",
-  # "wind_-2e-4_heating_-2e-8_new",  
-  # "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
 ]
+
+train_files = train_files_all[1:N_sims]
 
 # 
 PATH = pwd()
@@ -52,7 +55,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_10sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 # @assert !isfile(FILE_PATH)
