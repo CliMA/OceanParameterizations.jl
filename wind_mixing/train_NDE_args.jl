@@ -41,7 +41,6 @@ train_files = [
   # "wind_-5e-4_heating_-2e-8_new",  
 ]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 # 
 PATH = pwd()
 
@@ -160,14 +159,11 @@ train_optimizers = [[ADAM(2e-4)]]
 
 timestepper = ROCK4()
 
-function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
-    write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
+function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
-        # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
         if train_parameters["modified_pacanowski_philander"]
-            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
-                                                    n_simulations = length(train_files), 
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
                                                          maxiters = train_iterations[i], 
                                     modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
                                             convective_adjustment = train_parameters["convective_adjustment"],
@@ -175,6 +171,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                                ν₋ = train_parameters["ν₋"], 
                                                               ΔRi = train_parameters["ΔRi"], 
                                                               Riᶜ = train_parameters["Riᶜ"], 
+                                                               Pr = train_parameters["Pr"],
                                                                 κ = train_parameters["κ"],
                                                    smooth_profile = train_parameters["smooth_profile"], 
                                                         smooth_NN = train_parameters["smooth_NN"], 
@@ -185,8 +182,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                training_fractions = train_parameters["training_fractions"]
                                     )
         else
-            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
-                                                    n_simulations = length(train_files), 
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
                                                          maxiters = train_iterations[i], 
                                     modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
                                             convective_adjustment = train_parameters["convective_adjustment"],
@@ -204,34 +200,45 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
-uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+                                    uw_NN, vw_NN, wT_NN, timestepper)
 
-extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
+@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+                                    uw_NN, vw_NN, wT_NN, timestepper)
 
-test_files = [
-  # "wind_-5e-4_cooling_3e-8_new",   
-  # "wind_-5e-4_cooling_1e-8_new",   
-  # "wind_-2e-4_cooling_3e-8_new",   
-  # "wind_-2e-4_cooling_1e-8_new",   
-  # "wind_-5e-4_heating_-3e-8_new",  
-  # "wind_-2e-4_heating_-1e-8_new",  
-  # "wind_-2e-4_heating_-3e-8_new",  
-  # "wind_-5e-4_heating_-1e-8_new",  
+BLAS.set_num_threads(8)
 
-  "wind_-3.5e-4_cooling_2e-8_new", 
-#   "wind_-3.5e-4_heating_-2e-8_new",
+@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+                                    uw_NN, vw_NN, wT_NN, timestepper)
 
-#   "wind_-5e-4_cooling_2e-8_new",   
-#   "wind_-3.5e-4_cooling_3e-8_new", 
-#   "wind_-3.5e-4_cooling_1e-8_new", 
-#   "wind_-2e-4_cooling_2e-8_new",   
-#   "wind_-3.5e-4_heating_-3e-8_new",
-#   "wind_-3.5e-4_heating_-1e-8_new",
-#   "wind_-2e-4_heating_-2e-8_new",  
-#   "wind_-5e-4_heating_-2e-8_new",  
-]
+@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+                                    uw_NN, vw_NN, wT_NN, timestepper)
+
+# extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
+
+# test_files = [
+#   # "wind_-5e-4_cooling_3e-8_new",   
+#   # "wind_-5e-4_cooling_1e-8_new",   
+#   # "wind_-2e-4_cooling_3e-8_new",   
+#   # "wind_-2e-4_cooling_1e-8_new",   
+#   # "wind_-5e-4_heating_-3e-8_new",  
+#   # "wind_-2e-4_heating_-1e-8_new",  
+#   # "wind_-2e-4_heating_-3e-8_new",  
+#   # "wind_-5e-4_heating_-1e-8_new",  
+
+#   "wind_-3.5e-4_cooling_2e-8_new", 
+# #   "wind_-3.5e-4_heating_-2e-8_new",
+
+# #   "wind_-5e-4_cooling_2e-8_new",   
+# #   "wind_-3.5e-4_cooling_3e-8_new", 
+# #   "wind_-3.5e-4_cooling_1e-8_new", 
+# #   "wind_-2e-4_cooling_2e-8_new",   
+# #   "wind_-3.5e-4_heating_-3e-8_new",
+# #   "wind_-3.5e-4_heating_-1e-8_new",
+# #   "wind_-2e-4_heating_-2e-8_new",  
+# #   "wind_-5e-4_heating_-2e-8_new",  
+# ]
 
 
-animate_training_results(test_files, FILE_NAME,
-                         EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
+# animate_training_results(test_files, FILE_NAME,
+#                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
