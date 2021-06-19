@@ -30,10 +30,10 @@ Plots.plot(1:1:size, losses, yscale=:log10)
 Plots.xlabel!("Iteration")
 Plots.ylabel!("Loss mse")
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
 test_files = ["-1e-3"]
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]

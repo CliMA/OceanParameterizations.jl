@@ -31,7 +31,7 @@ train_files = [
     # "wind_-2e-4_heating_-1e-8",
 ]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 # 
 PATH = pwd()
 
@@ -139,10 +139,8 @@ train_optimizers = [[ADAM(3e-4)]]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
-    write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
-        # uw_NN, vw_NN, wT_NN = train_NDE_convective_adjustment(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, 1, 1, 10f0, 5)
         if train_parameters["modified_pacanowski_philander"]
             uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
                                                     n_simulations = length(train_files), 
@@ -153,6 +151,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                                ν₋ = train_parameters["ν₋"], 
                                                               ΔRi = train_parameters["ΔRi"], 
                                                               Riᶜ = train_parameters["Riᶜ"], 
+                                                               Pr = train_parameters["Pr"],
                                                                 κ = train_parameters["κ"],
                                                    smooth_profile = train_parameters["smooth_profile"], 
                                                         smooth_NN = train_parameters["smooth_NN"], 

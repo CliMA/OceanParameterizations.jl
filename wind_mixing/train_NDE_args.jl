@@ -41,7 +41,7 @@ train_files = [
   # "wind_-5e-4_heating_-2e-8_new",  
 ]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 # 
 PATH = pwd()
 
@@ -210,7 +210,7 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-  "wind_-5e-4_cooling_3e-8_new",   
+  # "wind_-5e-4_cooling_3e-8_new",   
   # "wind_-5e-4_cooling_1e-8_new",   
   # "wind_-2e-4_cooling_3e-8_new",   
   # "wind_-2e-4_cooling_1e-8_new",   

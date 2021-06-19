@@ -21,7 +21,7 @@ uw_NN = uw_file["neural_network"]
 vw_NN = vw_file["neural_network"]
 wT_NN = wT_file["neural_network"]
 
-𝒟train = WindMixing.data(uw_file["training_info/train_files"], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(uw_file["training_info/train_files"], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
 function predict_NN(NN, x, y)
     interior = NN(x)

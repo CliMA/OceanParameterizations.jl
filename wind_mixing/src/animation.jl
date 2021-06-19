@@ -633,7 +633,7 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
 end
 
 function animate_training_data_profiles_fluxes(train_files, FILE_PATH; fps=30, gif=false, mp4=true)
-    all_data = [WindMixing.data(train_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true) for train_file in train_files]
+    all_data = [WindMixing.data(train_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false) for train_file in train_files]
 
     times = all_data[1].t ./ 86400
 
@@ -853,11 +853,12 @@ function animate_training_results(test_files, FILE_NAME;
             ∂v∂z = file["losses/∂v∂z"],
             ∂T∂z = file["losses/∂T∂z"],
         )
+        @info "Training Loss = $(minimum(file["losses/total"]))"
     else
         losses = file["losses"]
+        @info "Training Loss = $(minimum(losses))"
     end
 
-    @info "Training Loss = $(minimum(losses))"
     train_files = file["training_info/train_files"]
     train_parameters = file["training_info/parameters"]
     uw_NN = file["neural_network/uw"]
@@ -876,7 +877,7 @@ function animate_training_results(test_files, FILE_NAME;
     close(file)
 
     @info "Loading Training Data"
-    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
     training_types = generate_training_types_str(FILE_NAME)
 
     ν₀ = train_parameters["ν₀"]
@@ -893,7 +894,7 @@ function animate_training_results(test_files, FILE_NAME;
 
     for test_file in test_files
         @info "Generating Data: $test_file"
-        𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+        𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
         @info "Processing $test_file solution"
         if test_file in train_files

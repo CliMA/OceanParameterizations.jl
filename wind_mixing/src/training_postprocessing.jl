@@ -219,7 +219,7 @@ function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, d
 end
 
 function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
-                              ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=1.67f-4, g=9.80665f0, f=1f-4,
+                              ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=2f-4, g=9.80665f0, f=1f-4,
                               OUTPUT_PATH = "",
                               modified_pacanowski_philander=false, convective_adjustment=false,
                               smooth_NN=false, smooth_Ri=false,
@@ -570,7 +570,7 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     wT_NN = extracted_training_file["neural_network/wT"]
 
     train_files = extracted_training_file["training_info/train_files"]
-    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
     u_scaling = 𝒟train.scalings["u"]
     v_scaling = 𝒟train.scalings["v"]
@@ -639,8 +639,8 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
                                   loss_scalings=(u=1f0, v=1f0, T=1f0, ∂u∂z=5f-3, ∂v∂z=5f-3, ∂T∂z=5f-3),
                                   OUTPUT_PATH="")
     @assert length(test_files) == 1
-    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
-    𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+    𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
     @info "Reading files"
 

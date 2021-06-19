@@ -160,7 +160,9 @@ function ReadJLD2_LESbraryData(filename)
     push!(container, t, zC, zF)
 
     # now grab boundary condition data
-    θ_top = les_data["parameters/boundary_condition_θ_top"]
+    # θ_top = les_data["parameters/boundary_condition_θ_top"]
+    buoyancy_flux = les_data["parameters/buoyancy_flux"]
+    θ_top = buoyancy_flux / α / g
     u_top = les_data["parameters/boundary_condition_u_top"]
     θ_bottom = les_data["parameters/boundary_condition_θ_bottom"]
     u_bottom = les_data["parameters/boundary_condition_u_bottom"]
@@ -169,7 +171,7 @@ function ReadJLD2_LESbraryData(filename)
     push!(container, θ_top, u_top, θ_bottom, u_bottom)
 
     # Now construct types
-    𝒮 = typeof(T⁰)
+    𝒮 = typeof(U⁰)
     𝒯 = typeof(T)
     𝒰 = typeof(α)
     𝒱 = typeof("string")

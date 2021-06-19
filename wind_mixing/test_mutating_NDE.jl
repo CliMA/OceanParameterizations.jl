@@ -24,7 +24,7 @@ file = jldopen(DATA_PATH, "r")
 train_files = file["training_info/train_files"]
 train_parameters = file["training_info/parameters"]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
@@ -37,7 +37,7 @@ constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges
     𝒟train, uw_NN, vw_NN, wT_NN, 1f-4, 32, 9.81, 1.67f-4, 1f-4, 1f-1, 0.25f0, 0.1f0, 1f0, 10, (modified_pacanowski_philander=true, something=false))
 
 test_files = ["-1e-3"]
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 BCs = prepare_BCs(𝒟test, scalings)
 uvT₀ = [scalings.u.(𝒟test.u.coarse[:,1]); scalings.v.(𝒟test.v.coarse[:,1]); scalings.T.(𝒟test.T.coarse[:,1])]
 trange = 1:1:1153
@@ -67,7 +67,7 @@ using WindMixing: solve_NDE_mutating_GPU
 CUDA.allowscalar(false)
 
 test_files = ["-1e-3"]
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 BCs = prepare_BCs(𝒟test, scalings)
 uvT₀_gpu = [scalings.u.(𝒟test.u.coarse[:,1]); scalings.v.(𝒟test.v.coarse[:,1]); scalings.T.(𝒟test.T.coarse[:,1])] |> gpu
 trange = 1:1:1153

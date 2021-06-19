@@ -45,10 +45,10 @@ end
 # Plots.ylabel!("Loss mse")
 # savefig(joinpath(PATH, "Output", "NDE_training_modified_pacanowski_philander_1sim_-1e-3_smaller_learning_rate_loss.pdf"))
 # train_files = ["-1e-3"]
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
 test_files = ["wind_-1e-3_heating_-4e-8"]
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
@@ -68,7 +68,7 @@ close(file)
 # wT_NN = re(zeros(Float32, length(weights)))
 
 
-𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 trange = 1:1:1153
 plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
@@ -122,7 +122,7 @@ animate_profiles_fluxes_comparison(plot_data, plot_data, plot_data, joinpath(FIL
 train_files = ["wind_-1e-3_heating_-4e-8"]
 # train_files = ["cooling_1e-8"]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 𝒟train.T.coarse
 𝒟train.t
 VIDEO_NAME = "u_v_T_3sim_-1e-3_-8e-4_-5e-4_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_1e-2_rate_2e-4_test_-1e-3"

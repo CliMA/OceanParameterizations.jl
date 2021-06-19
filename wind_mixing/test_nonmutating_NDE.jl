@@ -21,7 +21,7 @@ train_files = ["-1e-3"]
 #                "wind_-5e-4_cooling_3e-8"
 #                ]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
 PATH = pwd()
 FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 

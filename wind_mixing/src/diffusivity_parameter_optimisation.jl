@@ -37,7 +37,7 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
                                                 train_gradient=true, gradient_scaling=5f-3,
                                                 training_fractions=nothing)
     @info "Loading training data"
-    𝒟 = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=true)
+    𝒟 = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
     
     @info "Preparing constants and parameters"
 
