@@ -115,7 +115,7 @@ function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
     end
 end
 
-function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts)
+function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, loss_scalings, opts)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files

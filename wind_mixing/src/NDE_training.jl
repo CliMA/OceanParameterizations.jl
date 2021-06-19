@@ -470,7 +470,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
                 ∂v∂z_percent = rounded_percentage(losses.∂v∂z, total_loss)
                 ∂T∂z_percent = rounded_percentage(losses.∂T∂z, total_loss)
 
-                @info "loss = $(total_loss): profile $(profile_percent)%, gradient $(gradient_percent)%, u $(u_percent), v $(v_percent)%, T $(T_percent) ∂u∂z $(∂u∂z_percent), ∂v∂z $(∂v∂z_percent)%, ∂T∂z $(∂T∂z_percent)%, stage $stage, opt $i/$(length(optimizers)), epoch $epoch/$epochs, iter $iter/$maxiters"
+                @info "loss = $(total_loss): uvT$(profile_percent)% grad$(gradient_percent)% u$(u_percent)% v$(v_percent)% T$(T_percent)% ∂u∂z$(∂u∂z_percent)% ∂v∂z$(∂v∂z_percent)% ∂T∂z$(∂T∂z_percent)% $stage opt$i/$(length(optimizers)) epoch$epoch/$epochs iter$iter/$maxiters"
                 write_data_NDE_training(FILE_PATH, losses, loss_scalings,
                                     NN_constructions.uw(args[1][NN_ranges.uw]), 
                                     NN_constructions.vw(args[1][NN_ranges.vw]), 

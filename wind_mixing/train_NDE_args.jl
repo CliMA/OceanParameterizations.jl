@@ -10,9 +10,10 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-params_type = ARGS[1]
-T_fraction = parse(Float32, ARGS[2])
-NN_type = ARGS[3]
+# params_type = ARGS[1]
+params_type = "old"
+T_fraction = parse(Float32, ARGS[1])
+NN_type = ARGS[2]
 
 # params_type = "old"
 # T_fraction = parse(Float32, "0.8")
@@ -20,25 +21,25 @@ NN_type = ARGS[3]
 
 train_files = [
   "wind_-5e-4_cooling_3e-8_new",   
-  # "wind_-5e-4_cooling_1e-8_new",   
-  # "wind_-2e-4_cooling_3e-8_new",   
-  # "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_cooling_1e-8_new",   
+  "wind_-2e-4_cooling_3e-8_new",   
+  "wind_-2e-4_cooling_1e-8_new",   
   "wind_-5e-4_heating_-3e-8_new",  
-  # "wind_-2e-4_heating_-1e-8_new",  
-  # "wind_-2e-4_heating_-3e-8_new",  
-  # "wind_-5e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-3e-8_new",  
+  "wind_-5e-4_heating_-1e-8_new",  
 
-  # "wind_-3.5e-4_cooling_2e-8_new", 
-  # "wind_-3.5e-4_heating_-2e-8_new",
+  "wind_-3.5e-4_cooling_2e-8_new", 
+  "wind_-3.5e-4_heating_-2e-8_new",
 
-  # "wind_-5e-4_cooling_2e-8_new",   
-  # "wind_-3.5e-4_cooling_3e-8_new", 
-  # "wind_-3.5e-4_cooling_1e-8_new", 
-  # "wind_-2e-4_cooling_2e-8_new",   
-  # "wind_-3.5e-4_heating_-3e-8_new",
-  # "wind_-3.5e-4_heating_-1e-8_new",
-  # "wind_-2e-4_heating_-2e-8_new",  
-  # "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 # 
@@ -51,8 +52,8 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-# FILE_NAME = "NDE_2sim_windcooling_SS_windheating_SS_$(NN_type)_divide1f5_gradient_smallNN_$(NN_type)_scale_5e-3_rate_2e-4_T$(T_fraction)"
-FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
+FILE_NAME = "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
+# FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 # @assert !isfile(FILE_PATH)
 
@@ -148,7 +149,7 @@ train_parameters = Dict(
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [3]
+train_iterations = [300]
 train_optimizers = [[ADAM(2e-4)]]
 
 # train_epochs = [1]
@@ -202,45 +203,34 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
-@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
                                     uw_NN, vw_NN, wT_NN, timestepper)
 
-@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, timestepper)
+extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
-BLAS.set_num_threads(8)
+test_files = [
+  "wind_-5e-4_cooling_3e-8_new",   
+  "wind_-5e-4_cooling_1e-8_new",   
+  "wind_-2e-4_cooling_3e-8_new",   
+  "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_heating_-3e-8_new",  
+  "wind_-2e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-3e-8_new",  
+  "wind_-5e-4_heating_-1e-8_new",  
 
-@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, timestepper)
+  "wind_-3.5e-4_cooling_2e-8_new", 
+  "wind_-3.5e-4_heating_-2e-8_new",
 
-@time uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, timestepper)
-
-# extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
-
-# test_files = [
-#   # "wind_-5e-4_cooling_3e-8_new",   
-#   # "wind_-5e-4_cooling_1e-8_new",   
-#   # "wind_-2e-4_cooling_3e-8_new",   
-#   # "wind_-2e-4_cooling_1e-8_new",   
-#   # "wind_-5e-4_heating_-3e-8_new",  
-#   # "wind_-2e-4_heating_-1e-8_new",  
-#   # "wind_-2e-4_heating_-3e-8_new",  
-#   # "wind_-5e-4_heating_-1e-8_new",  
-
-#   "wind_-3.5e-4_cooling_2e-8_new", 
-# #   "wind_-3.5e-4_heating_-2e-8_new",
-
-# #   "wind_-5e-4_cooling_2e-8_new",   
-# #   "wind_-3.5e-4_cooling_3e-8_new", 
-# #   "wind_-3.5e-4_cooling_1e-8_new", 
-# #   "wind_-2e-4_cooling_2e-8_new",   
-# #   "wind_-3.5e-4_heating_-3e-8_new",
-# #   "wind_-3.5e-4_heating_-1e-8_new",
-# #   "wind_-2e-4_heating_-2e-8_new",  
-# #   "wind_-5e-4_heating_-2e-8_new",  
-# ]
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
+]
 
 
-# animate_training_results(test_files, FILE_NAME,
-#                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
+animate_training_results(test_files, FILE_NAME,
+                         EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
