@@ -291,8 +291,8 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
-                    n_simulations, maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=2f-4, g=9.80665f0, 
+function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
+                    maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=2f-4, g=9.80665f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
                     zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing)
     @assert !modified_pacanowski_philander || !convective_adjustment
@@ -319,8 +319,13 @@ function train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, tsteps, timestepper, optimize
         @assert modified_pacanowski_philander
     end
 
-    @info "Setting up constants"
+    @info "Loading training data"
 
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+
+    @info "Setting up constants"
+    
+    n_simulations = length(train_files)
     Nz = length(𝒟train.u.z)
 
     conditions = (modified_pacanowski_philander=modified_pacanowski_philander, convective_adjustment=convective_adjustment, 

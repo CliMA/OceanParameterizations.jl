@@ -400,8 +400,16 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     @info "Running baseline simulation..."
     run!(simulation_baseline)
 
+    jldopen("$(BASELINE_RESULTS_PATH).jld2", "a") do file
+        file["training_info/parameters"] = diffusivity_params
+    end
+
     @info "Running modified pacanowski philander simulation + neural network..."
     run!(simulation_neural_network)
+
+    jldopen("$(NN_RESULTS_PATH).jld2", "a") do file
+        file["training_info/parameters"] = diffusivity_params
+    end
 
     # ds_baseline = FieldDataset(joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_baseline.jld2"))
     # ds_nn = FieldDataset(joinpath("D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl", "oceananigans_modified_pacanowski_philander_NN.jld2"))

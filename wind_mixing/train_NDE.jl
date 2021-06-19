@@ -31,8 +31,7 @@ train_files = [
     # "wind_-2e-4_heating_-1e-8",
 ]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
-# 
+ 
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
@@ -138,12 +137,11 @@ train_optimizers = [[ADAM(3e-4)]]
 
 timestepper = ROCK4()
 
-function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
         if train_parameters["modified_pacanowski_philander"]
-            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
-                                                    n_simulations = length(train_files), 
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
                                                          maxiters = train_iterations[i], 
                                     modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
                                             convective_adjustment = train_parameters["convective_adjustment"],
@@ -162,8 +160,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                training_fractions = train_parameters["training_fractions"]
                                     )
         else
-            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, 𝒟train, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
-                                                    n_simulations = length(train_files), 
+            uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
                                                          maxiters = train_iterations[i], 
                                     modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
                                             convective_adjustment = train_parameters["convective_adjustment"],
