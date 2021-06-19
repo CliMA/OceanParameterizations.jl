@@ -1,7 +1,7 @@
 """
     write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, opts, uw_NN, vw_NN, wT_NN)
 """
-function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, loss_scalings, opts, uw_NN, vw_NN, wT_NN)
+function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts, uw_NN, vw_NN, wT_NN)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files
@@ -12,7 +12,6 @@ function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train
         training_info["uw_neural_network"] = uw_NN
         training_info["vw_neural_network"] = vw_NN
         training_info["wT_neural_network"] = wT_NN
-        training_info["loss_scalings"] = loss_scalings
 
         training_data = JLD2.Group(file, "training_data")
         loss = JLD2.Group(training_data, "loss")
@@ -33,6 +32,7 @@ function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN,
         total_loss = profile_loss + gradient_loss
 
         if !haskey(file, "training_data/loss/total/$stage")
+            training_info["loss_scalings"] = loss_scalings
             file["training_data/loss/total/$stage/1"] = total_loss
             file["training_data/loss/profile/$stage/1"] = profile_loss
             file["training_data/loss/gradient/$stage/1"] = gradient_loss
@@ -115,7 +115,7 @@ function write_data_NN(FILE_PATH, uw_NN, vw_NN, wT_NN)
     end
 end
 
-function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, loss_scalings, opts)
+function write_metadata_modified_pacanowski_philander_optimisation(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, opts)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files

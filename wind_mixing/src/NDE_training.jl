@@ -449,10 +449,6 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         return round(num / den * 100, sigdigits=3)
     end
 
-    @info "Writing metadata"
-
-    write_metadata_NDE_training(FILE_PATH, train_files, epochs, tsteps, train_parameters, loss_scalings, train_optimizers, uw_NN, vw_NN, wT_NN)
-
     @info "Starting Training"
     for i in 1:length(optimizers), epoch in 1:epochs
         iter = 1

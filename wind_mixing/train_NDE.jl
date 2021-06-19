@@ -138,6 +138,8 @@ train_optimizers = [[ADAM(3e-4)]]
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
+    @info "Writing metadata"
+    write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, uw_NN, vw_NN, wT_NN)
     for i in 1:length(train_epochs)
         @info "iteration $i/$(length(train_epochs)), time range $(train_tranges[i])"
         if train_parameters["modified_pacanowski_philander"]
@@ -156,8 +158,8 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                         smooth_Ri = train_parameters["smooth_Ri"], 
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
-                                                 gradient_scaling = train_parameters["gradient_scaling"],
-                                               training_fractions = train_parameters["training_fractions"]
+                                                #  gradient_scaling = train_parameters["gradient_scaling"],
+                                               training_fractions = train_parameters["training_fractions"],
                                     )
         else
             uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
@@ -170,7 +172,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                         smooth_Ri = train_parameters["smooth_Ri"],
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
-                                                 gradient_scaling = train_parameters["gradient_scaling"],
+                                                #  gradient_scaling = train_parameters["gradient_scaling"],
                                                training_fractions = train_parameters["training_fractions"]
                                                 )
         end
@@ -179,7 +181,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
 end
 
 uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, 𝒟train, timestepper)
+                                    uw_NN, vw_NN, wT_NN, timestepper)
 
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 

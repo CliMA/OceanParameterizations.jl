@@ -660,8 +660,8 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     α = baseline_sol["buoyancy/model/equation_of_state/α"]
     g = baseline_sol["buoyancy/model/gravitational_acceleration"]
     constants = (; Nz, α, g)
-    train_parameters = (ν₀, ν₋, ΔRi, Riᶜ, Pr)
-    
+    train_parameters = (; ν₀, ν₋, ΔRi, Riᶜ, Pr, loss_scalings)
+
     derivatives_dimensionless = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)))
 
     u_scaling = 𝒟train.scalings["u"]
