@@ -66,7 +66,7 @@ function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper
         vw_scaling = 𝒟.scalings["vw"]
         wT_scaling = 𝒟.scalings["wT"]
 
-        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=1.67f-4, g=9.81f0)
+        constants = (H=H, τ=τ, Nz=Nz, f=1f-4, α=2f-4, g=9.80665f0)
         scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling, parameters=[ν₀_scaling, ν₋_scaling, ΔRi_scaling, Riᶜ_scaling, Pr_scaling])
         derivatives = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)))
         parameters = [ν₀, ν₋, ΔRi, Riᶜ, Pr]
