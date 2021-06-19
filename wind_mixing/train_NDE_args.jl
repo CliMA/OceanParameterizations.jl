@@ -32,14 +32,14 @@ train_files = [
   "wind_-3.5e-4_cooling_2e-8_new", 
   "wind_-3.5e-4_heating_-2e-8_new",
 
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  # "wind_-5e-4_cooling_2e-8_new",   
+  # "wind_-3.5e-4_cooling_3e-8_new", 
+  # "wind_-3.5e-4_cooling_1e-8_new", 
+  # "wind_-2e-4_cooling_2e-8_new",   
+  # "wind_-3.5e-4_heating_-3e-8_new",
+  # "wind_-3.5e-4_heating_-1e-8_new",
+  # "wind_-2e-4_heating_-2e-8_new",  
+  # "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 # 
@@ -52,7 +52,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
+FILE_NAME = "NDE_10sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 # @assert !isfile(FILE_PATH)
