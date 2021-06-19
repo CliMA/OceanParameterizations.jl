@@ -12,9 +12,15 @@ BLAS.set_num_threads(1)
 
 # params_type = ARGS[1]
 params_type = "old"
+
 T_fraction = parse(Float32, ARGS[1])
 NN_type = ARGS[2]
-N_sims = parse(Int, ARGS[3])
+
+rate_str = ARGS[3]
+rate = parse(Float64, rate_str)
+
+# N_sims = parse(Int, ARGS[3])
+N_sims = 18
 
 # params_type = "old"
 # T_fraction = parse(Float32, "0.8")
@@ -47,7 +53,6 @@ train_files = train_files_all[1:N_sims]
 
 # 
 PATH = pwd()
-
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
@@ -55,10 +60,10 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction)"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
-# @assert !isfile(FILE_PATH)
+@assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
@@ -153,7 +158,7 @@ train_parameters = Dict(
 train_epochs = [1]
 train_tranges = [1:9:1153]
 train_iterations = [300]
-train_optimizers = [[ADAM(2e-4)]]
+train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:200]
