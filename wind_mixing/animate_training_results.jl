@@ -34,5 +34,7 @@ test_files = [
     # "wind_-5e-4_heating_-2e-8_new",  
   ]
 
-animate_training_results(test_files, DATA_NAME,
+for DATA_NAME in DATA_NAMES
+    animate_training_results(test_files, DATA_NAME,
                          EXTRACTED_DATA_DIR=EXTRACTED_DATA_DIR, OUTPUT_DIR=OUTPUT_DIR)
+end
