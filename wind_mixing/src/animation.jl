@@ -436,8 +436,6 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
         lowclamp.(data_diffeq_implicit["losses"], 1f-5),
     ]
 
-    @show maximum.(losses_data)
-
     @inline function add_ϵ!(losses)
         losses .= losses .+ (losses .== 0) .* eps(Float32)
     end
