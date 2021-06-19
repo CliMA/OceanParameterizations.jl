@@ -1,11 +1,11 @@
 using WindMixing
 
 DATA_NAMES = [
-    "NDE_2sim_windcooling_SS_windheating_SS_swish_divide1f5_gradient_smallNN_swish_scale_5e-3_rate_2e-4_T0.8_extracted.jld2",
-    "NDE_2sim_windcooling_SS_windheating_SS_tanh_divide1f5_gradient_smallNN_tanh_scale_5e-3_rate_2e-4_T0.8_extracted.jld2",
-    "NDE_2sim_windcooling_SS_windheating_SS_relu_divide1f5_gradient_smallNN_relu_scale_5e-3_rate_2e-4_T0.5_extracted.jld2",
-    "NDE_2sim_windcooling_SS_windheating_SS_relu_divide1f5_gradient_smallNN_relu_scale_5e-3_rate_2e-4_T0.8_extracted.jld2",
-    "NDE_2sim_windcooling_SS_windheating_SS_leakyrelu_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_2e-4_T0.5_extracted.jld2"
+    "NDE_2sim_windcooling_SS_windheating_SS_swish_divide1f5_gradient_smallNN_swish_scale_5e-3_rate_2e-4_T0.8",
+    "NDE_2sim_windcooling_SS_windheating_SS_tanh_divide1f5_gradient_smallNN_tanh_scale_5e-3_rate_2e-4_T0.8",
+    "NDE_2sim_windcooling_SS_windheating_SS_relu_divide1f5_gradient_smallNN_relu_scale_5e-3_rate_2e-4_T0.5",
+    "NDE_2sim_windcooling_SS_windheating_SS_relu_divide1f5_gradient_smallNN_relu_scale_5e-3_rate_2e-4_T0.8",
+    "NDE_2sim_windcooling_SS_windheating_SS_leakyrelu_divide1f5_gradient_smallNN_leakyrelu_scale_5e-3_rate_2e-4_T0.5",
 ]
 
 EXTRACTED_DATA_DIR = joinpath(pwd(), "extracted_training_output")
