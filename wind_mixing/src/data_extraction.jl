@@ -148,13 +148,17 @@ end
 
 function extract_parameters_modified_pacanowski_philander_optimisation(FILE_PATH, OUTPUT_PATH)
     @info "Opening file"
-    train_files, train_parameters, losses, parameters = jldopen(FILE_PATH, "r") do file
+    train_files, train_parameters, losses, loss_scalings, parameters = jldopen(FILE_PATH, "r") do file
         train_files = file["training_info/train_files"]
    
         train_parameters = Dict()
         train_parameters["train_epochs"] = file["training_info/train_epochs"]
         train_parameters["train_tranges"] = file["training_info/train_tranges"]
         train_parameters["parameters"] = file["training_info/parameters"]
+        
+        if haskey(file, "training_info/loss_scalings")
+            loss_scalings = file["training_info/loss_scalings"]
+        end
 
         N_data = length(keys(file["training_data/loss/total"]))
 
@@ -200,7 +204,7 @@ function extract_parameters_modified_pacanowski_philander_optimisation(FILE_PATH
         @info "Loading Best Parameters"
         NN_index = argmin(total_losses)
         parameters = file["training_data/parameters/$NN_index"]
-        return train_files, train_parameters, losses, parameters
+        return train_files, train_parameters, losses, loss_scalings, parameters
     end
 
     @info "Writing file"
@@ -208,7 +212,7 @@ function extract_parameters_modified_pacanowski_philander_optimisation(FILE_PATH
         @info "Writing Training Info"
         file["training_info/train_files"] = train_files
         file["training_info/parameters"] = train_parameters
-
+        file["training_info/loss_scalings"] = loss_scalings
 
         @info "Writing Loss"
         
