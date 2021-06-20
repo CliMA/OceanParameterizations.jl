@@ -40,7 +40,7 @@ wT_NN = file["neural_network/wT"]
 
 
 trange = 1:1:1153
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true)
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, test_files[1], 𝒟test, 𝒟train, trange, unscale=true, modified_pacalowski_philander=true)
 
 ds = jldopen(joinpath(pwd(), "Data", "three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2"))
 

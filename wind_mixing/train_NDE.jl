@@ -10,32 +10,34 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-train_files = [
-    # "wind_-5e-4_cooling_4e-8", 
-    # "wind_-1e-3_cooling_4e-8", 
-    # "wind_-2e-4_cooling_1e-8", 
-    # "wind_-1e-3_cooling_2e-8", 
-    # "wind_-5e-4_cooling_1e-8", 
-    # "wind_-2e-4_cooling_5e-8", 
-    # "wind_-5e-4_cooling_3e-8", 
-    "wind_-2e-4_cooling_3e-8", 
-    # "wind_-1e-3_cooling_3e-8", 
-    # "wind_-1e-3_heating_-4e-8",
-    # "wind_-1e-3_heating_-1e-8",
-    # "wind_-1e-3_heating_-3e-8",
-    # "wind_-5e-4_heating_-5e-8",
-    # "wind_-5e-4_heating_-3e-8",
-    # "wind_-5e-4_heating_-1e-8",
-    # "wind_-2e-4_heating_-5e-8",
-    # "wind_-2e-4_heating_-3e-8",
-    # "wind_-2e-4_heating_-1e-8",
-]
+# train_files = [
+#     # "wind_-5e-4_cooling_4e-8", 
+#     # "wind_-1e-3_cooling_4e-8", 
+#     # "wind_-2e-4_cooling_1e-8", 
+#     # "wind_-1e-3_cooling_2e-8", 
+#     # "wind_-5e-4_cooling_1e-8", 
+#     # "wind_-2e-4_cooling_5e-8", 
+#     # "wind_-5e-4_cooling_3e-8", 
+#     "wind_-2e-4_cooling_3e-8", 
+#     # "wind_-1e-3_cooling_3e-8", 
+#     # "wind_-1e-3_heating_-4e-8",
+#     # "wind_-1e-3_heating_-1e-8",
+#     # "wind_-1e-3_heating_-3e-8",
+#     # "wind_-5e-4_heating_-5e-8",
+#     # "wind_-5e-4_heating_-3e-8",
+#     # "wind_-5e-4_heating_-1e-8",
+#     # "wind_-2e-4_heating_-5e-8",
+#     # "wind_-2e-4_heating_-3e-8",
+#     # "wind_-2e-4_heating_-1e-8",
+# ]
+
+train_files = ["wind_-2e-4_diurnal_3.5e-8"]
 
  
 PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
-# OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
 
 VIDEO_PATH = joinpath(PATH, "Output")
 
@@ -48,27 +50,27 @@ FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 # @assert !isfile(FILE_PATH)
 
-PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
+# PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
 
-parameters_file = jldopen(PARAMETERS_PATH)
-mpp_parameters = parameters_file["parameters"]
-close(parameters_file)
+# parameters_file = jldopen(PARAMETERS_PATH)
+# mpp_parameters = parameters_file["parameters"]
+# close(parameters_file)
 
-ν₀_initial = 1f-4
-ν₋_initial = 1f-1
-ΔRi_initial = 1f-1
-Riᶜ_initial = 0.25f0
-Pr_initial = 1f0
+# ν₀_initial = 1f-4
+# ν₋_initial = 1f-1
+# ΔRi_initial = 1f-1
+# Riᶜ_initial = 0.25f0
+# Pr_initial = 1f0
 
-mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+# mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
-ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+# ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
 
-# ν₀ = 1f-4
-# ν₋ = 1f-1
-# ΔRi = 1f-1
-# Riᶜ = 0.25f0
-# Pr = 1f0
+ν₀ = 1f-4
+ν₋ = 1f-1
+ΔRi = 1f-1
+Riᶜ = 0.25f0
+Pr = 1f0
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -106,6 +108,9 @@ wT_NN = re(weights ./ 1f5)
 
 gradient_scaling = 5f-3
 training_fractions = (T=0.8f0, ∂T∂z=0.8f0, profile=0.5f0)
+
+diurnal = occursin("diurnal", train_files[1])
+
 train_parameters = Dict(
                                "ν₀" => ν₀, 
                                "ν₋" => ν₋, 
@@ -121,7 +126,8 @@ train_parameters = Dict(
                    "train_gradient" => true,
                      "zero_weights" => true, 
                  "gradient_scaling" => gradient_scaling, 
-               "training_fractions" => training_fractions
+               "training_fractions" => training_fractions,
+                          "diurnal" => diurnal,
     )
 
 # train_epochs = [1]
@@ -160,6 +166,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                      zero_weights = train_parameters["zero_weights"],
                                                 #  gradient_scaling = train_parameters["gradient_scaling"],
                                                training_fractions = train_parameters["training_fractions"],
+                                                          diurnal = train_parameters["diurnal"],
                                     )
         else
             uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
@@ -173,7 +180,8 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
                                                 #  gradient_scaling = train_parameters["gradient_scaling"],
-                                               training_fractions = train_parameters["training_fractions"]
+                                               training_fractions = train_parameters["training_fractions"],
+                                                          diurnal = train_parameters["diurnal"],
                                                 )
         end
     end
@@ -183,28 +191,28 @@ end
 uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
                                     uw_NN, vw_NN, wT_NN, timestepper)
 
-extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
+# extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
-test_files = [
-    # "wind_-5e-4_cooling_4e-8", 
-    # "wind_-1e-3_cooling_4e-8", 
-    # "wind_-2e-4_cooling_1e-8", 
-    # "wind_-1e-3_cooling_2e-8", 
-    # "wind_-5e-4_cooling_1e-8", 
-    # "wind_-2e-4_cooling_5e-8", 
-    # "wind_-5e-4_cooling_3e-8", 
-    "wind_-2e-4_cooling_3e-8", 
-    # "wind_-1e-3_cooling_3e-8", 
-    # "wind_-1e-3_heating_-4e-8",
-    # "wind_-1e-3_heating_-1e-8",
-    # "wind_-1e-3_heating_-3e-8",
-    # "wind_-5e-4_heating_-5e-8",
-    # "wind_-5e-4_heating_-3e-8",
-    # "wind_-5e-4_heating_-1e-8",
-    # "wind_-2e-4_heating_-5e-8",
-    # "wind_-2e-4_heating_-3e-8",
-    # "wind_-2e-4_heating_-1e-8",
-]
+# test_files = [
+#     # "wind_-5e-4_cooling_4e-8", 
+#     # "wind_-1e-3_cooling_4e-8", 
+#     # "wind_-2e-4_cooling_1e-8", 
+#     # "wind_-1e-3_cooling_2e-8", 
+#     # "wind_-5e-4_cooling_1e-8", 
+#     # "wind_-2e-4_cooling_5e-8", 
+#     # "wind_-5e-4_cooling_3e-8", 
+#     "wind_-2e-4_cooling_3e-8", 
+#     # "wind_-1e-3_cooling_3e-8", 
+#     # "wind_-1e-3_heating_-4e-8",
+#     # "wind_-1e-3_heating_-1e-8",
+#     # "wind_-1e-3_heating_-3e-8",
+#     # "wind_-5e-4_heating_-5e-8",
+#     # "wind_-5e-4_heating_-3e-8",
+#     # "wind_-5e-4_heating_-1e-8",
+#     # "wind_-2e-4_heating_-5e-8",
+#     # "wind_-2e-4_heating_-3e-8",
+#     # "wind_-2e-4_heating_-1e-8",
+# ]
 
-animate_training_results(test_files, DATA_NAME,
-                         EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
+# animate_training_results(test_files, DATA_NAME,
+#                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)

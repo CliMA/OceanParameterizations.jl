@@ -1,44 +1,44 @@
 directories = Dict(
-    # "free_convection"          => "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2",
-    # "strong_wind"              => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2",
-    # "strong_wind_no_coriolis"  => "2DaySuite/three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2",
-    # "weak_wind_strong_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu3.0e-04_Qb1.0e-07_f1.0e-04_Nh256_Nz128_weak_wind_strong_cooling_statistics.jld2",
-    # "strong_wind_weak_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu8.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling_statistics.jld2",
-    # "strong_wind_weak_heating" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_heating_statistics.jld2",
-    # "-1e-3"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-9e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu9.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-8e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu8.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-7e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu7.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-6e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu6.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-5e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-4e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu4.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-3e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "-2e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
-    # "cooling_6e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb6.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "cooling_5e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb5.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "cooling_4e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb4.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "cooling_3e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "cooling_2e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb2.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "cooling_1e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb1.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "heating_-3e-8"                  => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
-    # "wind_-5e-4_cooling_4e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-1e-3_cooling_4e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-2e-4_cooling_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-1e-3_cooling_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb2.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-5e-4_cooling_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-2e-4_cooling_5e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-5e-4_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-2e-4_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-1e-3_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
-    # "wind_-1e-3_heating_-4e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-1e-3_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-1e-3_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-5e-4_heating_-5e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-5.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-5e-4_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-5e-4_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-2e-4_heating_-5e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-5.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-2e-4_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
-    # "wind_-2e-4_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "free_convection"          => "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2",
+    "strong_wind"              => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2",
+    "strong_wind_no_coriolis"  => "2DaySuite/three_layer_constant_fluxes_hr48_Qu2.0e-04_Qb0.0e+00_f0.0e+00_Nh256_Nz128_strong_wind_no_rotation_statistics.jld2",
+    "weak_wind_strong_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu3.0e-04_Qb1.0e-07_f1.0e-04_Nh256_Nz128_weak_wind_strong_cooling_statistics.jld2",
+    "strong_wind_weak_cooling" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu8.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling_statistics.jld2",
+    "strong_wind_weak_heating" => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_heating_statistics.jld2",
+    "-1e-3"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-9e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu9.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-8e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu8.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-7e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu7.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-6e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu6.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-5e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-4e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu4.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-3e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "-2e-4"                          => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_wind_mixing_8days_2_statistics.jld2",
+    "cooling_6e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb6.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "cooling_5e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb5.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "cooling_4e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb4.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "cooling_3e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "cooling_2e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb2.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "cooling_1e-8"                   => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb1.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "heating_-3e-8"                  => "Data/three_layer_constant_fluxes_linear_hr192_Qu0.0e+00_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_free_convection_8days_statistics.jld2",
+    "wind_-5e-4_cooling_4e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_4e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb4.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb2.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-5e-4_cooling_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_5e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-5e-4_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-2e-4_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_cooling_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
+    "wind_-1e-3_heating_-4e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-4.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-1e-3_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-1e-3_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.0e-03_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-5e-4_heating_-5e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-5.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-5e-4_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-5e-4_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-2e-4_heating_-5e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-5.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-2e-4_heating_-3e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
+    "wind_-2e-4_heating_-1e-8"       => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
     "wind_-5e-4_cooling_3e-8_new"    => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_new_statistics.jld2",
     "wind_-5e-4_cooling_2e-8_new"    => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_new_statistics.jld2",
     "wind_-5e-4_cooling_1e-8_new"    => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_WC_8days_new_statistics.jld2",
@@ -57,13 +57,49 @@ directories = Dict(
     "wind_-2e-4_heating_-3e-8_new"   => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-3.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_new_statistics.jld2",
     "wind_-2e-4_heating_-2e-8_new"   => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-2.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_new_statistics.jld2",
     "wind_-2e-4_heating_-1e-8_new"   => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb-1.0e-08_f1.0e-04_Nh256_Nz128_WH_8days_new_statistics.jld2",
+
     "wind_-5e-4_diurnal_5e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-5e-4_diurnal_3.5e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.5e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     "wind_-5e-4_diurnal_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-5e-4_diurnal_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     "wind_-5e-4_diurnal_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+
+    "wind_-3.5e-4_diurnal_5e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.5e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3.5e-4_diurnal_3.5e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.5e-04_Qb3.5e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3.5e-4_diurnal_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.5e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3.5e-4_diurnal_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.5e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3.5e-4_diurnal_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.5e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    
     "wind_-2e-4_diurnal_5e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-2e-4_diurnal_3.5e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb3.5e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     "wind_-2e-4_diurnal_3e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-2e-4_diurnal_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     "wind_-2e-4_diurnal_1e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb1.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     )
+
+
+function diurnal_fluxes(train_files, constants)
+    α, g = constants.α, constants.g
+    output = Array{Function}(undef,length(train_files))
+
+    @inline wT_flux(Qᵇ, t)::Float32 = Qᵇ * sin(2π / (24 * 60 ^ 2) * t) / (α * g)
+    
+    for (i, train_file) in enumerate(train_files)
+        if occursin("diurnal_5e-8", train_file)
+            Q = 5f-8
+        elseif occursin("diurnal_3.5e-8", train_file)
+            Q = 3.5f-8
+        elseif occursin("diurnal_3e-8", train_file)
+            Q = 3f-8
+        elseif occursin("diurnal_2e-8", train_file)
+            Q = 2f-8
+        elseif occursin("diurnal_1e-8", train_file)
+            Q = 1f-8
+        end
+        output[i] = t -> wT_flux(Q, t)
+    end
+    return output
+end
 
 function read_les_output(filename::String)
     filename = joinpath(pwd(), directories[filename])

@@ -70,7 +70,7 @@ close(file)
 
 𝒟test = WindMixing.data(test_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 trange = 1:1:1153
-plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+plot_data = NDE_profile(uw_NN, vw_NN, wT_NN, test_files[1], 𝒟test, 𝒟train, trange,
                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                         # ν₀=1f-4, ν₋=0.1f0, ΔRi=1f-1,
                         ν₀=train_parameters["ν₀"], ν₋=train_parameters["ν₋"], ΔRi=train_parameters["ΔRi"], 

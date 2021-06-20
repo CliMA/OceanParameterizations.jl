@@ -113,7 +113,12 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     v_bc_bottom = GradientBoundaryCondition(∂v₀∂z)
     v_bcs = VVelocityBoundaryConditions(grid, top=v_bc_top, bottom=v_bc_bottom)
 
-    T_bc_top = FluxBoundaryCondition(wT_flux)
+    if wT_flux isa Number
+        T_bc_top = FluxBoundaryCondition(wT_flux)
+    else
+        T_bc_top = FluxBoundaryCondition((x, y, t) -> wT_flux(t))
+    end
+
     ∂T₀∂z = (T₀[2] - T₀[1]) / grid.Δz
     T_bc_bottom = GradientBoundaryCondition(∂T₀∂z)
     T_bcs = TracerBoundaryConditions(grid, top=T_bc_top, bottom=T_bc_bottom)
@@ -157,7 +162,13 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         compute!(∂T∂z)
 
         wT = -ν .* interior(∂T∂z)[1, 1, :]
-        wT[end] = wT_flux
+
+        if wT_flux isa Number
+            wT[end] = wT_flux
+        else
+            wT[end] = wT_flux(model.clock.time)
+        end
+
         return wT
     end
 
@@ -190,7 +201,9 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
 
     enforce_fluxes_uw(uw) = cat(0, uw, uw_flux, dims=1)
     enforce_fluxes_vw(vw) = cat(0, vw, vw_flux, dims=1)
+
     enforce_fluxes_wT(wT) = cat(0, wT, wT_flux, dims=1)
+    enforce_fluxes_wT(wT, t) = cat(0, wT, wT_flux(t), dims=1)
     
     function diagnose_NN_flux_uw(model)
         u = u_scaling.(interior(model.velocities.u)[:])
@@ -239,7 +252,11 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
         compute!(∂T∂z)
 
-        wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)) .- inv(wT_scaling)(0))
+        if wT_flux isa Number
+            wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)) .- inv(wT_scaling)(0))
+        else
+            wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)) .- inv(wT_scaling)(0), model.clock.time)
+        end
 
         _, ν = diffusivity_model(model, constants, diffusivity_params)
 
@@ -268,14 +285,30 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         ∂z_vw
     )
 
-    NN_wT_forcing = Chain(
-        uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
-        wT_NN,
-        wT -> inv(wT_scaling).(wT),
-        wT -> wT .- inv(wT_scaling).(0),
-        enforce_fluxes_wT,
-        ∂z_wT
-    )
+    # NN_wT_forcing(uvT) = Chain(
+    #     uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
+    #     wT_NN,
+    #     wT -> inv(wT_scaling).(wT),
+    #     wT -> wT .- inv(wT_scaling).(0),
+    #     enforce_fluxes_wT,
+    #     ∂z_wT
+    # )
+
+    function NN_wT_forcing(uvT)
+        uvT_scaled = [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)]
+        wT_scaled = wT_NN(uvT_scaled)
+        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(0f0)
+        wT = enforce_fluxes_wT(wT_unscaled)
+        return ∂z_wT(wT)
+    end
+
+    function NN_wT_forcing(uvT, t)
+        uvT_scaled = [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)]
+        wT_scaled = wT_NN(uvT_scaled)
+        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(0f0)
+        wT = enforce_fluxes_wT(wT_unscaled, t)
+        return ∂z_wT(wT)
+    end
 
     ∂z_uw_NN = zeros(Nz)
     forcing_params_uw = (; ∂z_uw_NN)
@@ -318,7 +351,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     function progress_baseline(simulation)
         clock = simulation.model.clock
 
-        if clock.iteration % 100 == 0
+        if clock.iteration % 1000 == 0
             @info "Baseline: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
         end
 
@@ -341,7 +374,12 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         uvT = (u=u, v=v, T=T)
         ∂z_uw_NN .=  NN_uw_forcing(uvT)
         ∂z_vw_NN .=  NN_vw_forcing(uvT)
-        ∂z_wT_NN .=  NN_wT_forcing(uvT)
+
+        if wT_flux isa Number
+            ∂z_wT_NN .=  NN_wT_forcing(uvT)
+        else
+            ∂z_wT_NN .=  NN_wT_forcing(uvT, model.clock.time)
+        end
 
         modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params)
 

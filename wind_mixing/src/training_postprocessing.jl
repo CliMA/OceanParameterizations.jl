@@ -42,6 +42,16 @@ function prepare_BCs(𝒟, scalings)
     return (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
 end
 
+function prepare_BCs(𝒟, scalings, wT_top_function)
+    uw_top = scalings.uw(𝒟.uw.coarse[end,1])
+    uw_bottom = scalings.uw(𝒟.uw.coarse[1,1])
+    vw_top = scalings.vw(𝒟.vw.coarse[end,1])
+    vw_bottom = scalings.vw(𝒟.vw.coarse[1,1])
+    wT_top = t -> scalings.wT(wT_top_function(t))
+    wT_bottom = scalings.wT(𝒟.wT.coarse[1,1])
+    return (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
+end
+
 function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
     μ_u = scalings.u.μ
     μ_v = scalings.v.μ
@@ -113,6 +123,10 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
         ∂T∂t = @view dx[2Nz+1:end]
 
         predict_flux!(x, u, v, T)
+
+        if !isa(BCs.wT.top, Number)
+            wT[end] = BCs.wT.top(t * τ)
+        end
 
         mul!(∂uw∂z, D_cell, uw)
         mul!(∂vw∂z, D_cell, vw)
@@ -218,7 +232,7 @@ function solve_NDE_mutating_GPU(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, d
     return sol
 end
 
-function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
+function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange;
                               ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, α=2f-4, g=9.80665f0, f=1f-4,
                               OUTPUT_PATH = "",
                               modified_pacanowski_philander=false, convective_adjustment=false,
@@ -242,13 +256,17 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange;
     H, τ, f = constants.H, constants.τ, constants.f
     D_face, D_cell = derivatives.face, derivatives.cell
 
-    BCs = prepare_BCs(𝒟test, scalings)
-    uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom, wT_top = BCs.uw.bottom, BCs.uw.top, BCs.vw.bottom, BCs.vw.top, BCs.wT.bottom, BCs.wT.top
+    diurnal = occursin("diurnal", test_file)
+
+    if diurnal
+        wT_top_function = diurnal_fluxes([test_file], constants)
+        BCs = prepare_BCs(𝒟test, scalings, wT_top_function)
+    else
+        BCs = prepare_BCs(𝒟test, scalings)
+    end
 
     @info "Setting up differential equations"
     
-    prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
-
     if modified_pacanowski_philander
         constants_NN_only = (H=constants.H, τ=constants.τ, f=constants.f, Nz=constants.Nz, g=constants.g, α=constants.α, ν₀=0f0, ν₋=0f0, Riᶜ=constants.Riᶜ, ΔRi=constants.ΔRi, Pr=constants.Pr)
     end
@@ -569,7 +587,18 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     vw_NN = extracted_training_file["neural_network/vw"]
     wT_NN = extracted_training_file["neural_network/wT"]
 
+    # weights, re = Flux.destructure(uw_NN)
+
+    # uw_NN = re(zeros(Float32, length(weights)))
+    # vw_NN = re(zeros(Float32, length(weights)))
+    # wT_NN = re(zeros(Float32, length(weights)))
+
+    # @info "Zero weights NN in solve_oceananigans_modified_pacanowski_philander_nn"
+
     train_files = extracted_training_file["training_info/train_files"]
+
+    diurnal = occursin("diurnal", test_files[1])
+
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
     u_scaling = 𝒟train.scalings["u"]
@@ -602,7 +631,12 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
 
         uw_flux = ds["parameters/boundary_condition_u_top"]
         vw_flux = 0
-        wT_flux = ds["parameters/boundary_condition_θ_top"]
+
+        if diurnal
+            wT_flux = diurnal_fluxes([test_file], (; α, g))[1]
+        else
+            wT_flux = ds["parameters/boundary_condition_θ_top"]
+        end
 
         T₀ = Array(ds["timeseries/T/0"][1, 1, :])
 

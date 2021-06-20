@@ -10,6 +10,7 @@ export data, read_les_output,
        oceananigans_modified_pacanowski_philander_nn,
        solve_NDE_mutating, solve_oceananigans_modified_pacanowski_philander_nn,
        NDE_profile, NDE_profile_oceananigans,
+       column_model_1D_kpp,
        animate_NN, animate_profile, animate_flux, animate_profile_flux, animate_profiles, animate_local_richardson_profile,
        animate_profiles_fluxes, animate_training_data_profiles_fluxes, animate_profiles_fluxes_comparison, 
        animate_training_results, animate_training_results_oceananigans,
@@ -18,6 +19,7 @@ export data, read_les_output,
        loss, loss_gradient,
        optimise_modified_pacanowski_philander,
        extract_NN, extract_parameters_modified_pacanowski_philander_optimisation,
+       diurnal_fluxes,
        directories
 
 using Flux, Plots

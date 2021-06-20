@@ -61,6 +61,21 @@ function NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constan
     return predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
 end
 
+function NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters, wT_top_function)
+    uw_range, vw_range, wT_range = NN_ranges.uw, NN_ranges.vw, NN_ranges.wT
+    uw_weights, vw_weights, wT_weights = p[uw_range], p[vw_range], p[wT_range]
+
+    uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom = p[wT_range[end] + 1:end-1]
+    wT_top = scalings.wT(wT_top_function(t * constants.τ))
+    
+    BCs = (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
+    re_uw, re_vw, re_wT = NN_constructions.uw, NN_constructions.vw, NN_constructions.wT
+    uw_NN = re_uw(uw_weights)
+    vw_NN = re_vw(vw_weights)
+    wT_NN = re_wT(wT_weights)
+    return predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+end
+
 function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
     Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
     uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
@@ -294,7 +309,7 @@ end
 function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimizers, epochs, FILE_PATH, stage; 
                     maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0, f=1f-4, α=2f-4, g=9.80665f0, 
                     modified_pacanowski_philander=false, convective_adjustment=false, smooth_profile=false, smooth_NN=false, smooth_Ri=false, train_gradient=false,
-                    zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing)
+                    zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing, diurnal=false)
     @assert !modified_pacanowski_philander || !convective_adjustment
 
     train_parameters = Dict(
@@ -312,7 +327,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
                    "train_gradient" => train_gradient,
                      "zero_weights" => zero_weights, 
                  "gradient_scaling" => gradient_scaling, 
-               "training_fractions" => training_fractions
+               "training_fractions" => training_fractions,
+                          "diurnal" => diurnal
     )
 
     if zero_weights
@@ -330,12 +346,16 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
 
     conditions = (modified_pacanowski_philander=modified_pacanowski_philander, convective_adjustment=convective_adjustment, 
                     smooth_profile=smooth_profile, smooth_NN=smooth_NN, smooth_Ri=smooth_Ri, 
-                    train_gradient=train_gradient, zero_weights=zero_weights)
+                    train_gradient=train_gradient, zero_weights=zero_weights, diurnal=diurnal)
     
     constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters = prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₋, Riᶜ, ΔRi, Pr, κ, conditions)
     D_face = derivatives.face
 
     n_steps = Int(length(@view(𝒟train.t[:,1])) / n_simulations)
+
+    if diurnal
+        wT_top_functions = diurnal_fluxes(train_files, constants)
+    end
 
     @info "Setting up training data"
 
@@ -353,18 +373,27 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
 
     @info "Setting up equations and boundary conditions"
 
-    prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
 
     t_train = t_train ./ constants.τ
     tspan_train = (t_train[1], t_train[end])
-    BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
-            𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
-            𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
-            𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
-            𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
-            𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
 
-    prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+    BCs = [[𝒟train.uw.scaled[1,n_steps * i + tsteps[1]],
+        𝒟train.uw.scaled[end,n_steps * i + tsteps[1]],
+        𝒟train.vw.scaled[1,n_steps * i + tsteps[1]],
+        𝒟train.vw.scaled[end,n_steps * i + tsteps[1]],
+        𝒟train.wT.scaled[1,n_steps * i + tsteps[1]],
+        𝒟train.wT.scaled[end,n_steps * i + tsteps[1]]] for i in 0:n_simulations - 1]
+
+    if diurnal
+        prob_NDEs = [
+            ODEProblem(
+                (x, p, t) -> NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters, wT_top_functions[i]), uvT₀s[i], tspan_train
+            ) for i in 1:n_simulations
+        ]
+    else
+        prob_NDE(x, p, t) = NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
+        prob_NDEs = [ODEProblem(prob_NDE, uvT₀s[i], tspan_train) for i in 1:n_simulations]
+    end
 
     function determine_loss_scalings()
         if training_fractions === nothing
