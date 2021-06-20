@@ -71,7 +71,7 @@ if params_type == "old"
   ΔRi = 1f-1
   Riᶜ = 0.25f0
   Pr = 1f0
-elseif params_type = "18simBFGST0.8grad"
+elseif params_type == "18simBFGST0.8grad"
   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
   
   parameters_file = jldopen(PARAMETERS_PATH)
@@ -87,8 +87,9 @@ elseif params_type = "18simBFGST0.8grad"
   # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
   # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+  
   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-elseif params_type = "18simBFGST0.8nograd"
+elseif params_type == "18simBFGST0.8nograd"
   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
   
   parameters_file = jldopen(PARAMETERS_PATH)
