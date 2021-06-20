@@ -10,41 +10,31 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-# params_type = "old"
 T_fraction = parse(Float32, ARGS[1])
 NN_type = ARGS[2]
 # N_sims = parse(Int, ARGS[3])
-N_sims = 18
+N_sims = 9
 rate_str = ARGS[3]
 rate = parse(Float64, rate_str)
-params_type = ARGS[4]
+# params_type = ARGS[4]
 
 
-# params_type = "old"
+params_type = "old"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
 train_files_all = [
-  "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
-
-  "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
-
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_diurnal_5e-8",  
+  "wind_-5e-4_diurnal_3e-8",  
+  "wind_-5e-4_diurnal_1e-8",  
+      
+  "wind_-3.5e-4_diurnal_5e-8",
+  "wind_-3.5e-4_diurnal_3e-8",
+  "wind_-3.5e-4_diurnal_1e-8",
+      
+  "wind_-2e-4_diurnal_5e-8",  
+  "wind_-2e-4_diurnal_3e-8",  
+  "wind_-2e-4_diurnal_1e-8",  
 ]
 
 train_files = train_files_all[1:N_sims]
@@ -58,7 +48,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction)"
+FILE_NAME = "NDE_$(N_sims)sim_diurnal_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
@@ -87,7 +77,7 @@ elseif params_type == "18simBFGST0.8grad"
   # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
   # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
-  
+
   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 elseif params_type == "18simBFGST0.8nograd"
   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
@@ -144,6 +134,7 @@ vw_NN = re(weights ./ 1f5)
 wT_NN = re(weights ./ 1f5)
 
 # gradient_scaling = 5f-3
+diurnal = occursin("diurnal", train_files[1])
 training_fractions = (T=T_fraction, ∂T∂z=T_fraction, profile=0.5f0)
 train_parameters = Dict(
                                "ν₀" => ν₀, 
@@ -160,7 +151,8 @@ train_parameters = Dict(
                    "train_gradient" => true,
                      "zero_weights" => true, 
                 #  "gradient_scaling" => gradient_scaling, 
-               "training_fractions" => training_fractions
+               "training_fractions" => training_fractions,
+                          "diurnal" => diurnal,
     )
 
 train_epochs = [1]
@@ -199,6 +191,7 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                      zero_weights = train_parameters["zero_weights"],
                                                 #  gradient_scaling = train_parameters["gradient_scaling"],
                                                training_fractions = train_parameters["training_fractions"],
+                                                          diurnal = train_parameters["diurnal"],
                                     )
         else
             uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_tranges[i], timestepper, train_optimizers[i], train_epochs[i], FILE_PATH, i, 
@@ -212,7 +205,8 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
                                                 #  gradient_scaling = train_parameters["gradient_scaling"],
-                                               training_fractions = train_parameters["training_fractions"]
+                                               training_fractions = train_parameters["training_fractions"],
+                                                          diurnal = train_parameters["diurnal"],
                                                 )
         end
     end
@@ -225,26 +219,24 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-  "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
-
-  "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
-
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_diurnal_5e-8",    
+  "wind_-5e-4_diurnal_3e-8",    
+  "wind_-5e-4_diurnal_1e-8",    
+      
+  "wind_-3.5e-4_diurnal_5e-8",  
+  "wind_-3.5e-4_diurnal_3e-8",  
+  "wind_-3.5e-4_diurnal_1e-8",  
+      
+  "wind_-2e-4_diurnal_5e-8",    
+  "wind_-2e-4_diurnal_3e-8",    
+  "wind_-2e-4_diurnal_1e-8",    
+      
+  "wind_-2e-4_diurnal_2e-8",    
+  "wind_-2e-4_diurnal_3.5e-8",
+  "wind_-3.5e-4_diurnal_2e-8", 
+  "wind_-3.5e-4_diurnal_3.5e-8",
+  "wind_-5e-4_diurnal_2e-8", 
+  "wind_-5e-4_diurnal_3.5e-8",
 ]
 
 

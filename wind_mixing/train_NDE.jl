@@ -140,7 +140,6 @@ train_tranges = [1:20:200]
 train_iterations = [5]
 train_optimizers = [[ADAM(3e-4)]]
 
-
 timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
