@@ -10,16 +10,14 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-# params_type = ARGS[1]
-params_type = "old"
-
+# params_type = "old"
 T_fraction = parse(Float32, ARGS[1])
 NN_type = ARGS[2]
-
-N_sims = parse(Int, ARGS[3])
-
-rate_str = ARGS[4]
+# N_sims = parse(Int, ARGS[3])
+N_sims = 18
+rate_str = ARGS[3]
 rate = parse(Float64, rate_str)
+params_type = ARGS[4]
 
 
 # params_type = "old"
@@ -73,22 +71,31 @@ if params_type == "old"
   ΔRi = 1f-1
   Riᶜ = 0.25f0
   Pr = 1f0
-else
-  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_extracted.jld2")
-
+elseif params_type = "18simBFGST0.8grad"
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
+  
   parameters_file = jldopen(PARAMETERS_PATH)
   mpp_parameters = parameters_file["parameters"]
   close(parameters_file)
 
-  ν₀_initial = 1f-4
-  ν₋_initial = 1f-1
-  ΔRi_initial = 1f-1
-  Riᶜ_initial = 0.25f0
-  Pr_initial = 1f0
+  # ν₀_initial = 1f-4
+  # ν₋_initial = 1f-1
+  # ΔRi_initial = 1f-1
+  # Riᶜ_initial = 0.25f0
+  # Pr_initial = 1f0
 
-  mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+  # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
-  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+  # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+elseif params_type = "18simBFGST0.8nograd"
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
+  
+  parameters_file = jldopen(PARAMETERS_PATH)
+  mpp_parameters = parameters_file["parameters"]
+  close(parameters_file)
+
+  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 end
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
