@@ -424,16 +424,16 @@ function animate_profiles_fluxes_comparison(data_diffeq_explicit, data_diffeq_im
     end
 
     losses_data = [
-        lowclamp.(data_diffeq_explicit["losses_modified_pacanowski_philander_gradient"], 1f-5),
-        lowclamp.(data_diffeq_explicit["losses_kpp_gradient"], 1f-5),
-        lowclamp.(data_oceananigans["losses_gradient"], 1f-5),
-        lowclamp.(data_diffeq_explicit["losses_gradient"], 1f-5),
-        lowclamp.(data_diffeq_implicit["losses_gradient"], 1f-5),
         lowclamp.(data_diffeq_explicit["losses_modified_pacanowski_philander"], 1f-5),
         lowclamp.(data_diffeq_explicit["losses_kpp"], 1f-5),
         lowclamp.(data_oceananigans["losses"], 1f-5),
         lowclamp.(data_diffeq_explicit["losses"], 1f-5),
         lowclamp.(data_diffeq_implicit["losses"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_modified_pacanowski_philander_gradient"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_kpp_gradient"], 1f-5),
+        lowclamp.(data_oceananigans["losses_gradient"], 1f-5),
+        lowclamp.(data_diffeq_explicit["losses_gradient"], 1f-5),
+        lowclamp.(data_diffeq_implicit["losses_gradient"], 1f-5),
     ]
 
     @inline function add_ϵ!(losses)
@@ -860,6 +860,9 @@ function animate_training_results(test_files, FILE_NAME;
     end
 
     train_files = file["training_info/train_files"]
+
+    diurnal = occursin("diurnal", train_files[1])
+
     train_parameters = file["training_info/parameters"]
     uw_NN = file["neural_network/uw"]
     vw_NN = file["neural_network/vw"]
@@ -906,7 +909,7 @@ function animate_training_results(test_files, FILE_NAME;
         end
 
         @info "Solving NDE: $test_file, Explicit timestepper"
-        plot_data_explicit = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        plot_data_explicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
                                 convective_adjustment=train_parameters["convective_adjustment"],
@@ -917,7 +920,7 @@ function animate_training_results(test_files, FILE_NAME;
                                 OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_explicit.jld2"))
 
         @info "Solving NDE: $test_file, Implicit timestepper"
-        plot_data_implicit = NDE_profile(uw_NN, vw_NN, wT_NN, 𝒟test, 𝒟train, trange,
+        plot_data_implicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
                                 convective_adjustment=train_parameters["convective_adjustment"],
