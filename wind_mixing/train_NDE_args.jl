@@ -10,7 +10,8 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-T_fraction = parse(Float32, ARGS[1])
+T_fraction_str = ARGS[1]
+T_fraction = parse(Float32, T_fraction_str)
 NN_type = ARGS[2]
 # N_sims = parse(Int, ARGS[3])
 N_sims = 9
@@ -19,7 +20,7 @@ rate = parse(Float64, rate_str)
 # params_type = ARGS[4]
 
 
-params_type = "old"
+params_type = "18simADAM1e-2T$(T_fraction_str)"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
@@ -48,46 +49,54 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_diurnal_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction)"
+FILE_NAME = "NDE_$(N_sims)sim_diurnal_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction_str)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
-if params_type == "old"
-  ν₀ = 1f-4
-  ν₋ = 1f-1
-  ΔRi = 1f-1
-  Riᶜ = 0.25f0
-  Pr = 1f0
-elseif params_type == "18simBFGST0.8grad"
-  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
+# if params_type == "old"
+#   ν₀ = 1f-4
+#   ν₋ = 1f-1
+#   ΔRi = 1f-1
+#   Riᶜ = 0.25f0
+#   Pr = 1f0
+# elseif params_type == "18simBFGST0.8grad"
+#   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
   
-  parameters_file = jldopen(PARAMETERS_PATH)
-  mpp_parameters = parameters_file["parameters"]
-  close(parameters_file)
+#   parameters_file = jldopen(PARAMETERS_PATH)
+#   mpp_parameters = parameters_file["parameters"]
+#   close(parameters_file)
 
-  # ν₀_initial = 1f-4
-  # ν₋_initial = 1f-1
-  # ΔRi_initial = 1f-1
-  # Riᶜ_initial = 0.25f0
-  # Pr_initial = 1f0
+#   # ν₀_initial = 1f-4
+#   # ν₋_initial = 1f-1
+#   # ΔRi_initial = 1f-1
+#   # Riᶜ_initial = 0.25f0
+#   # Pr_initial = 1f0
 
-  # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
+#   # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
 
-  # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
+#   # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
 
-  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-elseif params_type == "18simBFGST0.8nograd"
-  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
+#   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+# elseif params_type == "18simBFGST0.8nograd"
+#   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
   
-  parameters_file = jldopen(PARAMETERS_PATH)
-  mpp_parameters = parameters_file["parameters"]
-  close(parameters_file)
+#   parameters_file = jldopen(PARAMETERS_PATH)
+#   mpp_parameters = parameters_file["parameters"]
+#   close(parameters_file)
 
-  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-end
+#   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+# end
+
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd.jld2")
+  
+parameters_file = jldopen(PARAMETERS_PATH)
+mpp_parameters = parameters_file["parameters"]
+close(parameters_file)
+
+ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
