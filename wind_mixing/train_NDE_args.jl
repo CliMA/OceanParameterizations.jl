@@ -14,7 +14,7 @@ T_fraction_str = ARGS[1]
 T_fraction = parse(Float32, T_fraction_str)
 NN_type = ARGS[2]
 # N_sims = parse(Int, ARGS[3])
-N_sims = 9
+N_sims = 18
 rate_str = ARGS[3]
 rate = parse(Float64, rate_str)
 # params_type = ARGS[4]
@@ -24,18 +24,41 @@ params_type = "18simADAM1e-2T$(T_fraction_str)"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
+# train_files_all = [
+#   "wind_-5e-4_diurnal_5e-8",  
+#   "wind_-5e-4_diurnal_3e-8",  
+#   "wind_-5e-4_diurnal_1e-8",  
+      
+#   "wind_-3.5e-4_diurnal_5e-8",
+#   "wind_-3.5e-4_diurnal_3e-8",
+#   "wind_-3.5e-4_diurnal_1e-8",
+      
+#   "wind_-2e-4_diurnal_5e-8",  
+#   "wind_-2e-4_diurnal_3e-8",  
+#   "wind_-2e-4_diurnal_1e-8",  
+# ]
+
 train_files_all = [
-  "wind_-5e-4_diurnal_5e-8",  
-  "wind_-5e-4_diurnal_3e-8",  
-  "wind_-5e-4_diurnal_1e-8",  
-      
-  "wind_-3.5e-4_diurnal_5e-8",
-  "wind_-3.5e-4_diurnal_3e-8",
-  "wind_-3.5e-4_diurnal_1e-8",
-      
-  "wind_-2e-4_diurnal_5e-8",  
-  "wind_-2e-4_diurnal_3e-8",  
-  "wind_-2e-4_diurnal_1e-8",  
+  "wind_-5e-4_cooling_3e-8_new",   
+  "wind_-5e-4_cooling_1e-8_new",   
+  "wind_-2e-4_cooling_3e-8_new",   
+  "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_heating_-3e-8_new",  
+  "wind_-2e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-3e-8_new",  
+  "wind_-5e-4_heating_-1e-8_new",  
+
+  "wind_-3.5e-4_cooling_2e-8_new", 
+  "wind_-3.5e-4_heating_-2e-8_new",
+
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 train_files = train_files_all[1:N_sims]
@@ -49,7 +72,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_diurnal_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction_str)"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction_str)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
@@ -228,24 +251,26 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
 test_files = [
-  "wind_-5e-4_diurnal_5e-8",    
-  "wind_-5e-4_diurnal_3e-8",    
-  "wind_-5e-4_diurnal_1e-8",    
-      
-  "wind_-3.5e-4_diurnal_5e-8",  
-  "wind_-3.5e-4_diurnal_3e-8",  
-  "wind_-3.5e-4_diurnal_1e-8",  
-      
-  "wind_-2e-4_diurnal_5e-8",    
-  "wind_-2e-4_diurnal_3e-8",    
-  "wind_-2e-4_diurnal_1e-8",    
-      
-  "wind_-2e-4_diurnal_2e-8",    
-  "wind_-2e-4_diurnal_3.5e-8",
-  "wind_-3.5e-4_diurnal_2e-8", 
-  "wind_-3.5e-4_diurnal_3.5e-8",
-  "wind_-5e-4_diurnal_2e-8", 
-  "wind_-5e-4_diurnal_3.5e-8",
+  "wind_-5e-4_cooling_3e-8_new",   
+  "wind_-5e-4_cooling_1e-8_new",   
+  "wind_-2e-4_cooling_3e-8_new",   
+  "wind_-2e-4_cooling_1e-8_new",   
+  "wind_-5e-4_heating_-3e-8_new",  
+  "wind_-2e-4_heating_-1e-8_new",  
+  "wind_-2e-4_heating_-3e-8_new",  
+  "wind_-5e-4_heating_-1e-8_new",  
+
+  "wind_-3.5e-4_cooling_2e-8_new", 
+  "wind_-3.5e-4_heating_-2e-8_new",
+
+  "wind_-5e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_cooling_3e-8_new", 
+  "wind_-3.5e-4_cooling_1e-8_new", 
+  "wind_-2e-4_cooling_2e-8_new",   
+  "wind_-3.5e-4_heating_-3e-8_new",
+  "wind_-3.5e-4_heating_-1e-8_new",
+  "wind_-2e-4_heating_-2e-8_new",  
+  "wind_-5e-4_heating_-2e-8_new",  
 ]
 
 
