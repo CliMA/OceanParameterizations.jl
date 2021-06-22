@@ -20,7 +20,7 @@ rate = parse(Float64, rate_str)
 # params_type = ARGS[4]
 
 
-params_type = "$(N_sim)simADAM1e-2T$(T_fraction_str)"
+params_type = "$(N_sims)simADAM1e-2T$(T_fraction_str)"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
