@@ -19,7 +19,7 @@ train_gradient = parse(Bool, ARGS[3])
 optimizer_type = ARGS[4]
 # optimizer_type = "ADAM"
 # rate_str = ARGS[4]
-rate = parse(Float64, rate_str)
+# rate = parse(Float64, rate_str)
 
 
 train_files_all = [       
@@ -51,9 +51,9 @@ PATH = pwd()
 # PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
 
 if train_gradient
-    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)$(rate_str)_T$(T_fraction)_grad_new"
+    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_grad_new"
 else
-    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)$(rate_str)_T$(T_fraction)_nograd_new"
+    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nograd_new"
 end
 
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
