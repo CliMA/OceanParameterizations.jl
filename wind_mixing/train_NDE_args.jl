@@ -13,14 +13,14 @@ BLAS.set_num_threads(1)
 T_fraction_str = ARGS[1]
 T_fraction = parse(Float32, T_fraction_str)
 NN_type = ARGS[2]
-# N_sims = parse(Int, ARGS[3])
-N_sims = 18
-rate_str = ARGS[3]
+N_sims = parse(Int, ARGS[3])
+# N_sims = 18
+rate_str = ARGS[4]
 rate = parse(Float64, rate_str)
 # params_type = ARGS[4]
 
 
-params_type = "18simADAM1e-2T$(T_fraction_str)"
+params_type = "$(N_sim)simADAM1e-2T$(T_fraction_str)"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
@@ -113,7 +113,7 @@ EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jl
 #   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 # end
 
-PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sim)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
   
 parameters_file = jldopen(PARAMETERS_PATH)
 mpp_parameters = parameters_file["parameters"]
