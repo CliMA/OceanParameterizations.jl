@@ -113,7 +113,7 @@ EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jl
 #   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 # end
 
-PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sim)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
+PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
   
 parameters_file = jldopen(PARAMETERS_PATH)
 mpp_parameters = parameters_file["parameters"]
