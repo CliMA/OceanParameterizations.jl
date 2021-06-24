@@ -27,7 +27,12 @@ function column_model_1D_kpp(constants, BCs, ICs, times, parameters=OceanTurb.KP
 
     model.bcs.U.top = OceanTurb.FluxBoundaryCondition(UW_flux)
     model.bcs.V.top = OceanTurb.FluxBoundaryCondition(VW_flux)
-    model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux)
+
+    if WT_flux isa Number
+        model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux)
+    else
+        model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux(0))
+    end
 
     model.bcs.U.bottom = OceanTurb.GradientBoundaryCondition(∂U₀∂z)
     model.bcs.V.bottom = OceanTurb.GradientBoundaryCondition(∂V₀∂z)
@@ -46,6 +51,10 @@ function column_model_1D_kpp(constants, BCs, ICs, times, parameters=OceanTurb.KP
     Δt = times[2] - times[1]
     for n in 1:Nt
         OceanTurb.run_until!(model, Δt, times[n])
+        
+        if !isa(WT_flux, Number)
+            model.bcs.T.top.condition = WT_flux(model.clock.time)
+        end
 
         U[:, n] .= model.solution.U[1:Nz]
         V[:, n] .= model.solution.V[1:Nz]
@@ -57,7 +66,12 @@ function column_model_1D_kpp(constants, BCs, ICs, times, parameters=OceanTurb.KP
 
         UW[Nz+1, n] = UW_flux
         VW[Nz+1, n] = VW_flux
-        WT[Nz+1, n] = WT_flux
+
+        if WT_flux isa Number
+            WT[Nz+1, n] = WT_flux
+        else
+            WT[Nz+1, n] = WT_flux(model.clock.time)
+        end
     end
 
     return (; U, V, T, UW, VW, WT)
