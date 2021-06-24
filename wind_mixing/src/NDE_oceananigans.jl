@@ -14,7 +14,7 @@ using Oceananigans.OutputReaders: FieldDataset
 using Oceananigans.Fields: FieldSlicer
 using Oceanostics.FlowDiagnostics: richardson_number_ccf!
 
-function modified_pacanowski_philander_diffusivity(model, constants, p; K=10)
+function modified_pacanowski_philander_diffusivity(model, constants, p; convective_adjustment, κ=10f0)
     Nz = model.grid.Nz
 
     u = model.velocities.u
@@ -35,17 +35,26 @@ function modified_pacanowski_philander_diffusivity(model, constants, p; K=10)
                              computed_dependencies=(u, v, b), parameters=(dUdz_bg=0, dVdz_bg=0, N2_bg=0))
     compute!(Ri)
 
-    ν = zeros(Nz+1)
+    ν = zeros(Float32, Nz+1)
+    ν_T = similar(ν)
 
     for i in 2:Nz
         ν[i] = ν₀ + ν₋ * tanh_step((Ri[1, 1, i] - Riᶜ) / ΔRi)
     end
 
-    return ν, ν ./ Pr
+    if convective_adjustment
+        for i in 2:Nz
+            ν_T[i]= Ri[1, 1, i] > 0 ? ν[i] / Pr : κ
+        end
+    else
+        ν_T .= ν ./ Pr
+    end
+
+    return ν, ν_T
 end
 
 # Note: This assumes a Prandtl number of Pr = 1.
-function modified_pacanowski_philander!(model, constants, Δt, p)
+function modified_pacanowski_philander!(model, constants, Δt, p, convective_adjustment)
     Nz = model.grid.Nz
     Δz = model.grid.Δz
 
@@ -53,7 +62,7 @@ function modified_pacanowski_philander!(model, constants, Δt, p)
     v = model.velocities.v
     T = model.tracers.T
 
-    ν_velocities, ν_T = modified_pacanowski_philander_diffusivity(model, constants, p)
+    ν_velocities, ν_T = modified_pacanowski_philander_diffusivity(model, constants, p, convective_adjustment=convective_adjustment)
 
     lower_diagonal_velocities = [-Δt / Δz ^ 2 * ν_velocities[i]   for i in 2:Nz]
     upper_diagonal_velocities = [-Δt / Δz ^ 2 * ν_velocities[i+1] for i in 1:Nz-1]
@@ -84,7 +93,8 @@ function modified_pacanowski_philander!(model, constants, Δt, p)
 end
 
 function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params; 
-            BASELINE_RESULTS_PATH, NN_RESULTS_PATH, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity)
+            BASELINE_RESULTS_PATH, NN_RESULTS_PATH, stop_time=36000, Δt=60, diffusivity_model=modified_pacanowski_philander_diffusivity,
+            convective_adjustment=false)
     ρ₀ = 1027.0
     cₚ = 4000.0
     β  = 0.0
@@ -137,7 +147,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     μ_uw, σ_uw, μ_vw, σ_vw, μ_wT, σ_wT = uw_scaling.μ, uw_scaling.σ, vw_scaling.μ, vw_scaling.σ, wT_scaling.μ, wT_scaling.σ
 
     function diagnose_baseline_flux_uw(model)
-        ν, _ = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        ν, _ = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
         ∂u∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.u))
         compute!(∂u∂z)
 
@@ -147,7 +157,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     end
 
     function diagnose_baseline_flux_vw(model)
-        ν, _ = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        ν, _ = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
         ∂v∂z = ComputedField(@at (Center, Center, Face) ∂z(model.velocities.v))
         compute!(∂v∂z)
 
@@ -157,7 +167,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     end
 
     function diagnose_baseline_flux_wT(model)
-        _, ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params)
+        _, ν = modified_pacanowski_philander_diffusivity(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
         ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(model.tracers.T))
         compute!(∂T∂z)
 
@@ -216,7 +226,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
 
         uw = enforce_fluxes_uw(inv(uw_scaling).(uw_NN(uvT)) .- inv(uw_scaling)(0))
 
-        ν, _ = diffusivity_model(model, constants, diffusivity_params)
+        ν, _ = diffusivity_model(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
 
         ν∂u∂z = ν .* interior(∂u∂z)[:]
         uw = uw .- ν∂u∂z
@@ -234,7 +244,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
 
         vw = enforce_fluxes_vw(inv(vw_scaling).(vw_NN(uvT)) .- inv(vw_scaling)(0))
 
-        ν, _ = diffusivity_model(model, constants, diffusivity_params)
+        ν, _ = diffusivity_model(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
 
         ν∂v∂z = ν .* interior(∂v∂z)[:]
 
@@ -258,7 +268,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
             wT = enforce_fluxes_wT(inv(wT_scaling).(wT_NN(uvT)) .- inv(wT_scaling)(0), model.clock.time)
         end
 
-        _, ν = diffusivity_model(model, constants, diffusivity_params)
+        _, ν = diffusivity_model(model, constants, diffusivity_params, convective_adjustment=convective_adjustment)
 
         ν∂T∂z = ν .* interior(∂T∂z)[:]
 
@@ -355,7 +365,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
             @info "Baseline: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
         end
 
-        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params)
+        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params, convective_adjustment)
         return nothing
     end
 
@@ -381,7 +391,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
             ∂z_wT_NN .=  NN_wT_forcing(uvT, model.clock.time)
         end
 
-        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params)
+        modified_pacanowski_philander!(simulation.model, constants, simulation.Δt, diffusivity_params, convective_adjustment)
 
         return nothing
     end

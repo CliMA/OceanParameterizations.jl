@@ -833,7 +833,8 @@ function animate_training_results(test_files, FILE_NAME;
                                   EXTRACTED_DATA_DIR, OUTPUT_DIR,
                                   timestep=60, trange=1:1:1153, 
                                   fps=30, gif=false, mp4=true,
-                                  explicit_timestepper=ROCK4(), implicit_timestepper=RadauIIA5(autodiff=false))
+                                  explicit_timestepper=ROCK4(), implicit_timestepper=RadauIIA5(autodiff=false),
+                                  convective_adjustment=false)
 
     DATA_PATH = joinpath(EXTRACTED_DATA_DIR, "$(FILE_NAME)_extracted.jld2")
     OUTPUT_PATH = joinpath(OUTPUT_DIR, FILE_NAME)
@@ -893,7 +894,7 @@ function animate_training_results(test_files, FILE_NAME;
     plot_loss(losses, joinpath(OUTPUT_PATH, "loss.pdf"))
 
     @info "Solving NDE: Oceananigans"
-    solve_oceananigans_modified_pacanowski_philander_nn(test_files, DATA_PATH, OUTPUT_PATH; timestep=timestep)
+    solve_oceananigans_modified_pacanowski_philander_nn(test_files, DATA_PATH, OUTPUT_PATH; timestep=timestep, convective_adjustment=convective_adjustment)
 
     for test_file in test_files
         @info "Generating Data: $test_file"
@@ -912,7 +913,7 @@ function animate_training_results(test_files, FILE_NAME;
         plot_data_explicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
-                                convective_adjustment=train_parameters["convective_adjustment"],
+                                convective_adjustment=convective_adjustment,
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
                                 loss_scalings=loss_scalings,
@@ -923,7 +924,7 @@ function animate_training_results(test_files, FILE_NAME;
         plot_data_implicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
-                                convective_adjustment=train_parameters["convective_adjustment"],
+                                convective_adjustment=convective_adjustment,
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
                                 loss_scalings=loss_scalings,
@@ -957,5 +958,353 @@ function animate_training_results(test_files, FILE_NAME;
         animate_profiles_fluxes_comparison(plot_data_explicit, plot_data_implicit, plot_data_oceananigans, VIDEO_PATH, fps=fps, gif=gif, mp4=mp4, 
                                                 animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
         @info "$test_file Animation Completed"
+    end
+end
+
+
+function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_type, n_trainings, training_types, fps=30, gif=false, mp4=true)
+    times = data["t"] ./ 86400
+
+    frame = Node(1)
+
+    time_point = @lift [times[$frame]]
+
+    u_data = [
+        data["truth_u"],
+        data["test_u_modified_pacanowski_philander"],
+        data["test_u_kpp"],
+        data["test_u"],
+    ]
+
+    v_data = [
+        data["truth_v"],
+        data["test_v_modified_pacanowski_philander"],
+        data["test_v_kpp"],
+        data["test_v"],
+    ]
+
+    T_data = [
+        data["truth_T"],
+        data["test_T_modified_pacanowski_philander"],
+        data["test_T_kpp"],
+        data["test_T"],
+    ]
+    
+    uw_data = [
+        data["truth_uw"],
+        data["test_uw_modified_pacanowski_philander"],
+        data["test_uw_kpp"],
+        data["test_uw"],
+    ]
+
+    vw_data = [
+        data["truth_vw"],
+        data["test_vw_modified_pacanowski_philander"],
+        data["test_vw_kpp"],
+        data["test_vw"],
+    ]
+
+    wT_data = [
+        data["truth_wT"],
+        data["test_wT_modified_pacanowski_philander"],
+        data["test_wT_kpp"],
+        data["test_wT"],
+    ]
+
+    uw_data .*= 1f4
+    vw_data .*= 1f4
+    wT_data .*= 1f4
+
+    Ri_data = [
+        clamp.(data["truth_Ri"], -1, 2),
+        clamp.(data["test_Ri_modified_pacanowski_philander"], -1, 2),
+        clamp.(data["test_Ri_kpp"], -1, 2),
+        clamp.(data["test_Ri"], -1, 2),
+    ]
+
+    # @inline function lowclamp(value, lo)
+    #     if value >= lo
+    #         return value
+    #     else
+    #         return lo
+    #     end
+    # end
+
+    # losses_data = [
+    #     lowclamp.(data["losses_modified_pacanowski_philander"] .+ data["losses_modified_pacanowski_philander_gradient"], 1f-5),
+    #     lowclamp.(data["losses_kpp"] .+ data["losses_kpp_gradient"], 1f-5),
+    #     lowclamp.(data["losses"] .+ data["losses_gradient"], 1f-5),
+    # ]
+
+    u_frames = [@lift data[:,$frame] for data in u_data]
+    v_frames = [@lift data[:,$frame] for data in v_data]
+    T_frames = [@lift data[:,$frame] for data in T_data]
+
+    uw_frames = [@lift data[:,$frame] for data in uw_data]
+    vw_frames = [@lift data[:,$frame] for data in vw_data]
+    wT_frames = [@lift data[:,$frame] for data in wT_data]
+    
+    Ri_frames = [@lift data[:,$frame] for data in Ri_data]
+
+    # losses_point_frames = [@lift [data[$frame]] for data in losses_data]
+
+    @inline function find_lims(datasets)
+        return maximum(maximum.(datasets)), minimum(minimum.(datasets))
+    end
+
+    u_max, u_min = find_lims(u_data)
+    v_max, v_min = find_lims(v_data)
+    T_max, T_min = find_lims(T_data)
+
+    uw_max, uw_min = find_lims(uw_data)
+    vw_max, vw_min = find_lims(vw_data)
+    wT_max, wT_min = find_lims(wT_data)
+    
+    # losses_max, losses_min = find_lims(losses_data)
+
+    train_parameters = data["train_parameters"]
+    ν₀ = train_parameters.ν₀
+    ν₋ = train_parameters.ν₋
+    ΔRi = train_parameters.ΔRi
+    Riᶜ = train_parameters.Riᶜ
+    Pr = train_parameters.Pr
+    loss_scalings = train_parameters.loss_scalings
+
+    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data["truth_uw"][end, 1] data["truth_wT"][end, 1]
+    plot_title = @lift "$animation_type Data: $BC_str, Time = $(round(times[$frame], digits=2)) days"
+
+    diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
+
+    # scaling_str = @sprintf "Loss Scalings: u = %.1e, v = %.1e, T = %.1e, ∂u∂z = %.1e, ∂v∂z = %.1e, ∂T∂z = %.1e" loss_scalings.u loss_scalings.v loss_scalings.T loss_scalings.∂u∂z loss_scalings.∂v∂z loss_scalings.∂T∂z
+    # plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str \n $scaling_str"
+
+    plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str"
+
+    fig = Figure(resolution=(1920, 1080))
+    
+    # colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+    colors = distinguishable_colors(length(uw_data), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+
+    u_img = axis_images.u
+    v_img = axis_images.v
+    T_img = axis_images.T
+    uw_img = axis_images.uw
+    vw_img = axis_images.uw
+    wT_img = axis_images.uw
+    Ri_img = axis_images.uw
+    z_img = axis_images.z
+
+    zc = data["depth_profile"]
+    zf = data["depth_flux"]
+    zf_interior = zf[2:end-1]
+    
+    y_ax_u = CairoMakie.Axis(fig[1,1], aspect=DataAspect())
+    y_ax_v = CairoMakie.Axis(fig[1,3], aspect=DataAspect())
+    y_ax_T = CairoMakie.Axis(fig[1,5], aspect=DataAspect())
+    y_ax_Ri = CairoMakie.Axis(fig[1,7], aspect=DataAspect())
+    y_ax_uw = CairoMakie.Axis(fig[3,1], aspect=DataAspect())
+    y_ax_vw = CairoMakie.Axis(fig[3,3], aspect=DataAspect())
+    y_ax_wT = CairoMakie.Axis(fig[3,5], aspect=DataAspect())
+
+    x_ax_u = CairoMakie.Axis(fig[2,2], aspect=DataAspect())
+    x_ax_v = CairoMakie.Axis(fig[2,4], aspect=DataAspect())
+    x_ax_T = CairoMakie.Axis(fig[2,6], aspect=DataAspect())
+    x_ax_Ri = CairoMakie.Axis(fig[2,8], aspect=DataAspect())
+    x_ax_uw = CairoMakie.Axis(fig[4,2], aspect=DataAspect())
+    x_ax_vw = CairoMakie.Axis(fig[4,4], aspect=DataAspect())
+    x_ax_wT = CairoMakie.Axis(fig[4,6], aspect=DataAspect())
+
+    hidedecorations!(y_ax_u)
+    hidedecorations!(y_ax_v)
+    hidedecorations!(y_ax_T)
+    hidedecorations!(y_ax_Ri)
+    hidedecorations!(y_ax_uw)
+    hidedecorations!(y_ax_vw)
+    hidedecorations!(y_ax_wT)
+
+    hidedecorations!(x_ax_u)
+    hidedecorations!(x_ax_v)
+    hidedecorations!(x_ax_T)
+    hidedecorations!(x_ax_Ri)
+    hidedecorations!(x_ax_uw)
+    hidedecorations!(x_ax_vw)
+    hidedecorations!(x_ax_wT)
+
+    hidespines!(y_ax_u)
+    hidespines!(y_ax_v)
+    hidespines!(y_ax_T)
+    hidespines!(y_ax_Ri)
+    hidespines!(y_ax_uw)
+    hidespines!(y_ax_vw)
+    hidespines!(y_ax_wT)
+
+    hidespines!(x_ax_u)
+    hidespines!(x_ax_v)
+    hidespines!(x_ax_T)
+    hidespines!(x_ax_Ri)
+    hidespines!(x_ax_uw)
+    hidespines!(x_ax_vw)
+    hidespines!(x_ax_wT)
+    
+    image!(x_ax_u, axis_images.u)
+    image!(x_ax_v, axis_images.v)
+    image!(x_ax_T, axis_images.T)
+    image!(x_ax_Ri, axis_images.Ri)
+    image!(x_ax_uw, axis_images.uw)
+    image!(x_ax_vw, axis_images.vw)
+    image!(x_ax_wT, axis_images.wT)
+
+    image!(y_ax_u, axis_images.z)
+    image!(y_ax_v, axis_images.z)
+    image!(y_ax_T, axis_images.z)
+    image!(y_ax_Ri, axis_images.z)
+    image!(y_ax_uw, axis_images.z)
+    image!(y_ax_vw, axis_images.z)
+    image!(y_ax_wT, axis_images.z)
+
+    rel_size = 30
+    aspect = 1920 / 1080
+
+    rowsize!(fig.layout, 2, CairoMakie.Relative(1 / rel_size))
+    rowsize!(fig.layout, 4, CairoMakie.Relative(1 / rel_size))
+    colsize!(fig.layout, 1, CairoMakie.Relative(1 / rel_size / aspect))
+    colsize!(fig.layout, 3, CairoMakie.Relative(1 / rel_size / aspect))
+    colsize!(fig.layout, 5, CairoMakie.Relative(1 / rel_size / aspect))
+    colsize!(fig.layout, 7, CairoMakie.Relative(1 / rel_size / aspect))
+
+    colgap!(fig.layout, Relative(1 / rel_size / aspect / 2))
+    rowgap!(fig.layout, Relative(1 / rel_size / aspect))
+
+    alpha=0.5
+    truth_linewidth = 7
+    linewidth = 3
+
+    ax_u = fig[1, 2] = Axis(fig)
+    ax_v = fig[1, 4] = Axis(fig)
+    ax_T = fig[1, 6] = Axis(fig)
+    ax_Ri = fig[1, 8] = Axis(fig)
+    ax_uw = fig[3, 2] = Axis(fig)
+    ax_vw = fig[3, 4] = Axis(fig)
+    ax_wT = fig[3, 6] = Axis(fig)
+    
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+    CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+    CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+    CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+    CairoMakie.xlims!(ax_Ri, -1, 2)
+    # CairoMakie.xlims!(ax_losses, times[1], times[end])
+
+    CairoMakie.ylims!(ax_u, minimum(zc), 0)
+    CairoMakie.ylims!(ax_v, minimum(zc), 0)
+    CairoMakie.ylims!(ax_T, minimum(zc), 0)
+    CairoMakie.ylims!(ax_uw, minimum(zf), 0)
+    CairoMakie.ylims!(ax_vw, minimum(zf), 0)
+    CairoMakie.ylims!(ax_wT, minimum(zf), 0)
+    CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
+    # CairoMakie.ylims!(ax_losses, losses_min, losses_max)
+
+    u_lines = [
+         lines!(ax_u, u_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_u, u_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(u_data)]
+    ]
+
+    v_lines = [
+         lines!(ax_v, v_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_v, v_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(v_data)]
+    ]
+
+    T_lines = [
+         lines!(ax_T, T_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_T, T_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(T_data)]
+    ]
+
+    uw_lines = [
+         lines!(ax_uw, uw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_uw, uw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(uw_data)]
+    ]
+
+   vw_lines = [
+         lines!(ax_vw, vw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_vw, vw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(vw_data)]
+    ]
+
+    wT_lines = [
+        lines!(ax_wT, wT_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+       [lines!(ax_wT, wT_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(wT_data)]
+   ]
+
+    Ri_lines = [
+         lines!(ax_Ri, Ri_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+        [lines!(ax_Ri, Ri_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
+    ]
+
+    # losses_lines =  [
+    #     [lines!(ax_losses, times, losses_data[i], linewidth=linewidth, color=colors[i+1]) for i in 1:Int(length(losses_data)/2)];
+    #     [lines!(ax_losses, times, losses_data[Int(i+length(losses_data)/2)], linewidth=linewidth, color=colors[i+1], linestyle=:dot) for i in 1:Int(length(losses_data)/2)];
+    # ]
+
+    # losses_point = [CairoMakie.scatter!(ax_losses, time_point, point, color=colors[end]) for point in losses_point_frames] 
+    
+
+    # legend_sublayout = GridLayout()
+    # fig[2, 8] = legend_sublayout
+
+    # legend = Legend(fig, uw_lines, ["LES", 
+    #                                 "NN Only",
+    #                                 "Modified Pac-Phil Only", 
+    #                                 "KPP",
+    #                                 "Oceananigans, Implicit",
+    #                                 "DiffEq, Explicit",
+    #                                 "DiffEq, Implicit"
+    #                                 ])
+
+    # legend_loss = Legend(fig, losses_lines, ["Profile Loss, Modified Pac-Phil Only", 
+    #                                          "Profile Loss, KPP",
+    #                                          "Profile Loss, Oceananigans, Implicit", 
+    #                                          "Profile Loss, DiffEq, Explicit", 
+    #                                          "Profile Loss, DiffEq, Implicit",
+    #                                          "Gradient Loss, Modified Pac-Phil Only", 
+    #                                          "Gradient Loss, KPP",
+    #                                          "Gradient Loss, Oceananigans, Implicit", 
+    #                                          "Gradient Loss, DiffEq, Explicit", 
+    #                                          "Gradient Loss, DiffEq, Implicit"])
+    # legend_sublayout[:v] = [legend, legend_loss]
+
+    
+    legend = fig[3, 8] = Legend(fig, u_lines, ["LES", 
+                                        "Ri-based Diffusivity Only", 
+                                        "KPP",
+                                        "Oceananigans.jl",
+                                        ])
+
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
+    subtitle = fig[end+1, :] = Label(fig, text=plot_subtitle, textsize=20)
+    
+    trim!(fig.layout)
+
+    print_frame = maximum([1, Int(floor(length(times)/20))])
+
+    function print_progress(n, n_total, print_frame, type)
+        if n % print_frame == 0
+            @info "Animating $(type) frame $n/$n_total"
+        end
+    end
+
+    @info "Starting Animation"
+
+    if gif
+        CairoMakie.record(fig, "$FILE_PATH.gif", 1:length(times), framerate=fps) do n
+            print_progress(n, length(times), print_frame, "gif")
+            frame[] = n
+        end
+    end
+
+    if mp4
+        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+            print_progress(n, length(times), print_frame, "mp4")
+            frame[] = n
+        end
     end
 end

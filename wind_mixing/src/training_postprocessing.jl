@@ -52,7 +52,7 @@ function prepare_BCs(𝒟, scalings, wT_top_function)
     return (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
 end
 
-function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper)
+function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, ts, timestepper, conditions)
     μ_u = scalings.u.μ
     μ_v = scalings.v.μ
     σ_u = scalings.u.σ
@@ -75,6 +75,7 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
     ∂T∂z = similar(uw)
 
     ν = similar(uw)
+    ν_T = similar(uw)
 
     Ri = similar(uw)
 
@@ -84,7 +85,12 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
 
     uw[end] = BCs.uw.top - scalings.uw(0f0)
     vw[end] = BCs.vw.top - scalings.vw(0f0)
-    wT[end] = BCs.wT.top - scalings.wT(0f0)
+
+    if BCs.wT.top isa Number
+        wT[end] = BCs.wT.top - scalings.wT(0f0)
+    else
+        wT[end] = BCs.wT.top(0) - scalings.wT(0f0)
+    end
 
     uw_interior = @view uw[2:end-1]
     vw_interior = @view vw[2:end-1]
@@ -106,11 +112,20 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
         mul!(∂T∂z, D_face, T)
 
         Ri .= local_richardson.(∂u∂z, ∂v∂z, ∂T∂z, H, g, α, σ_u, σ_v, σ_T)
+
         ν .= ν₀ .+ ν₋ .* tanh_step.((Ri .- Riᶜ) ./ ΔRi)
+
+        if conditions.convective_adjustment
+            for i in 2:length(ν_T)-1
+                ν_T[i] = ∂u∂z > 0 ? ν[i] / Pr : constants.κ
+            end
+        else
+            ν_T .= ν ./ Pr
+        end
 
         uw_interior .-= σ_u ./ σ_uw ./ H .* @view(ν[2:end-1]) .* @view(∂u∂z[2:end-1])
         vw_interior .-= σ_v ./ σ_vw ./ H .* @view(ν[2:end-1]) .* @view(∂v∂z[2:end-1])
-        wT_interior .-= σ_T ./ σ_wT ./ H .* @view(ν[2:end-1]) .* @view(∂T∂z[2:end-1]) ./ Pr
+        wT_interior .-= σ_T ./ σ_wT ./ H .* @view(ν_T[2:end-1]) .* @view(∂T∂z[2:end-1])
     end
 
     function NDE!(dx, x, p, t)
@@ -259,7 +274,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
     diurnal = occursin("diurnal", test_file)
 
     if diurnal
-        wT_top_function = diurnal_fluxes([test_file], constants)
+        wT_top_function = diurnal_fluxes([test_file], constants)[1]
         BCs = prepare_BCs(𝒟test, scalings, wT_top_function)
     else
         BCs = prepare_BCs(𝒟test, scalings)
@@ -284,7 +299,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
 
     @info "Solving NDEs"
 
-    sol = solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper)
+    sol = solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper, conditions)
 
     u_sol, v_sol, T_sol = split_u(sol, Nz), split_v(sol, Nz), split_T(sol, Nz)
 
@@ -313,7 +328,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
         zeros_vw_NN = NN_constructions.vw(zeros(Float32, NN_sizes.vw))
         zeros_wT_NN = NN_constructions.wT(zeros(Float32, NN_sizes.wT))
         
-        sol_mpp = solve_NDE_mutating(zeros_uw_NN, zeros_vw_NN, zeros_wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper)
+        sol_mpp = solve_NDE_mutating(zeros_uw_NN, zeros_vw_NN, zeros_wT_NN, scalings, constants, BCs, derivatives, uvT₀, t_test, timestepper, conditions)
         
         u_sol_mpp, v_sol_mpp, T_sol_mpp = split_u(sol_mpp, Nz), split_v(sol_mpp, Nz), split_T(sol_mpp, Nz)
         
@@ -336,9 +351,15 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
         gradient_losses_mpp = scaled_losses_mpp.∂u∂z .+ scaled_losses_mpp.∂v∂z .+ scaled_losses_mpp.∂T∂z
     end
         
-    BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
-    vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
-    wT=(top=𝒟test.wT.coarse[end, 1], bottom=𝒟test.wT.coarse[1, 1]))
+    if diurnal
+        BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        wT=(top=wT_top_function, bottom=𝒟test.wT.coarse[1, 1]))
+    else
+        BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        wT=(top=𝒟test.wT.coarse[end, 1], bottom=𝒟test.wT.coarse[1, 1]))
+    end
     
     ICs_unscaled = (u=𝒟test.u.coarse[:,1], v=𝒟test.v.coarse[:,1], T=𝒟test.T.coarse[:,1])
     
@@ -385,7 +406,16 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
     test_wT = similar(truth_wT)
     
     for i in 1:size(test_uw, 2)
-        test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+        if diurnal
+            BCs_flux = (
+                uw = (top=BCs.uw.top, bottom=top=BCs.uw.bottom),
+                vw = (top=BCs.vw.top, bottom=top=BCs.vw.bottom),
+                wT = (top=wT_scaling(wT_top_function(t[i])), bottom=BCs.wT.bottom),
+                )
+            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs_flux, conditions, scalings, constants, derivatives, filters)
+        else
+            test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+        end
     end
     
     test_uw .= inv(scalings.uw).(test_uw)
@@ -406,11 +436,23 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
         test_wT_mpp = similar(truth_wT)
         
         for i in 1:size(test_uw_mpp, 2)
-            test_uw_mpp[:,i], test_vw_mpp[:,i], test_wT_mpp[:,i] = 
-            predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
-            NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
-            NN_constructions.wT(zeros(Float32, NN_sizes.wT)), 
-            @view(sol_mpp[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+
+            if diurnal
+                BCs_flux = (
+                    uw = (top=BCs.uw.top, bottom=top=BCs.uw.bottom),
+                    vw = (top=BCs.vw.top, bottom=top=BCs.vw.bottom),
+                    wT = (top=wT_scaling(wT_top_function(t[i])), bottom=BCs.wT.bottom),
+                    )
+                test_uw_mpp[:,i], test_vw_mpp[:,i], test_wT_mpp[:,i] = predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
+                                                                            NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
+                                                                            NN_constructions.wT(zeros(Float32, NN_sizes.wT)), 
+                                                                            @view(sol_mpp[:,i]), BCs_flux, conditions, scalings, constants, derivatives, filters)            
+            else
+                test_uw_mpp[:,i], test_vw_mpp[:,i], test_wT_mpp[:,i] = predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
+                                                                            NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
+                                                                            NN_constructions.wT(zeros(Float32, NN_sizes.wT)), 
+                                                                            @view(sol_mpp[:,i]), BCs, conditions, scalings, constants, derivatives, filters)
+            end
         end
         
         test_uw_mpp .= inv(scalings.uw).(test_uw_mpp)
@@ -434,8 +476,18 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
         test_wT_NN_only = similar(truth_wT)
         
         for i in 1:size(test_uw_NN_only, 2)
-            test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
-            predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
+            if diurnal
+                BCs_flux = (
+                    uw = (top=BCs.uw.top, bottom=top=BCs.uw.bottom),
+                    vw = (top=BCs.vw.top, bottom=top=BCs.vw.bottom),
+                    wT = (top=wT_scaling(wT_top_function(t[i])), bottom=BCs.wT.bottom),
+                    )
+                test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
+                    predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs_flux, conditions, scalings, constants_NN_only, derivatives, filters)
+            else
+                test_uw_NN_only[:,i], test_vw_NN_only[:,i], test_wT_NN_only[:,i] = 
+                    predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs, conditions, scalings, constants_NN_only, derivatives, filters)
+            end
         end
         
         test_uw_NN_only .= inv(scalings.uw).(test_uw_NN_only)
@@ -579,7 +631,8 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
     return output
 end
 
-function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR; timestep=60)
+function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, OUTPUT_DIR; 
+                                                        timestep=60, convective_adjustment=false)
     @info "Loading Training Data..."
     extracted_training_file = jldopen(EXTRACTED_FILE_PATH, "r")
 
@@ -664,7 +717,8 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
         oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params, 
                                                     BASELINE_RESULTS_PATH=BASELINE_RESULTS_PATH,
                                                     NN_RESULTS_PATH=NN_RESULTS_PATH,
-                                                    stop_time=stop_time, Δt=timestep)
+                                                    stop_time=stop_time, Δt=timestep,
+                                                    convective_adjustment=convective_adjustment)
     end
 end
 
@@ -693,7 +747,12 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     Nz = baseline_sol["grid/Nz"]
     α = baseline_sol["buoyancy/model/equation_of_state/α"]
     g = baseline_sol["buoyancy/model/gravitational_acceleration"]
-    constants = (; Nz, α, g)
+    f = 1f-4
+    t = 𝒟test.t
+    zC = baseline_sol["grid/zC"][2:end-1]
+    zF = baseline_sol["grid/zF"][2:end-1]
+    H = abs(zF[1])
+    constants = (; Nz, α, g, f, H)
     train_parameters = (; ν₀, ν₋, ΔRi, Riᶜ, Pr, loss_scalings)
 
     derivatives_dimensionless = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)))
@@ -706,11 +765,7 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     wT_scaling = 𝒟train.scalings["wT"]
 
     scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
-
-    t = 𝒟test.t
-    zC = baseline_sol["grid/zC"][2:end-1]
-    zF = baseline_sol["grid/zF"][2:end-1]
-
+    
     @info "Loading solutions"
 
     truth_u = 𝒟test.u.coarse
@@ -780,6 +835,12 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
         return Bz / S²
     end
 
+    @inline function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, H, g, α, σ_u, σ_v, σ_T)
+        Bz = H * g * α * σ_T * ∂T∂z
+        S² = (σ_u * ∂u∂z) ^2 + (σ_v * ∂v∂z) ^2
+        return Bz / S²
+    end
+
     D_face = Float32.(Dᶠ(Nz, zC[2] - zC[1]))
     D_face_dimensionless = derivatives_dimensionless.face
 
@@ -787,6 +848,45 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     test_Ri = local_richardson.(∂_∂z(test_u, D_face), ∂_∂z(test_v, D_face), ∂_∂z(test_T, D_face), g, α)
     test_Ri_modified_pacanowski_philander = local_richardson.(∂_∂z(test_u_mpp, D_face), ∂_∂z(test_v_mpp, D_face), ∂_∂z(test_T_mpp, D_face), g, α)
 
+    diurnal = occursin("diurnal", test_files[1])
+
+    if diurnal
+        wT_top_function = diurnal_fluxes(test_files, constants)[1]
+        BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        wT=(top=wT_top_function, bottom=𝒟test.wT.coarse[1, 1]))
+    else
+        BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
+        wT=(top=𝒟test.wT.coarse[end, 1], bottom=𝒟test.wT.coarse[1, 1]))
+    end
+    
+    ICs_unscaled = (u=𝒟test.u.coarse[:,1], v=𝒟test.v.coarse[:,1], T=𝒟test.T.coarse[:,1])
+
+    trange = 1:1153
+    t = 𝒟test.t[trange]
+
+    @info "Solving k-profile parameterizations"
+
+    sol_kpp = column_model_1D_kpp(constants, BCs_unscaled, ICs_unscaled, t, OceanTurb.KPP.Parameters())
+
+    test_u_kpp = sol_kpp.U
+    test_v_kpp = sol_kpp.V
+    test_T_kpp = sol_kpp.T
+
+    test_uw_kpp = sol_kpp.UW
+    test_vw_kpp = sol_kpp.VW
+    test_wT_kpp = sol_kpp.WT
+
+    test_Ri_kpp = similar(truth_Ri)
+    
+    for i in 1:size(test_Ri_kpp,2)
+        test_Ri_kpp[:,i] .= local_richardson.(D_face * scalings.u.(@view(sol_kpp.U[:,i])), 
+        D_face * scalings.v.(@view(sol_kpp.V[:,i])), 
+        D_face * scalings.T.(@view(sol_kpp.T[:,i])), 
+                            H, g, α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+    end
+    
     @info "Calculating Losses"
 
     truth_u_scaled = scalings.u.(split_u(𝒟test.uvT_unscaled, Nz))
@@ -855,6 +955,27 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
     profile_loss_mpp = mean(profile_losses_mpp)
     loss_gradient_mpp = mean(gradient_losses_mpp)
 
+    ∂u∂z_sol_kpp = ∂_∂z(scalings.u.(sol_kpp.U), D_face)
+    ∂v∂z_sol_kpp = ∂_∂z(scalings.v.(sol_kpp.V), D_face)
+    ∂T∂z_sol_kpp = ∂_∂z(scalings.T.(sol_kpp.T), D_face)
+    
+    unscaled_losses_kpp = (
+        u = loss_per_tstep(scalings.u.(sol_kpp.U), truth_u_scaled),
+        v = loss_per_tstep(scalings.v.(sol_kpp.V), truth_v_scaled),
+        T = loss_per_tstep(scalings.T.(sol_kpp.T), truth_T_scaled),
+        ∂u∂z = loss_per_tstep(∂u∂z_sol_kpp, truth_∂u∂z_scaled),
+        ∂v∂z = loss_per_tstep(∂v∂z_sol_kpp, truth_∂v∂z_scaled),
+        ∂T∂z = loss_per_tstep(∂T∂z_sol_kpp, truth_∂T∂z_scaled),
+        )
+        
+    scaled_losses_kpp = apply_loss_scalings(unscaled_losses_kpp, loss_scalings)
+    
+    profile_losses_kpp = scaled_losses_kpp.u .+ scaled_losses_kpp.v .+ scaled_losses_kpp.T
+    gradient_losses_kpp = scaled_losses_kpp.∂u∂z .+ scaled_losses_kpp.∂v∂z .+ scaled_losses_kpp.∂T∂z
+
+    profile_loss_kpp = mean(profile_losses_kpp)
+    loss_gradient_kpp = mean(gradient_losses_kpp)
+
     @info "Writing outputs"
 
     output = Dict(
@@ -875,6 +996,10 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
         "test_v_modified_pacanowski_philander" => test_v_mpp,
         "test_T_modified_pacanowski_philander" => test_T_mpp,
 
+        "test_u_kpp" => test_u_kpp,
+        "test_v_kpp" => test_v_kpp,
+        "test_T_kpp" => test_T_kpp,
+
         "truth_uw" => truth_uw,
         "truth_vw" => truth_vw,
         "truth_wT" => truth_wT,
@@ -886,6 +1011,10 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
         "test_uw_modified_pacanowski_philander" => test_uw_mpp,
         "test_vw_modified_pacanowski_philander" => test_vw_mpp,
         "test_wT_modified_pacanowski_philander" => test_wT_mpp,
+
+        "test_uw_kpp" => test_uw_kpp,
+        "test_vw_kpp" => test_vw_kpp,
+        "test_wT_kpp" => test_wT_kpp,
     
         "test_uw_NN_only" => test_uw_NN_only,
         "test_vw_NN_only" => test_vw_NN_only,
@@ -894,6 +1023,7 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
                                      "truth_Ri" => truth_Ri,
                                       "test_Ri" => test_Ri,
         "test_Ri_modified_pacanowski_philander" => test_Ri_modified_pacanowski_philander,
+                                  "test_Ri_kpp" => test_Ri_kpp,
 
            "u_losses" => scaled_losses.u,
            "v_losses" => scaled_losses.v,
@@ -917,6 +1047,18 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
                    "loss_modified_pacanowski_philander" => profile_loss_mpp,
         "losses_modified_pacanowski_philander_gradient" => scaled_losses_mpp.∂u∂z .+ scaled_losses_mpp.∂v∂z .+ scaled_losses_mpp.∂T∂z,
           "loss_modified_pacanowski_philander_gradient" => loss_gradient_mpp,
+
+           "u_losses_kpp" => scaled_losses_kpp.u,
+           "v_losses_kpp" => scaled_losses_kpp.v,
+           "T_losses_kpp" => scaled_losses_kpp.T,
+        "∂u∂z_losses_kpp" => scaled_losses_kpp.∂u∂z,
+        "∂v∂z_losses_kpp" => scaled_losses_kpp.∂v∂z,
+        "∂T∂z_losses_kpp" => scaled_losses_kpp.∂T∂z,
+
+                 "losses_kpp" => scaled_losses_kpp.u .+ scaled_losses_kpp.v .+ scaled_losses_kpp.T,
+                   "loss_kpp" => profile_loss_kpp,
+        "losses_kpp_gradient" => scaled_losses_kpp.∂u∂z .+ scaled_losses_kpp.∂v∂z .+ scaled_losses_kpp.∂T∂z,
+          "loss_kpp_gradient" => loss_gradient_kpp,
     )
     
     if OUTPUT_PATH !== ""
