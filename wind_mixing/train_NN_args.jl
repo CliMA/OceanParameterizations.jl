@@ -8,8 +8,8 @@ using JLD2
 # T_fraction = parse(Float32, T_fraction_str)
 
 NN_type = ARGS[1]
-N_sims = parse(Int, ARGS[2])
-# N_sims = 18
+# N_sims = parse(Int, ARGS[2])
+N_sims = 9
 # rate_str = ARGS[4]
 # rate = parse(Float64, rate_str)
 # params_type = ARGS[4]
@@ -18,42 +18,42 @@ params_type = "old"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
-# train_files_all = [
-#   "wind_-5e-4_diurnal_5e-8",  
-#   "wind_-5e-4_diurnal_3e-8",  
-#   "wind_-5e-4_diurnal_1e-8",  
-      
-#   "wind_-3.5e-4_diurnal_5e-8",
-#   "wind_-3.5e-4_diurnal_3e-8",
-#   "wind_-3.5e-4_diurnal_1e-8",
-      
-#   "wind_-2e-4_diurnal_5e-8",  
-#   "wind_-2e-4_diurnal_3e-8",  
-#   "wind_-2e-4_diurnal_1e-8",  
-# ]
-
 train_files_all = [
-  "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
-
-  "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
-
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_diurnal_5e-8",  
+  "wind_-5e-4_diurnal_3e-8",  
+  "wind_-5e-4_diurnal_1e-8",  
+      
+  "wind_-3.5e-4_diurnal_5e-8",
+  "wind_-3.5e-4_diurnal_3e-8",
+  "wind_-3.5e-4_diurnal_1e-8",
+      
+  "wind_-2e-4_diurnal_5e-8",  
+  "wind_-2e-4_diurnal_3e-8",  
+  "wind_-2e-4_diurnal_1e-8",  
 ]
+
+# train_files_all = [
+#   "wind_-5e-4_cooling_3e-8_new",   
+#   "wind_-5e-4_cooling_1e-8_new",   
+#   "wind_-2e-4_cooling_3e-8_new",   
+#   "wind_-2e-4_cooling_1e-8_new",   
+#   "wind_-5e-4_heating_-3e-8_new",  
+#   "wind_-2e-4_heating_-1e-8_new",  
+#   "wind_-2e-4_heating_-3e-8_new",  
+#   "wind_-5e-4_heating_-1e-8_new",  
+
+#   "wind_-3.5e-4_cooling_2e-8_new", 
+#   "wind_-3.5e-4_heating_-2e-8_new",
+
+#   "wind_-5e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_cooling_3e-8_new", 
+#   "wind_-3.5e-4_cooling_1e-8_new", 
+#   "wind_-2e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_heating_-3e-8_new",
+#   "wind_-3.5e-4_heating_-1e-8_new",
+#   "wind_-2e-4_heating_-2e-8_new",  
+#   "wind_-5e-4_heating_-2e-8_new",  
+# ]
 
 train_files = train_files_all[1:N_sims]
 
@@ -61,9 +61,9 @@ PATH = pwd()
 OUTPUT_PATH = joinpath(PATH, "training_output")
 # OUTPUT_PATH = joinpath("C:\\Users\\xinle\\Documents\\OceanParameterizations.jl")
 
-FILE_NAME_uw = "uw_NN_$(N_sims)sim_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
-FILE_NAME_vw = "vw_NN_$(N_sims)sim_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
-FILE_NAME_wT = "wT_NN_$(N_sims)sim_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
+FILE_NAME_uw = "uw_NN_$(N_sims)sim_diurnal_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
+FILE_NAME_vw = "vw_NN_$(N_sims)sim_diurnal_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
+FILE_NAME_wT = "wT_NN_$(N_sims)sim_diurnal_$(params_type)_$(NN_type)_rate_5e-4_2e-4"
 
 FILE_PATH_uw = joinpath(OUTPUT_PATH, "$(FILE_NAME_uw).jld2")
 FILE_PATH_vw = joinpath(OUTPUT_PATH, "$(FILE_NAME_vw).jld2")
