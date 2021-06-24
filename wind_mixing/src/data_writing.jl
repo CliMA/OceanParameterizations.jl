@@ -77,12 +77,13 @@ function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN,
     end
 end
 
-function write_metadata_NN_training(FILE_PATH, train_files, train_epochs, opts, NN, NN_type)
+function write_metadata_NN_training(FILE_PATH, train_files, train_parameters, train_epochs, opts, NN, NN_type)
     jldopen(FILE_PATH, "w") do file
         training_info = JLD2.Group(file, "training_info")
         training_info["train_files"] = train_files
         training_info["train_epochs"] = train_epochs
         training_info["optimizers"] = opts
+        training_info["parameters"] = train_parameters
         training_info["$(NN_type)_neural_network"] = NN
         training_data = JLD2.Group(file, "training_data")
     end

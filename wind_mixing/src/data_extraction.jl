@@ -87,8 +87,9 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
             return train_files, train_parameters, losses, loss_scalings, uw_NN, vw_NN, wT_NN, optimizer
         end
     else
-        train_files, losses, NN = jldopen(FILE_PATH, "r") do file
+        train_files, train_parameters, losses, NN = jldopen(FILE_PATH, "r") do file
             train_files = file["training_info/train_files"]
+            train_parameters = file["training_info/parameters"]
             N_data = length(keys(file["training_data/loss"]))
             losses = zeros(N_data)
             
@@ -100,7 +101,7 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
             @info "Loading NN"
             NN_index = argmin(losses)
             NN = file["training_data/neural_network/$NN_index"]
-            return train_files, losses, NN
+            return train_files, train_parameters, losses, NN
         end
     end
 
@@ -134,6 +135,7 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
         jldopen(OUTPUT_PATH, "w") do file
             @info "Writing Training Info"
             file["training_info/train_files"] = train_files
+            file["training_info/parameters"] = train_parameters
 
             @info "Writing Loss"
             file["losses"] = losses
