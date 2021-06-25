@@ -260,51 +260,51 @@ uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, tr
 
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
-# test_files = [
-#   "wind_-5e-4_diurnal_5e-8",    
-#   "wind_-5e-4_diurnal_3e-8",    
-#   "wind_-5e-4_diurnal_1e-8",    
-      
-#   "wind_-3.5e-4_diurnal_5e-8",  
-#   "wind_-3.5e-4_diurnal_3e-8",  
-#   "wind_-3.5e-4_diurnal_1e-8",  
-      
-
-#   "wind_-2e-4_diurnal_5e-8",    
-#   "wind_-2e-4_diurnal_3e-8",    
-
-#   "wind_-2e-4_diurnal_1e-8",    
-      
-#   "wind_-2e-4_diurnal_2e-8",    
-#   "wind_-2e-4_diurnal_3.5e-8", 
-#   "wind_-3.5e-4_diurnal_2e-8",
-#   "wind_-3.5e-4_diurnal_3.5e-8",
-#   "wind_-5e-4_diurnal_2e-8",    
-#   "wind_-5e-4_diurnal_3.5e-8",  
-# ]
-
 test_files = [
-  "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
+  "wind_-5e-4_diurnal_5e-8",    
+  "wind_-5e-4_diurnal_3e-8",    
+  "wind_-5e-4_diurnal_1e-8",    
+      
+  "wind_-3.5e-4_diurnal_5e-8",  
+  "wind_-3.5e-4_diurnal_3e-8",  
+  "wind_-3.5e-4_diurnal_1e-8",  
+      
 
-  "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
+  "wind_-2e-4_diurnal_5e-8",    
+  "wind_-2e-4_diurnal_3e-8",    
 
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-2e-4_diurnal_1e-8",    
+      
+  "wind_-2e-4_diurnal_2e-8",    
+  "wind_-2e-4_diurnal_3.5e-8", 
+  "wind_-3.5e-4_diurnal_2e-8",
+  "wind_-3.5e-4_diurnal_3.5e-8",
+  "wind_-5e-4_diurnal_2e-8",    
+  "wind_-5e-4_diurnal_3.5e-8",  
 ]
+
+# test_files = [
+#   "wind_-5e-4_cooling_3e-8_new",   
+#   "wind_-5e-4_cooling_1e-8_new",   
+#   "wind_-2e-4_cooling_3e-8_new",   
+#   "wind_-2e-4_cooling_1e-8_new",   
+#   "wind_-5e-4_heating_-3e-8_new",  
+#   "wind_-2e-4_heating_-1e-8_new",  
+#   "wind_-2e-4_heating_-3e-8_new",  
+#   "wind_-5e-4_heating_-1e-8_new",  
+
+#   "wind_-3.5e-4_cooling_2e-8_new", 
+#   "wind_-3.5e-4_heating_-2e-8_new",
+
+#   "wind_-5e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_cooling_3e-8_new", 
+#   "wind_-3.5e-4_cooling_1e-8_new", 
+#   "wind_-2e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_heating_-3e-8_new",
+#   "wind_-3.5e-4_heating_-1e-8_new",
+#   "wind_-2e-4_heating_-2e-8_new",  
+#   "wind_-5e-4_heating_-2e-8_new",  
+# ]
 
 animate_training_results(test_files, FILE_NAME,
                          EXTRACTED_DATA_DIR=EXTRACTED_OUTPUT_PATH, OUTPUT_DIR=VIDEO_PATH)
