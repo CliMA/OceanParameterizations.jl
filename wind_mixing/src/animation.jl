@@ -913,7 +913,7 @@ function animate_training_results(test_files, FILE_NAME;
         plot_data_explicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
-                                convective_adjustment=convective_adjustment,
+                                convective_adjustment=false,
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
                                 loss_scalings=loss_scalings,
@@ -924,7 +924,7 @@ function animate_training_results(test_files, FILE_NAME;
         plot_data_implicit = NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
                                 modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
                                 ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr,
-                                convective_adjustment=convective_adjustment,
+                                convective_adjustment=false,
                                 smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
                                 zero_weights=train_parameters["zero_weights"],
                                 loss_scalings=loss_scalings,
@@ -1304,6 +1304,195 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     if mp4
         CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
             print_progress(n, length(times), print_frame, "mp4")
+            frame[] = n
+        end
+    end
+end
+
+function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; fps=30, gif=false, mp4=true)
+    xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
+    xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
+    yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
+    instantaneous_statistics = jldopen(joinpath(FILE_DIR, "instantaneous_statistics.jld2"))
+
+    iterations = keys(instantaneous_statistics["timeseries/t"])
+    times = [instantaneous_statistics["timeseries/t/$iter"] for iter in iterations]
+    xC = xz_file["grid/xC"][4:end-3]
+    yC = xz_file["grid/yC"][4:end-3]
+    zC = xz_file["grid/zC"][4:end-3]
+
+    x_xz = fill(xC[1], 128)
+    y_xz = yC
+
+    z_xz = zeros(length(x_xz), length(y_xz))
+    for i in 1:size(z_xz, 1)
+        z_xz[i,:] .= zC[i]
+    end
+
+    T_xzs = [transpose(hcat([xz_file["timeseries/T/$iter"][:, :, i] for i in 1:length(zC)]... )) for iter in iterations]
+
+    x_yz = xC
+    y_yz = fill(yC[1], 128)
+
+    z_yz = zeros(length(x_yz), length(y_yz))
+    for i in 1:size(z_yz, 2)
+        z_yz[:,i] .= zC[i]
+    end
+
+    @inline function obtain_T_yz(iter)
+        T_yz = similar(z_yz)
+        for i in 1:size(T_yz, 2)
+            T_yz[:,i] = yz_file["timeseries/T/$iter"][:, :, i]
+        end
+        return T_yz
+    end
+    T_yzs = [obtain_T_yz(iter) for iter in iterations]
+
+    x_xy = xC
+    y_xy = yC
+    z_xy = zeros(length(y_xy), length(x_xy))
+
+    T_xys = [xy_file["timeseries/T/$iter"][:,:,1] for iter in iterations]
+
+    us = [instantaneous_statistics["timeseries/u/$iter"][:] for iter in iterations]
+    vs = [instantaneous_statistics["timeseries/v/$iter"][:] for iter in iterations]
+    Ts = [instantaneous_statistics["timeseries/T/$iter"][:] for iter in iterations]
+
+    @inline function find_lims(profiles)
+        return minimum(minimum.(profiles)), maximum(maximum.(profiles))
+    end
+
+    u_min, u_max = find_lims(us)
+    v_min, v_max = find_lims(vs)
+    T_min, T_max = find_lims(Ts)
+
+    color_range_max = maximum([maximum(maximum.(T_xzs)), maximum(maximum.(T_yzs)), maximum(maximum.(T_xys))])
+    color_range_min = minimum([minimum(minimum.(T_xzs)), minimum(minimum.(T_yzs)), minimum(minimum.(T_xys))])
+
+    color_range = (color_range_min, color_range_max)
+    colormap = cgrad(:ice, scale=:log10)
+
+    close(xy_file)
+    close(xz_file)
+    close(yz_file)
+
+    frame = Node(1)
+    iteration = @lift iterations[$frame]
+
+    T_xz = @lift T_xzs[$frame]
+    T_yz = @lift T_yzs[$frame]
+    T_xy = @lift T_xys[$frame]
+
+    u = @lift us[$frame]
+    v = @lift vs[$frame]
+    T = @lift Ts[$frame]
+
+    fig = Figure(resolution=(1920, 1080))
+    ax = fig[1,1] = CairoMakie.Axis3(fig, aspect=(1, 1, 0.5), xlabel="x /m", ylabel="y /m", zlabel="z /m")
+
+    xz_surface = CairoMakie.surface!(ax, x_xz, y_xz, z_xz, color=T_xz, colormap=colormap, colorrange=color_range)
+
+    yz_surface = CairoMakie.surface!(ax, x_yz, y_yz, z_yz, color=T_yz, colormap=colormap, colorrange=color_range)
+
+    xy_surface = CairoMakie.surface!(ax, x_xy, y_xy, z_xy, color=T_xy, colormap=colormap, colorrange=color_range)
+
+    ax_T_3D = fig[2,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    rel_size = 40
+    aspect = 1 / 4
+
+    hidedecorations!(ax_T_3D)
+    hidespines!(ax_T_3D)
+    image!(ax_T_3D, axis_images.T_3D)
+    rowsize!(fig.layout, 2, CairoMakie.Relative(1 / rel_size))
+
+    colorbar = CairoMakie.Colorbar(fig[3, 1], xz_surface, vertical=false)
+
+    plots_sublayout = fig[:,2] = GridLayout()
+
+    colsize!(fig.layout, 2, CairoMakie.Relative(aspect))
+    rowgap!(fig.layout, Relative(1 / 50 / 3))
+
+
+    y_ax_u = plots_sublayout[1,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+    y_ax_v = plots_sublayout[3,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+    y_ax_T = plots_sublayout[5,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    x_ax_u = plots_sublayout[2,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+    x_ax_v = plots_sublayout[4,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+    x_ax_T = plots_sublayout[6,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    ax_u = plots_sublayout[1,2] = CairoMakie.Axis(fig)
+    ax_v = plots_sublayout[3,2] = CairoMakie.Axis(fig)
+    ax_T = plots_sublayout[5,2] = CairoMakie.Axis(fig)
+
+    hidedecorations!(y_ax_u)
+    hidedecorations!(y_ax_v)
+    hidedecorations!(y_ax_T)
+
+    hidedecorations!(x_ax_u)
+    hidedecorations!(x_ax_v)
+    hidedecorations!(x_ax_T)
+
+    hidespines!(y_ax_u)
+    hidespines!(y_ax_v)
+    hidespines!(y_ax_T)
+
+    hidespines!(x_ax_u)
+    hidespines!(x_ax_v)
+    hidespines!(x_ax_T)
+
+    image!(x_ax_u, axis_images.u)
+    image!(x_ax_v, axis_images.v)
+    image!(x_ax_T, axis_images.T)
+
+    image!(y_ax_u, axis_images.z)
+    image!(y_ax_v, axis_images.z)
+    image!(y_ax_T, axis_images.z)
+
+    rowsize!(plots_sublayout, 2, CairoMakie.Relative(1 / rel_size))
+    rowsize!(plots_sublayout, 4, CairoMakie.Relative(1 / rel_size))
+    rowsize!(plots_sublayout, 6, CairoMakie.Relative(1 / rel_size))
+    colsize!(plots_sublayout, 1, CairoMakie.Aspect(2, 1))
+
+    colgap!(plots_sublayout, 1 / 50)
+    rowgap!(plots_sublayout, Relative(1 / 50 / 3))
+
+    u_line = CairoMakie.lines!(ax_u, u, zC)
+    v_line = CairoMakie.lines!(ax_v, v, zC)
+    T_line = CairoMakie.lines!(ax_T, T, zC)
+
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+
+    CairoMakie.ylims!(ax_u, minimum(zC), 0)
+    CairoMakie.ylims!(ax_v, minimum(zC), 0)
+    CairoMakie.ylims!(ax_T, minimum(zC), 0)
+
+    plot_title = @lift "Time = $(round(times[$frame]/86400, digits=2)) days"
+
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
+
+    trim!(fig.layout)
+
+    function print_progress(n, n_total, type)
+        @info "Animating $(type) frame $n/$n_total"
+    end
+
+    @info "Starting Animation"
+
+    if gif
+        CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:length(times), framerate=fps) do n
+            print_progress(n, length(times), "gif")
+            frame[] = n
+        end
+    end
+
+    if mp4
+        CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:length(times), framerate=fps) do n
+        # CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:5, framerate=fps) do n
+            print_progress(n, length(times), "mp4")
             frame[] = n
         end
     end

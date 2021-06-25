@@ -58,6 +58,7 @@ include("NDE_oceananigans.jl")
 include("training_postprocessing.jl")
 include("k_profile_parameterization.jl")
 include("loss.jl")
+include("plotting.jl")
 
 function __init__()
     Logging.global_logger(OceananigansLogger())
