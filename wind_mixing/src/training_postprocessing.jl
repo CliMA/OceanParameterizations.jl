@@ -117,7 +117,7 @@ function solve_NDE_mutating(uw_NN, vw_NN, wT_NN, scalings, constants, BCs, deriv
 
         if conditions.convective_adjustment
             for i in 2:length(ν_T)-1
-                ν_T[i] = ∂u∂z > 0 ? ν[i] / Pr : constants.κ
+                ν_T[i] = ∂u∂z[i] > 0 ? ν[i] / Pr : constants.κ
             end
         else
             ν_T .= ν ./ Pr
@@ -256,7 +256,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
                               loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=5f-3, ∂v∂z=5f-3, ∂T∂z=5f-3),
                               timestepper=ROCK4())
     
-    @assert !modified_pacanowski_philander || !convective_adjustment
+    # @assert !modified_pacanowski_philander || !convective_adjustment
 
     @info "Preparing constants"
 

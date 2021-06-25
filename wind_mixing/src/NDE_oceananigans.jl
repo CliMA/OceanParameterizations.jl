@@ -43,8 +43,8 @@ function modified_pacanowski_philander_diffusivity(model, constants, p; convecti
     end
 
     if convective_adjustment
-        for i in 2:Nz
-            ν_T[i]= Ri[1, 1, i] > 0 ? ν[i] / Pr : κ
+        for i in 1:length(ν_T)
+            ν_T[i] = Ri[1, 1, i] > 0 ? ν[i] / Pr : 1f0
         end
     else
         ν_T .= ν ./ Pr
