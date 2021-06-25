@@ -10,56 +10,55 @@ using LinearAlgebra
 
 BLAS.set_num_threads(1)
 
-T_fraction_str = ARGS[1]
+T_fraction_str = "0.8"
 T_fraction = parse(Float32, T_fraction_str)
-NN_type = ARGS[2]
-N_sims = parse(Int, ARGS[3])
+NN_type = ARGS[1]
+N_sims = parse(Int, ARGS[2])
 # N_sims = 18
-rate_str = ARGS[4]
+rate_str = "2e-4"
 rate = parse(Float64, rate_str)
-# params_type = ARGS[4]
+params_type = ARGS[3]
 
 
-params_type = "$(N_sims)simADAM1e-2T$(T_fraction_str)"
 # T_fraction = parse(Float32, "0.8")
 # NN_type = "relu"
 
-# train_files_all = [
-#   "wind_-5e-4_diurnal_5e-8",  
-#   "wind_-5e-4_diurnal_3e-8",  
-#   "wind_-5e-4_diurnal_1e-8",  
-      
-#   "wind_-3.5e-4_diurnal_5e-8",
-#   "wind_-3.5e-4_diurnal_3e-8",
-#   "wind_-3.5e-4_diurnal_1e-8",
-      
-#   "wind_-2e-4_diurnal_5e-8",  
-#   "wind_-2e-4_diurnal_3e-8",  
-#   "wind_-2e-4_diurnal_1e-8",  
-# ]
-
 train_files_all = [
-  "wind_-5e-4_cooling_3e-8_new",   
-  "wind_-5e-4_cooling_1e-8_new",   
-  "wind_-2e-4_cooling_3e-8_new",   
-  "wind_-2e-4_cooling_1e-8_new",   
-  "wind_-5e-4_heating_-3e-8_new",  
-  "wind_-2e-4_heating_-1e-8_new",  
-  "wind_-2e-4_heating_-3e-8_new",  
-  "wind_-5e-4_heating_-1e-8_new",  
-
-  "wind_-3.5e-4_cooling_2e-8_new", 
-  "wind_-3.5e-4_heating_-2e-8_new",
-
-  "wind_-5e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_cooling_3e-8_new", 
-  "wind_-3.5e-4_cooling_1e-8_new", 
-  "wind_-2e-4_cooling_2e-8_new",   
-  "wind_-3.5e-4_heating_-3e-8_new",
-  "wind_-3.5e-4_heating_-1e-8_new",
-  "wind_-2e-4_heating_-2e-8_new",  
-  "wind_-5e-4_heating_-2e-8_new",  
+  "wind_-5e-4_diurnal_5e-8",  
+  "wind_-3.5e-4_diurnal_5e-8",
+  "wind_-2e-4_diurnal_5e-8",  
+  
+  "wind_-5e-4_diurnal_1e-8",  
+  "wind_-3.5e-4_diurnal_1e-8",
+  "wind_-2e-4_diurnal_1e-8",  
+  
+  "wind_-5e-4_diurnal_3e-8",  
+  "wind_-3.5e-4_diurnal_3e-8",
+  "wind_-2e-4_diurnal_3e-8",  
 ]
+
+# train_files_all = [
+#   "wind_-5e-4_cooling_3e-8_new",   
+#   "wind_-5e-4_cooling_1e-8_new",   
+#   "wind_-2e-4_cooling_3e-8_new",   
+#   "wind_-2e-4_cooling_1e-8_new",   
+#   "wind_-5e-4_heating_-3e-8_new",  
+#   "wind_-2e-4_heating_-1e-8_new",  
+#   "wind_-2e-4_heating_-3e-8_new",  
+#   "wind_-5e-4_heating_-1e-8_new",  
+
+#   "wind_-3.5e-4_cooling_2e-8_new", 
+#   "wind_-3.5e-4_heating_-2e-8_new",
+
+#   "wind_-5e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_cooling_3e-8_new", 
+#   "wind_-3.5e-4_cooling_1e-8_new", 
+#   "wind_-2e-4_cooling_2e-8_new",   
+#   "wind_-3.5e-4_heating_-3e-8_new",
+#   "wind_-3.5e-4_heating_-1e-8_new",
+#   "wind_-2e-4_heating_-2e-8_new",  
+#   "wind_-5e-4_heating_-2e-8_new",  
+# ]
 
 train_files = train_files_all[1:N_sims]
 
@@ -72,54 +71,44 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction_str)"
+FILE_NAME = "NDE_$(N_sims)sim_diurnal_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_$(rate_str)_T$(T_fraction_str)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
 
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
 
-# if params_type == "old"
-#   ν₀ = 1f-4
-#   ν₋ = 1f-1
-#   ΔRi = 1f-1
-#   Riᶜ = 0.25f0
-#   Pr = 1f0
-# elseif params_type == "18simBFGST0.8grad"
-#   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
+if params_type == "old"
+  ν₀ = 1f-4
+  ν₋ = 1f-1
+  ΔRi = 1f-1
+  Riᶜ = 0.25f0
+  Pr = 1f0
+elseif params_type == "18simBFGST0.8grad"
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad_extracted.jld2")
   
-#   parameters_file = jldopen(PARAMETERS_PATH)
-#   mpp_parameters = parameters_file["parameters"]
-#   close(parameters_file)
+  parameters_file = jldopen(PARAMETERS_PATH)
+  mpp_parameters = parameters_file["parameters"]
+  close(parameters_file)
 
-#   # ν₀_initial = 1f-4
-#   # ν₋_initial = 1f-1
-#   # ΔRi_initial = 1f-1
-#   # Riᶜ_initial = 0.25f0
-#   # Pr_initial = 1f0
-
-#   # mpp_scalings = 1 ./ [ν₀_initial, ν₋_initial, ΔRi_initial, Riᶜ_initial, Pr_initial]
-
-#   # ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters ./ mpp_scalings
-
-#   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-# elseif params_type == "18simBFGST0.8nograd"
-#   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
+  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+elseif params_type == "18simBFGST0.8nograd"
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nograd_extracted.jld2")
   
-#   parameters_file = jldopen(PARAMETERS_PATH)
-#   mpp_parameters = parameters_file["parameters"]
-#   close(parameters_file)
+  parameters_file = jldopen(PARAMETERS_PATH)
+  mpp_parameters = parameters_file["parameters"]
+  close(parameters_file)
 
-#   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-# end
+  ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+end
 
-PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
+# PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
   
-parameters_file = jldopen(PARAMETERS_PATH)
-mpp_parameters = parameters_file["parameters"]
-close(parameters_file)
+# parameters_file = jldopen(PARAMETERS_PATH)
+# mpp_parameters = parameters_file["parameters"]
+# close(parameters_file)
 
-ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+# ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 
 # FILE_PATH_uw = joinpath(PATH, "extracted_training_output", "uw_NN_training_1sim_-1e-3_extracted.jld2")
 # FILE_PATH_vw = joinpath(PATH, "extracted_training_output", "vw_NN_training_1sim_-1e-3_extracted.jld2")
@@ -134,7 +123,7 @@ close(parameters_file)
 # wT_NN = wT_file["neural_network"]
 
 # FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-#                         "NDE_training_mpp_8sim_wind_mixing_cooling_diffusivity_1e-1_Ri_1e-1_weights_divide1f5_gradient_smallNN_scale_5e-3_rate_1e-4_extracted.jld2")
+#                         "NDE_18sim_windcooling_windheating_18simBFGST0.8grad_divide1f5_gradient_smallNN_leakyrelu_rate_2e-4_T0.8_extracted.jld2")
 
 # @assert isfile(FILE_PATH_NN)
 # file = jldopen(FILE_PATH_NN, "r")
@@ -142,6 +131,19 @@ close(parameters_file)
 # uw_NN = file["neural_network/uw"]
 # vw_NN = file["neural_network/vw"]
 # wT_NN = file["neural_network/wT"]
+
+# loss_scalings = file["training_info/loss_scalings"]
+# train_parameters = file["training_info/parameters"]
+
+# train_optimizers = [[ADAM(1e-4)]]
+# train_optimizers[1][1].beta = file["optimizer/β"]
+# train_optimizers[1][1].state = file["optimizer/state"]
+
+
+# close(file)
+
+# train_optimizers
+
 
 N_inputs = 96
 hidden_units = 400
@@ -189,7 +191,15 @@ train_parameters = Dict(
 
 train_epochs = [1]
 train_tranges = [1:9:1153]
-train_iterations = [300]
+
+if N_sims == 3
+  train_iterations = [600]
+elseif N_sims == 6
+  train_iterations = [300]
+elseif N_sims == 9
+  train_iterations = [200]
+end
+
 train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
