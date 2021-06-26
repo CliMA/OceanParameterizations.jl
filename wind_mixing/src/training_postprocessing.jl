@@ -640,14 +640,6 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     vw_NN = extracted_training_file["neural_network/vw"]
     wT_NN = extracted_training_file["neural_network/wT"]
 
-    # weights, re = Flux.destructure(uw_NN)
-
-    # uw_NN = re(zeros(Float32, length(weights)))
-    # vw_NN = re(zeros(Float32, length(weights)))
-    # wT_NN = re(zeros(Float32, length(weights)))
-
-    # @info "Zero weights NN in solve_oceananigans_modified_pacanowski_philander_nn"
-
     train_files = extracted_training_file["training_info/train_files"]
 
     diurnal = occursin("diurnal", test_files[1])
