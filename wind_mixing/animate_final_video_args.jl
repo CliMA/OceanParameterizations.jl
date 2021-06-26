@@ -16,14 +16,14 @@ else
     CA_str = "noCA"
 end
 
-u_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\u.png"))))
-v_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\v.png"))))
-T_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\T.png"))))
-uw_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\uw.png"))))
-vw_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\vw.png"))))
-wT_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\wT.png"))))
-Ri_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\Ri.png"))))
-z_img = load(assetpath(joinpath(pwd(), "images_plot\\z.png")))
+u_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "u.png"))))
+v_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "v.png"))))
+T_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "T.png"))))
+uw_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "uw.png"))))
+vw_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "vw.png"))))
+wT_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "wT.png"))))
+Ri_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot", "Ri.png"))))
+z_img = load(assetpath(joinpath(pwd(), "images_plot", "z.png")))
 
 axis_images = (
     u = u_img,
