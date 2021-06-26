@@ -87,7 +87,7 @@ Pr = train_parameters["Pr"]
 
 FILE_DIR = joinpath(pwd(), "final_data")
 solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
-                                                        timestep=1, convective_adjustment=convective_adjustment
+                                                        timestep=1, convective_adjustment=convective_adjustment)
 
 diurnal = occursin("diurnal", test_files[1])
 
