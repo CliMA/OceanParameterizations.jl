@@ -85,7 +85,12 @@ test_files = [test_files_all[num]]
 Riᶜ = train_parameters["Riᶜ"]
 Pr = train_parameters["Pr"]
 
-FILE_DIR = joinpath(pwd(), "final_data")
+FILE_DIR = joinpath(pwd(), "final_data", "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_$(CA_str)")
+
+if !ispath(FILE_DIR)
+    mkdir(FILE_DIR)
+end
+
 solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
                                                         timestep=1, convective_adjustment=convective_adjustment)
 
