@@ -91,16 +91,16 @@ if !ispath(FILE_DIR)
     mkdir(FILE_DIR)
 end
 
-solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
-                                                        timestep=1, convective_adjustment=convective_adjustment)
+# solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
+#                                                         timestep=1, convective_adjustment=convective_adjustment)
 
 diurnal = occursin("diurnal", test_files[1])
 
 if diurnal
-    DIR_NAME = "test_$(test_files[1])_$(CA_str)"
+    DIR_NAME = "test_$(test_files[1])"
     animation_type = "Testing"
 else
-    DIR_NAME = "train_$(test_files[1])_$(CA_str)"
+    DIR_NAME = "train_$(test_files[1])"
     animation_type = "Training"
 end
 
