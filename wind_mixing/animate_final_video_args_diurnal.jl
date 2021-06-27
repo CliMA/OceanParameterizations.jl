@@ -69,8 +69,8 @@ test_files = [test_files_all[num]]
 Riᶜ = train_parameters["Riᶜ"]
 Pr = train_parameters["Pr"]
 
-solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
-                                                        timestep=1, convective_adjustment=convective_adjustment)
+# solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
+#                                                         timestep=1, convective_adjustment=convective_adjustment)
 
 diurnal = occursin("diurnal", test_files[1])
 
@@ -82,6 +82,8 @@ else
     animation_type = "Interpolating"
 end
 
+n_trainings = length(train_files)
+
 plot_data = NDE_profile_oceananigans(joinpath(FILE_DIR, DIR_NAME), train_files, test_files,
                                   ν₀=ν₀, ν₋=ν₋, ΔRi=ΔRi, Riᶜ=Riᶜ, Pr=Pr, 
                                   loss_scalings=loss_scalings,
@@ -89,4 +91,4 @@ plot_data = NDE_profile_oceananigans(joinpath(FILE_DIR, DIR_NAME), train_files, 
 
 animate_profiles_fluxes_final(plot_data, axis_images, 
                     joinpath(FILE_DIR, DIR_NAME, "$(test_files[1])"),
-                    animation_type=animation_type, n_trainings=18, training_types="Wind + Diurnal Heating & Cooling")
+                    animation_type=animation_type, n_trainings=n_trainings, training_types="Wind + Diurnal Heating & Cooling")
