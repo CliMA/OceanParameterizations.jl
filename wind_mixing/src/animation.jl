@@ -1357,6 +1357,7 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images;simulation_str, fps=3
     close(xy_file)
     close(xz_file)
     close(yz_file)
+    close(instantaneous_statistics)
 
     frame = Node(1)
     iteration = @lift iterations[$frame]
@@ -1545,6 +1546,7 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulati
     close(xy_file)
     close(xz_file)
     close(yz_file)
+    close(instantaneous_statistics)
 
     frame = Node(1)
     iteration = @lift iterations[$frame]
