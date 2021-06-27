@@ -40,9 +40,9 @@ EXTRACTED_FILE_DIR = joinpath(pwd(), "extracted_training_output")
 EXTRACTED_FILE_PATH = joinpath(EXTRACTED_FILE_DIR, "NDE_3sim_diurnal_18simBFGST0.8nograd_divide1f5_gradient_smallNN_leakyrelu_rate_2e-4_T0.8_extracted.jld2")
 FILE_DIR = joinpath(pwd(), "final_data_2", "NDE_3sim_diurnal_18simBFGST0.8nograd_divide1f5_gradient_smallNN_leakyrelu_rate_2e-4_T0.8_$(CA_str)")
 
-if !ispath(FILE_DIR)
-    mkdir(FILE_DIR)
-end
+# if !ispath(FILE_DIR)
+#     mkdir(FILE_DIR)
+# end
 
 file = jldopen(EXTRACTED_FILE_PATH)
 train_files = file["training_info/train_files"]
