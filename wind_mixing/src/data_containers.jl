@@ -108,8 +108,11 @@ directories = Dict(
     "wind_-2.5e-4_heating_-2.5e-8"   => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.5e-04_Qb-2.5e-08_f1.0e-04_Nh256_Nz128_WH_8days_statistics.jld2",
 
     "wind_-4.5e-4_diurnal_4e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu4.5e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
-    "wind_-2e-4_diurnal_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     "wind_-4.5e-4_diurnal_2e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu4.5e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3e-4_diurnal_4e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.0e-04_Qb4.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+    "wind_-3e-4_diurnal_2e-8"      => "Data/three_layer_constant_fluxes_linear_hr192_Qu3.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
+
+    "wind_-2e-4_diurnal_2e-8"        => "Data/three_layer_constant_fluxes_linear_hr192_Qu2.0e-04_Qb2.0e-08_f1.0e-04_Nh256_Nz128_diurnal_8days_statistics.jld2",
     )
 
 
