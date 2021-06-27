@@ -123,8 +123,12 @@ function diurnal_fluxes(train_files, constants)
     @inline wT_flux(Qᵇ, t)::Float32 = Qᵇ * sin(2π / (24 * 60 ^ 2) * t) / (α * g)
     
     for (i, train_file) in enumerate(train_files)
-        if occursin("diurnal_5e-8", train_file)
+        if occursin("diurnal_5.5e-8", train_file)
+            Q = 5.5f-8
+        elseif occursin("diurnal_5e-8", train_file)
             Q = 5f-8
+        elseif occursin("diurnal_4e-8", train_file)
+            Q = 4f-8
         elseif occursin("diurnal_3.5e-8", train_file)
             Q = 3.5f-8
         elseif occursin("diurnal_3e-8", train_file)
