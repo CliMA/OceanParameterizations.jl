@@ -1013,7 +1013,7 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
 
     uw_data .*= 1f4
     vw_data .*= 1f4
-    wT_data .*= 1f4
+    wT_data .*= 1f5
 
     Ri_data = [
         clamp.(data["truth_Ri"], -1, 2),
@@ -1070,17 +1070,18 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     Pr = train_parameters.Pr
     loss_scalings = train_parameters.loss_scalings
 
-    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Buoyancy Flux = %.1e m² s⁻³" data["truth_uw"][end, 1] data["truth_wT"][end, 1]
+    BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Temperature Flux = %.1e m s⁻¹ °C" data["truth_uw"][end, 1] maximum(data["truth_wT"][end, :])
     plot_title = @lift "$animation_type Data: $BC_str, Time = $(round(times[$frame], digits=2)) days"
 
-    diffusivity_str = @sprintf "ν₀ = %.1e m² s⁻¹, ν₋ = %.1e m² s⁻¹, ΔRi = %.1e, Riᶜ = %.2f, Pr=%.1f" ν₀ ν₋ ΔRi Riᶜ Pr 
+    diffusivity_str = @sprintf "ν₀ = %.2e m² s⁻¹, ν₋ = %.2e m² s⁻¹, ΔRi = %.2e, Riᶜ = %.3f, Pr=%.2f" ν₀ ν₋ ΔRi Riᶜ Pr 
 
     # scaling_str = @sprintf "Loss Scalings: u = %.1e, v = %.1e, T = %.1e, ∂u∂z = %.1e, ∂v∂z = %.1e, ∂T∂z = %.1e" loss_scalings.u loss_scalings.v loss_scalings.T loss_scalings.∂u∂z loss_scalings.∂v∂z loss_scalings.∂T∂z
     # plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str \n $scaling_str"
 
     plot_subtitle = "$n_trainings Training Simulations ($training_types): $diffusivity_str"
 
-    fig = Figure(resolution=(1920, 1080))
+    # fig = Figure(resolution=(1920, 1080))
+    fig = Figure(resolution=(1920, 960))
     
     # colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     colors = distinguishable_colors(length(uw_data), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
@@ -1097,26 +1098,43 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     zc = data["depth_profile"]
     zf = data["depth_flux"]
     zf_interior = zf[2:end-1]
+
+    rel_size = 30
+    # aspect = 1920 / 1080
+    aspect = 2
+
+
+    ax_u = fig[1, 2] = Axis(fig)
+    ax_v = fig[1, 4] = Axis(fig)
+
+    T_layout = fig[1:4, 5] = GridLayout()
+    colsize!(fig.layout, 5, CairoMakie.Relative(0.4))
+
+    ax_T = T_layout[1, 2] = Axis(fig)
+    y_ax_T = T_layout[1,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+    x_ax_T = T_layout[2,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    ax_Ri = fig[1, 7] = Axis(fig)
+    ax_uw = fig[3, 2] = Axis(fig)
+    ax_vw = fig[3, 4] = Axis(fig)
+    ax_wT = fig[3, 7] = Axis(fig)
     
     y_ax_u = CairoMakie.Axis(fig[1,1], aspect=DataAspect())
     y_ax_v = CairoMakie.Axis(fig[1,3], aspect=DataAspect())
-    y_ax_T = CairoMakie.Axis(fig[1,5], aspect=DataAspect())
-    y_ax_Ri = CairoMakie.Axis(fig[1,7], aspect=DataAspect())
+    y_ax_Ri = CairoMakie.Axis(fig[1,6], aspect=DataAspect())
     y_ax_uw = CairoMakie.Axis(fig[3,1], aspect=DataAspect())
     y_ax_vw = CairoMakie.Axis(fig[3,3], aspect=DataAspect())
-    y_ax_wT = CairoMakie.Axis(fig[3,5], aspect=DataAspect())
+    y_ax_wT = CairoMakie.Axis(fig[3,6], aspect=DataAspect())
 
     x_ax_u = CairoMakie.Axis(fig[2,2], aspect=DataAspect())
     x_ax_v = CairoMakie.Axis(fig[2,4], aspect=DataAspect())
-    x_ax_T = CairoMakie.Axis(fig[2,6], aspect=DataAspect())
-    x_ax_Ri = CairoMakie.Axis(fig[2,8], aspect=DataAspect())
+    x_ax_Ri = CairoMakie.Axis(fig[2,7], aspect=DataAspect())
     x_ax_uw = CairoMakie.Axis(fig[4,2], aspect=DataAspect())
     x_ax_vw = CairoMakie.Axis(fig[4,4], aspect=DataAspect())
-    x_ax_wT = CairoMakie.Axis(fig[4,6], aspect=DataAspect())
+    x_ax_wT = CairoMakie.Axis(fig[4,7], aspect=DataAspect())
 
     hidedecorations!(y_ax_u)
     hidedecorations!(y_ax_v)
-    hidedecorations!(y_ax_T)
     hidedecorations!(y_ax_Ri)
     hidedecorations!(y_ax_uw)
     hidedecorations!(y_ax_vw)
@@ -1124,7 +1142,6 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
 
     hidedecorations!(x_ax_u)
     hidedecorations!(x_ax_v)
-    hidedecorations!(x_ax_T)
     hidedecorations!(x_ax_Ri)
     hidedecorations!(x_ax_uw)
     hidedecorations!(x_ax_vw)
@@ -1148,7 +1165,6 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     
     image!(x_ax_u, axis_images.u)
     image!(x_ax_v, axis_images.v)
-    image!(x_ax_T, axis_images.T)
     image!(x_ax_Ri, axis_images.Ri)
     image!(x_ax_uw, axis_images.uw)
     image!(x_ax_vw, axis_images.vw)
@@ -1156,21 +1172,26 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
 
     image!(y_ax_u, axis_images.z)
     image!(y_ax_v, axis_images.z)
-    image!(y_ax_T, axis_images.z)
     image!(y_ax_Ri, axis_images.z)
     image!(y_ax_uw, axis_images.z)
     image!(y_ax_vw, axis_images.z)
     image!(y_ax_wT, axis_images.z)
 
-    rel_size = 30
-    aspect = 1920 / 1080
+    hidedecorations!(y_ax_T)
+    hidedecorations!(x_ax_T)
+    image!(x_ax_T, axis_images.T)
+    image!(y_ax_T, axis_images.z)
+
+    colsize!(T_layout, 1, CairoMakie.Relative(1 / rel_size * 1.5))
+    rowsize!(T_layout, 2, CairoMakie.Relative(1 / rel_size / aspect * 1.75))
+    colgap!(T_layout, Relative(1 / rel_size / aspect / 2))
+    rowgap!(T_layout, Relative(1 / rel_size / aspect))
 
     rowsize!(fig.layout, 2, CairoMakie.Relative(1 / rel_size))
     rowsize!(fig.layout, 4, CairoMakie.Relative(1 / rel_size))
     colsize!(fig.layout, 1, CairoMakie.Relative(1 / rel_size / aspect))
     colsize!(fig.layout, 3, CairoMakie.Relative(1 / rel_size / aspect))
-    colsize!(fig.layout, 5, CairoMakie.Relative(1 / rel_size / aspect))
-    colsize!(fig.layout, 7, CairoMakie.Relative(1 / rel_size / aspect))
+    colsize!(fig.layout, 6, CairoMakie.Relative(1 / rel_size / aspect))
 
     colgap!(fig.layout, Relative(1 / rel_size / aspect / 2))
     rowgap!(fig.layout, Relative(1 / rel_size / aspect))
@@ -1178,14 +1199,6 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     alpha=0.5
     truth_linewidth = 7
     linewidth = 3
-
-    ax_u = fig[1, 2] = Axis(fig)
-    ax_v = fig[1, 4] = Axis(fig)
-    ax_T = fig[1, 6] = Axis(fig)
-    ax_Ri = fig[1, 8] = Axis(fig)
-    ax_uw = fig[3, 2] = Axis(fig)
-    ax_vw = fig[3, 4] = Axis(fig)
-    ax_wT = fig[3, 6] = Axis(fig)
     
     CairoMakie.xlims!(ax_u, u_min, u_max)
     CairoMakie.xlims!(ax_v, v_min, v_max)
@@ -1240,44 +1253,13 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
         [lines!(ax_Ri, Ri_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
     ]
 
-    # losses_lines =  [
-    #     [lines!(ax_losses, times, losses_data[i], linewidth=linewidth, color=colors[i+1]) for i in 1:Int(length(losses_data)/2)];
-    #     [lines!(ax_losses, times, losses_data[Int(i+length(losses_data)/2)], linewidth=linewidth, color=colors[i+1], linestyle=:dot) for i in 1:Int(length(losses_data)/2)];
-    # ]
-
-    # losses_point = [CairoMakie.scatter!(ax_losses, time_point, point, color=colors[end]) for point in losses_point_frames] 
+    axislegend(ax_T, T_lines, ["Oceananigans.jl Large Eddy Simulation", "Ri-based Diffusivity Only", "K-Profile Parameterisation", "NN Embedded in Oceananigans.jl"], "Data Type", position = :rb)
     
-
-    # legend_sublayout = GridLayout()
-    # fig[2, 8] = legend_sublayout
-
-    # legend = Legend(fig, uw_lines, ["LES", 
-    #                                 "NN Only",
-    #                                 "Modified Pac-Phil Only", 
-    #                                 "KPP",
-    #                                 "Oceananigans, Implicit",
-    #                                 "DiffEq, Explicit",
-    #                                 "DiffEq, Implicit"
-    #                                 ])
-
-    # legend_loss = Legend(fig, losses_lines, ["Profile Loss, Modified Pac-Phil Only", 
-    #                                          "Profile Loss, KPP",
-    #                                          "Profile Loss, Oceananigans, Implicit", 
-    #                                          "Profile Loss, DiffEq, Explicit", 
-    #                                          "Profile Loss, DiffEq, Implicit",
-    #                                          "Gradient Loss, Modified Pac-Phil Only", 
-    #                                          "Gradient Loss, KPP",
-    #                                          "Gradient Loss, Oceananigans, Implicit", 
-    #                                          "Gradient Loss, DiffEq, Explicit", 
-    #                                          "Gradient Loss, DiffEq, Implicit"])
-    # legend_sublayout[:v] = [legend, legend_loss]
-
-    
-    legend = fig[3, 8] = Legend(fig, u_lines, ["LES", 
-                                        "Ri-based Diffusivity Only", 
-                                        "KPP",
-                                        "Oceananigans.jl",
-                                        ])
+    # legend = fig[3, 8] = Legend(fig, u_lines, ["LES", 
+    #                                     "Ri-based Diffusivity Only", 
+    #                                     "KPP",
+    #                                     "Oceananigans.jl",
+    #                                     ])
 
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
     subtitle = fig[end+1, :] = Label(fig, text=plot_subtitle, textsize=20)
@@ -1302,14 +1284,14 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     end
 
     if mp4
-        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times), framerate=fps, compression=1) do n
             print_progress(n, length(times), print_frame, "mp4")
             frame[] = n
         end
     end
 end
 
-function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; fps=30, gif=false, mp4=true)
+function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images;simulation_str, fps=30, gif=false, mp4=true)
     xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
     xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
     yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
@@ -1470,7 +1452,7 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; fps=30, gif=false, m
     CairoMakie.ylims!(ax_v, minimum(zC), 0)
     CairoMakie.ylims!(ax_T, minimum(zC), 0)
 
-    plot_title = @lift "Time = $(round(times[$frame]/86400, digits=2)) days"
+    plot_title = @lift "$(simulation_str), Time = $(round(times[$frame]/86400, digits=2)) days"
 
     supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
 
@@ -1483,16 +1465,203 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; fps=30, gif=false, m
     @info "Starting Animation"
 
     if gif
-        CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:length(times), framerate=fps) do n
+        CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:length(times), framerate=fps, compression=1) do n
             print_progress(n, length(times), "gif")
             frame[] = n
         end
     end
 
     if mp4
-        CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:length(times), framerate=fps) do n
-        # CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:5, framerate=fps) do n
+        CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:length(times), framerate=fps, compression=1) do n
             print_progress(n, length(times), "mp4")
+            frame[] = n
+        end
+    end
+end
+
+function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulation_str, fps=30, gif=false, mp4=true)
+    xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
+    xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
+    yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
+    instantaneous_statistics = jldopen(joinpath(FILE_DIR, "instantaneous_statistics.jld2"))
+
+    iterations = keys(instantaneous_statistics["timeseries/t"])
+    times = [instantaneous_statistics["timeseries/t/$iter"] for iter in iterations]
+    xC = xz_file["grid/xC"][4:end-3]
+    yC = xz_file["grid/yC"][4:end-3]
+    zC = xz_file["grid/zC"][4:end-3]
+
+    x_xz = fill(xC[1], 128)
+    y_xz = yC
+
+    z_xz = zeros(length(x_xz), length(y_xz))
+    for i in 1:size(z_xz, 1)
+        z_xz[i,:] .= zC[i]
+    end
+
+    T_xzs = [transpose(hcat([xz_file["timeseries/T/$iter"][:, :, i] for i in 1:length(zC)]... )) for iter in iterations]
+
+    x_yz = xC
+    y_yz = fill(yC[1], 128)
+
+    z_yz = zeros(length(x_yz), length(y_yz))
+    for i in 1:size(z_yz, 2)
+        z_yz[:,i] .= zC[i]
+    end
+
+    @inline function obtain_T_yz(iter)
+        T_yz = similar(z_yz)
+        for i in 1:size(T_yz, 2)
+            T_yz[:,i] = yz_file["timeseries/T/$iter"][:, :, i]
+        end
+        return T_yz
+    end
+    T_yzs = [obtain_T_yz(iter) for iter in iterations]
+
+    x_xy = xC
+    y_xy = yC
+    z_xy = zeros(length(y_xy), length(x_xy))
+
+    T_xys = [xy_file["timeseries/T/$iter"][:,:,1] for iter in iterations]
+
+    us = [instantaneous_statistics["timeseries/u/$iter"][:] for iter in iterations]
+    vs = [instantaneous_statistics["timeseries/v/$iter"][:] for iter in iterations]
+    Ts = [instantaneous_statistics["timeseries/T/$iter"][:] for iter in iterations]
+
+    @inline function find_lims(profiles)
+        return minimum(minimum.(profiles)), maximum(maximum.(profiles))
+    end
+
+    u_min, u_max = find_lims(us)
+    v_min, v_max = find_lims(vs)
+    T_min, T_max = find_lims(Ts)
+
+    color_range_max = maximum([maximum(maximum.(T_xzs)), maximum(maximum.(T_yzs)), maximum(maximum.(T_xys))])
+    color_range_min = minimum([minimum(minimum.(T_xzs)), minimum(minimum.(T_yzs)), minimum(minimum.(T_xys))])
+
+    color_range = (color_range_min, color_range_max)
+    colormap = cgrad(:ice, scale=:log10)
+
+    close(xy_file)
+    close(xz_file)
+    close(yz_file)
+
+    frame = Node(1)
+    iteration = @lift iterations[$frame]
+
+    T_xz = @lift T_xzs[$frame]
+    T_yz = @lift T_yzs[$frame]
+    T_xy = @lift T_xys[$frame]
+
+    u = @lift us[$frame]
+    v = @lift vs[$frame]
+    T = @lift Ts[$frame]
+
+    fig = Figure(resolution=(1920, 1080))
+    ax = fig[1,1] = CairoMakie.Axis3(fig, aspect=(1, 1, 0.5), xlabel="x /m", ylabel="y /m", zlabel="z /m")
+
+    xz_surface = CairoMakie.surface!(ax, x_xz, y_xz, z_xz, color=T_xz, colormap=colormap, colorrange=color_range)
+
+    yz_surface = CairoMakie.surface!(ax, x_yz, y_yz, z_yz, color=T_yz, colormap=colormap, colorrange=color_range)
+
+    xy_surface = CairoMakie.surface!(ax, x_xy, y_xy, z_xy, color=T_xy, colormap=colormap, colorrange=color_range)
+
+    ax_T_3D = fig[2,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    rel_size = 40
+    aspect = 1 / 4
+
+    hidedecorations!(ax_T_3D)
+    hidespines!(ax_T_3D)
+    image!(ax_T_3D, axis_images.T_3D)
+    rowsize!(fig.layout, 2, CairoMakie.Relative(1 / rel_size))
+
+    colorbar = CairoMakie.Colorbar(fig[3, 1], xz_surface, vertical=false)
+
+    plots_sublayout = fig[:,2] = GridLayout()
+
+    colsize!(fig.layout, 2, CairoMakie.Relative(aspect))
+    rowgap!(fig.layout, Relative(1 / 50 / 3))
+
+
+    y_ax_u = plots_sublayout[1,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+    y_ax_v = plots_sublayout[3,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+    y_ax_T = plots_sublayout[5,1] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    x_ax_u = plots_sublayout[2,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+    x_ax_v = plots_sublayout[4,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+    x_ax_T = plots_sublayout[6,2] = CairoMakie.Axis(fig, aspect=DataAspect())
+
+    ax_u = plots_sublayout[1,2] = CairoMakie.Axis(fig)
+    ax_v = plots_sublayout[3,2] = CairoMakie.Axis(fig)
+    ax_T = plots_sublayout[5,2] = CairoMakie.Axis(fig)
+
+    hidedecorations!(y_ax_u)
+    hidedecorations!(y_ax_v)
+    hidedecorations!(y_ax_T)
+
+    hidedecorations!(x_ax_u)
+    hidedecorations!(x_ax_v)
+    hidedecorations!(x_ax_T)
+
+    hidespines!(y_ax_u)
+    hidespines!(y_ax_v)
+    hidespines!(y_ax_T)
+
+    hidespines!(x_ax_u)
+    hidespines!(x_ax_v)
+    hidespines!(x_ax_T)
+
+    image!(x_ax_u, axis_images.u)
+    image!(x_ax_v, axis_images.v)
+    image!(x_ax_T, axis_images.T)
+
+    image!(y_ax_u, axis_images.z)
+    image!(y_ax_v, axis_images.z)
+    image!(y_ax_T, axis_images.z)
+
+    rowsize!(plots_sublayout, 2, CairoMakie.Relative(1 / rel_size))
+    rowsize!(plots_sublayout, 4, CairoMakie.Relative(1 / rel_size))
+    rowsize!(plots_sublayout, 6, CairoMakie.Relative(1 / rel_size))
+    colsize!(plots_sublayout, 1, CairoMakie.Aspect(2, 1))
+
+    colgap!(plots_sublayout, 1 / 50)
+    rowgap!(plots_sublayout, Relative(1 / 50 / 3))
+
+    u_line = CairoMakie.lines!(ax_u, u, zC)
+    v_line = CairoMakie.lines!(ax_v, v, zC)
+    T_line = CairoMakie.lines!(ax_T, T, zC)
+
+    CairoMakie.xlims!(ax_u, u_min, u_max)
+    CairoMakie.xlims!(ax_v, v_min, v_max)
+    CairoMakie.xlims!(ax_T, T_min, T_max)
+
+    CairoMakie.ylims!(ax_u, minimum(zC), 0)
+    CairoMakie.ylims!(ax_v, minimum(zC), 0)
+    CairoMakie.ylims!(ax_T, minimum(zC), 0)
+
+    plot_title = @lift "$(simulation_str), Time = $(round(times[$frame]/86400, digits=2)) days"
+
+    supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
+
+    trim!(fig.layout)
+
+    function print_progress(n, n_total, type)
+        @info "Animating $(type) frame $n/$n_total"
+    end
+
+    @info "Starting Animation"
+
+    if gif
+        CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:num_frames, framerate=fps, compression=1) do n
+            print_progress(n, num_frames, "gif")
+            frame[] = n
+        end
+    end
+
+    if mp4
+        CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:num_frames, framerate=fps, compression=1) do n
+            print_progress(n, num_frames, "mp4")
             frame[] = n
         end
     end
