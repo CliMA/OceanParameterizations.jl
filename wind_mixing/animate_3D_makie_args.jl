@@ -45,7 +45,7 @@ else
     simulation_str = "Strong Wind + Weak Cooling"
 end
 
-OUTPUT_PATH = joinpath(pwd(), "LES_3D_video", "LES_$(simulation)_$(frames)_$(fps)")
+OUTPUT_PATH = joinpath(pwd(), "LES_3D_video", "LES_$(simulation)_$(num_frames)_$(fps)")
 
 if num_frames == 500
     animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images, fps=fps, simulation_str=simulation_str, num_frames=num_frames)
