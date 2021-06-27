@@ -50,9 +50,9 @@ function plot_loss(losses::NamedTuple, OUTPUT_PATH)
     gradient_losses = losses.∂u∂z .+ losses.∂v∂z .+ losses.∂T∂z
 
     x = 1:length(losses.u)
-    fig = Figure()
+    fig = Figure(resolution=(1500, 750))
     ax_top = Axis(fig[1, 1], yscale=log10)
-    ax_bot = Axis(fig[2, 1], yscale=log10)
+    ax_bot = Axis(fig[1, 2], yscale=log10)
 
     ax_top.xlabel = "Epochs"
     ax_bot.xlabel = "Epochs"
@@ -60,23 +60,33 @@ function plot_loss(losses::NamedTuple, OUTPUT_PATH)
     ax_top.ylabel = "Losses"
     ax_bot.ylabel = "Losses"
 
-    u_line = CairoMakie.lines!(ax_top, x, losses.u)
-    v_line = CairoMakie.lines!(ax_top, x, losses.v)
-    T_line = CairoMakie.lines!(ax_top, x, losses.T)
+    colors = distinguishable_colors(8, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
-    ∂u∂z_line = CairoMakie.lines!(ax_top, x, losses.∂u∂z)
-    ∂v∂z_line = CairoMakie.lines!(ax_top, x, losses.∂v∂z)
-    ∂T∂z_line = CairoMakie.lines!(ax_top, x, losses.∂T∂z)
+    u_line = CairoMakie.lines!(ax_top, x, losses.u, color=colors[1])
+    v_line = CairoMakie.lines!(ax_top, x, losses.v, color=colors[2])
+    T_line = CairoMakie.lines!(ax_top, x, losses.T, color=colors[3])
 
-    profile_line = CairoMakie.lines!(ax_bot, x, profile_losses)
-    gradient_line = CairoMakie.lines!(ax_bot, x, gradient_losses)
+    ∂u∂z_line = CairoMakie.lines!(ax_top, x, losses.∂u∂z, color=colors[4])
+    ∂v∂z_line = CairoMakie.lines!(ax_top, x, losses.∂v∂z, color=colors[5])
+    ∂T∂z_line = CairoMakie.lines!(ax_top, x, losses.∂T∂z, color=colors[6])
 
-    legend = fig[:,2] = Legend(fig, [u_line, v_line, T_line, ∂v∂z_line, ∂v∂z_line, ∂T∂z_line, profile_line, gradient_line],
-                                ["u", "v", "T", "∂u/∂z", "∂v/∂z", "∂T/∂z", "profile", "gradient"])
+    profile_line = CairoMakie.lines!(ax_bot, x, profile_losses, color=colors[7])
+    gradient_line = CairoMakie.lines!(ax_bot, x, gradient_losses, color=colors[8])
+
+    legend_individual = fig[2,1] = Legend(fig, [u_line, v_line, T_line, ∂u∂z_line, ∂v∂z_line, ∂T∂z_line],
+                                ["u", "v", "T", "∂u/∂z", "∂v/∂z", "∂T/∂z"], orientation=:horizontal)
+
+    legend_profile = fig[2,2] = Legend(fig, [profile_line, gradient_line],
+                                ["profile", "gradient"], orientation=:horizontal)
+
+    colsize!(fig.layout, 1, CairoMakie.Relative(0.5))
+    colsize!(fig.layout, 2, CairoMakie.Relative(0.5))
+
+    rowsize!(fig.layout, 2, CairoMakie.Relative(0.05))
 
     trim!(fig.layout)
 
-    save(OUTPUT_PATH, fig)
+    save(OUTPUT_PATH, fig, pt_per_unit=4, px_per_unit=4)
 end
 
 function plot_loss(losses, OUTPUT_PATH)
