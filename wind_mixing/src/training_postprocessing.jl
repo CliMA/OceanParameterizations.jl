@@ -656,6 +656,97 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
     scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
     diffusivity_params = extracted_training_file["training_info/parameters"]
 
+    close(extracted_training_file)
+
+    if !ispath(OUTPUT_DIR)
+        mkdir(OUTPUT_DIR)
+    end
+
+    for test_file in test_files
+        @info "Starting $test_file"
+        ds = jldopen(directories[test_file])
+
+        f = ds["parameters/coriolis_parameter"]
+        α = ds["parameters/thermal_expansion_coefficient"]
+        g = ds["parameters/gravitational_acceleration"]
+        Nz = 32
+        Lz = ds["grid/Lz"]
+        Δz = ds["grid/Δz"]
+
+        frames = keys(ds["timeseries/t"])
+        stop_time = ds["timeseries/t/$(frames[end])"]
+
+        uw_flux = ds["parameters/boundary_condition_u_top"]
+        vw_flux = 0
+
+        if diurnal
+            wT_flux = diurnal_fluxes([test_file], (; α, g))[1]
+        else
+            wT_flux = ds["parameters/boundary_condition_θ_top"]
+        end
+
+        T₀ = Array(ds["timeseries/T/0"][1, 1, :])
+
+        ∂u₀∂z = ds["parameters/boundary_condition_u_bottom"]
+        ∂v₀∂z = ds["parameters/boundary_condition_u_bottom"]
+
+        constants = (; f, α, g, Nz, Lz, T₀)
+        BCs = (top=(uw=uw_flux, vw=vw_flux, wT=wT_flux), bottom=(u=∂u₀∂z, v=∂v₀∂z))
+
+        if test_file in train_files
+            dir_str = "train_$test_file"
+        else
+            dir_str = "test_$test_file"
+        end
+
+        DIR_PATH = joinpath(OUTPUT_DIR, dir_str)
+
+        if !ispath(DIR_PATH)
+            mkdir(DIR_PATH)
+        end
+
+        BASELINE_RESULTS_PATH = joinpath(DIR_PATH, "baseline_oceananigans")
+        NN_RESULTS_PATH = joinpath(DIR_PATH, "NN_oceananigans")
+
+        oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params, 
+                                                    BASELINE_RESULTS_PATH=BASELINE_RESULTS_PATH,
+                                                    NN_RESULTS_PATH=NN_RESULTS_PATH,
+                                                    stop_time=stop_time, Δt=timestep,
+                                                    convective_adjustment=convective_adjustment)
+    end
+end
+
+function solve_oceananigans_modified_pacanowski_philander_nn(test_files, uw_NN_PATH, vw_NN_PATH, wT_NN_PATH, OUTPUT_DIR; 
+                                                        timestep=60, convective_adjustment=false)
+    @info "Loading Training Data..."
+    uw_file = jldopen(uw_NN_PATH, "r")
+    vw_file = jldopen(vw_NN_PATH, "r")
+    wT_file = jldopen(wT_NN_PATH, "r")
+
+    uw_NN = uw_file["neural_network"]
+    vw_NN = vw_file["neural_network"]
+    wT_NN = wT_file["neural_network"]
+
+    train_files = uw_file["training_info/train_files"]
+
+    diurnal = occursin("diurnal", test_files[1])
+
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+
+    u_scaling = 𝒟train.scalings["u"]
+    v_scaling = 𝒟train.scalings["v"]
+    T_scaling = 𝒟train.scalings["T"]
+    uw_scaling = 𝒟train.scalings["uw"]
+    vw_scaling = 𝒟train.scalings["vw"]
+    wT_scaling = 𝒟train.scalings["wT"]
+
+    scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
+    diffusivity_params = uw_file["training_info/parameters"]
+    
+    close(uw_file)
+    close(vw_file)
+    close(wT_file)
+
     if !ispath(OUTPUT_DIR)
         mkdir(OUTPUT_DIR)
     end
@@ -851,6 +942,7 @@ function NDE_profile_oceananigans(FILE_DIR, train_files, test_files;
         BCs_unscaled = (uw=(top=𝒟test.uw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
         vw=(top=𝒟test.vw.coarse[end, 1], bottom=𝒟test.uw.coarse[1, 1]), 
         wT=(top=𝒟test.wT.coarse[end, 1], bottom=𝒟test.wT.coarse[1, 1]))
+        @show 𝒟test.wT.coarse[end, 1]
     end
     
     ICs_unscaled = (u=𝒟test.u.coarse[:,1], v=𝒟test.v.coarse[:,1], T=𝒟test.T.coarse[:,1])

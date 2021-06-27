@@ -5,10 +5,14 @@ using WindMixing
 using JLD2
 using WindMixing: animate_profiles_fluxes_final
 
-convective_adjustment = parse(Bool, ARGS[1])
-params_type = ARGS[2]
-NN_type = ARGS[3]
-num = parse(Int, ARGS[4])
+# convective_adjustment = parse(Bool, ARGS[1])
+convective_adjustment = false
+# params_type = ARGS[2]
+params_type = "18simBFGST0.8nograd"
+# NN_type = ARGS[3]
+NN_type = "leakyrelu"
+num = parse(Int, ARGS[1])
+NN_version = ARGS[2]
 
 if convective_adjustment
     CA_str = "CA"
@@ -37,7 +41,17 @@ axis_images = (
 )
 
 EXTRACTED_FILE_DIR = joinpath(pwd(), "extracted_training_output")
-EXTRACTED_FILE_PATH = joinpath(EXTRACTED_FILE_DIR, "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_extracted.jld2")
+if NN_version == "old"
+    EXTRACTED_FILE_PATH = joinpath(EXTRACTED_FILE_DIR, "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_extracted.jld2")
+    FILE_DIR = joinpath(pwd(), "final_data_2", "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_$(CA_str)")
+else
+    EXTRACTED_FILE_PATH = joinpath(EXTRACTED_FILE_DIR, "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_1e-4_extracted.jld2")
+    FILE_DIR = joinpath(pwd(), "final_data_2", "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_1e-4_$(CA_str)")
+end
+
+if !ispath(FILE_DIR)
+    mkdir(FILE_DIR)
+end
 
 file = jldopen(EXTRACTED_FILE_PATH)
 train_files = file["training_info/train_files"]
@@ -67,14 +81,15 @@ test_files_all = [
     "wind_-2e-4_heating_-2e-8_new",  
     "wind_-2e-4_heating_-1e-8_new",  
 
-    "wind_-5e-4_diurnal_5e-8",       
-    "wind_-5e-4_diurnal_3e-8",       
-        
-    "wind_-3.5e-4_diurnal_5e-8",     
-    "wind_-3.5e-4_diurnal_3e-8",     
-        
-    "wind_-2e-4_diurnal_5e-8",       
-    "wind_-2e-4_diurnal_3e-8",       
+    "wind_-4.5e-4_cooling_2.5e-8", 
+    "wind_-2.5e-4_cooling_1.5e-8", 
+    "wind_-4.5e-4_cooling_1.5e-8", 
+    "wind_-2.5e-4_cooling_2.5e-8", 
+    
+    "wind_-4.5e-4_heating_-2.5e-8",
+    "wind_-2.5e-4_heating_-1.5e-8",
+    "wind_-4.5e-4_heating_-1.5e-8",
+    "wind_-2.5e-4_heating_-2.5e-8",  
 ]
 
 test_files = [test_files_all[num]]
@@ -85,23 +100,17 @@ test_files = [test_files_all[num]]
 Riᶜ = train_parameters["Riᶜ"]
 Pr = train_parameters["Pr"]
 
-FILE_DIR = joinpath(pwd(), "final_data", "NDE_18sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T0.8_$(CA_str)")
-
-if !ispath(FILE_DIR)
-    mkdir(FILE_DIR)
-end
-
-# solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
-#                                                         timestep=1, convective_adjustment=convective_adjustment)
+solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
+                                                        timestep=1, convective_adjustment=convective_adjustment)
 
 diurnal = occursin("diurnal", test_files[1])
 
-if diurnal
-    DIR_NAME = "test_$(test_files[1])"
-    animation_type = "Testing"
-else
+if test_files[1] in train_files
     DIR_NAME = "train_$(test_files[1])"
     animation_type = "Training"
+else
+    DIR_NAME = "test_$(test_files[1])"
+    animation_type = "Interpolating"
 end
 
 plot_data = NDE_profile_oceananigans(joinpath(FILE_DIR, DIR_NAME), train_files, test_files,
@@ -110,5 +119,5 @@ plot_data = NDE_profile_oceananigans(joinpath(FILE_DIR, DIR_NAME), train_files, 
                                   OUTPUT_PATH=joinpath(FILE_DIR, DIR_NAME, "profiles_fluxes_oceananigans.jld2"))
 
 animate_profiles_fluxes_final(plot_data, axis_images, 
-                    joinpath(FILE_DIR, DIR_NAME, "video"),
+                    joinpath(FILE_DIR, DIR_NAME, "$(test_files[1])"),
                     animation_type=animation_type, n_trainings=18, training_types="Wind + Cooling, Wind + Heating")
