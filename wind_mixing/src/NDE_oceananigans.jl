@@ -38,6 +38,10 @@ function modified_pacanowski_philander_diffusivity(model, constants, p; convecti
     ν = zeros(Float32, Nz+1)
     ν_T = similar(ν)
 
+    # for i in 2:Nz
+    #     ν[i] = ν₀ + ν₋ * tanh_step((Ri[1, 1, i] - Riᶜ) / ΔRi)
+    # end
+
     for i in 2:Nz
         ν[i] = ν₀ + ν₋ * tanh_step((Ri[1, 1, i] - Riᶜ) / ΔRi)
     end
@@ -62,6 +66,8 @@ function modified_pacanowski_philander!(model, constants, Δt, p, convective_adj
     v = model.velocities.v
     T = model.tracers.T
 
+    T_bottom = interior(T)[:][1]
+
     ν_velocities, ν_T = modified_pacanowski_philander_diffusivity(model, constants, p, convective_adjustment=convective_adjustment)
 
     lower_diagonal_velocities = [-Δt / Δz ^ 2 * ν_velocities[i]   for i in 2:Nz]
@@ -84,6 +90,8 @@ function modified_pacanowski_philander!(model, constants, Δt, p, convective_adj
     u′ = 𝓛_velocities \ interior(u)[:]
     v′ = 𝓛_velocities \ interior(v)[:]
     T′ = 𝓛_T \ interior(T)[:]
+
+    T′[1] = T_bottom
 
     set!(model, u=reshape(u′, (1, 1, Nz)))
     set!(model, v=reshape(v′, (1, 1, Nz)))
@@ -281,7 +289,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
         uw_NN,
         uw -> inv(uw_scaling).(uw),
-        uw -> uw .- inv(uw_scaling).(0),
+        uw -> uw .- inv(uw_scaling).(uw[1]),
         enforce_fluxes_uw,
         ∂z_uw
     )
@@ -290,7 +298,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
         uvT -> [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)],
         vw_NN,
         vw -> inv(vw_scaling).(vw),
-        vw -> vw .- inv(vw_scaling).(0),
+        vw -> vw .- inv(vw_scaling).(vw[1]),
         enforce_fluxes_vw,
         ∂z_vw
     )
@@ -307,7 +315,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     function NN_wT_forcing(uvT)
         uvT_scaled = [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)]
         wT_scaled = wT_NN(uvT_scaled)
-        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(0f0)
+        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(wT_scaled[1])
         wT = enforce_fluxes_wT(wT_unscaled)
         return ∂z_wT(wT)
     end
@@ -315,7 +323,7 @@ function oceananigans_modified_pacanowski_philander_nn(uw_NN, vw_NN, wT_NN, cons
     function NN_wT_forcing(uvT, t)
         uvT_scaled = [u_scaling.(uvT.u); v_scaling.(uvT.v); T_scaling.(uvT.T)]
         wT_scaled = wT_NN(uvT_scaled)
-        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(0f0)
+        wT_unscaled = inv(wT_scaling).(wT_scaled) .- inv(wT_scaling).(wT_scaled[1])
         wT = enforce_fluxes_wT(wT_unscaled, t)
         return ∂z_wT(wT)
     end
