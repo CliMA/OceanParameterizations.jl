@@ -1289,9 +1289,10 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
             frame[] = n
         end
     end
+
 end
 
-function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images;simulation_str, fps=30, gif=false, mp4=true)
+function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames::nothing, simulation_str, fps=30, gif=false, mp4=true)
     xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
     xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
     yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
@@ -1654,17 +1655,33 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulati
 
     @info "Starting Animation"
 
-    if gif
-        CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:num_frames, framerate=fps, compression=1) do n
-            print_progress(n, num_frames, "gif")
-            frame[] = n
+    if num_frames == 0
+        if gif
+            CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:length(times), framerate=fps, compression=1) do n
+                print_progress(n, length(times), "gif")
+                frame[] = n
+            end
         end
-    end
 
-    if mp4
-        CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:num_frames, framerate=fps, compression=1) do n
-            print_progress(n, num_frames, "mp4")
-            frame[] = n
+        if mp4
+            CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:length(times), framerate=fps, compression=1) do n
+                print_progress(n, length(times), "mp4")
+                frame[] = n
+            end
+        end
+    else
+        if gif
+            CairoMakie.record(fig, "$OUTPUT_PATH.gif", 1:num_frames, framerate=fps, compression=1) do n
+                print_progress(n, num_frames, "gif")
+                frame[] = n
+            end
+        end
+
+        if mp4
+            CairoMakie.record(fig, "$OUTPUT_PATH.mp4", 1:num_frames, framerate=fps, compression=1) do n
+                print_progress(n, num_frames, "mp4")
+                frame[] = n
+            end
         end
     end
 end
