@@ -45,6 +45,6 @@ else
     simulation_str = "Strong Wind + Weak Cooling"
 end
 
-OUTPUT_PATH = joinpath(pwd(), "LES_3D_video", "LES_$(simulation)_$(num_frames)_$(fps)")
+OUTPUT_PATH = joinpath(pwd(), "LES_3D_video", "LES_$(simulation)_$(num_frames)_$(fps)_turbo")
 
-animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images, fps=fps, simulation_str=simulation_str, num_frames=num_frames)
+animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images, fps=fps, simulation_str=simulation_str, num_frames=num_frames, colorscheme=:turbo)

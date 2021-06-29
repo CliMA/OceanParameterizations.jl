@@ -1,4 +1,4 @@
-function plot_LES_3D(frame, FILE_DIR, OUTPUT_PATH, axis_images; title="")
+function plot_LES_3D(frame, FILE_DIR, OUTPUT_PATH, axis_images; title="", colorscheme=:ice, rev=false)
     xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
     xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
     yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
@@ -15,7 +15,7 @@ function plot_LES_3D(frame, FILE_DIR, OUTPUT_PATH, axis_images; title="")
     yC = xz_file["grid/yC"][4:end-3]
     zC = xz_file["grid/zC"][4:end-3]
 
-    colormap = cgrad(:ice, scale=:log10)
+    colormap = cgrad(colorscheme, scale=:log10, rev=rev)
 
     fig = Figure(resolution=(1920, 1080))
     ax = fig[1,1] = CairoMakie.Axis3(fig, aspect=(1, 1, 0.5), xlabel="x /m", ylabel="y /m", zlabel="z /m")
