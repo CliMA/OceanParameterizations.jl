@@ -50,27 +50,26 @@ loss_scalings = file["training_info/loss_scalings"]
 train_parameters = file["training_info/parameters"]
 close(file)
 
-# test_files_all = [
-#     "wind_-5e-4_diurnal_5e-8",    
-#     "wind_-3.5e-4_diurnal_5e-8",          
-#     "wind_-2e-4_diurnal_5e-8",    
-
-#     "wind_-4.5e-4_diurnal_4e-8",
-#     "wind_-4.5e-4_diurnal_2e-8",
-#     "wind_-3e-4_diurnal_4e-8",  
-#     "wind_-3e-4_diurnal_2e-8",  
-# ]
-
 test_files_all = [
-    "wind_-5.5e-4_diurnal_5.5e-8" 
-    "wind_-1.5e-4_diurnal_5.5e-8" 
+    "wind_-5e-4_diurnal_5e-8",    
+    "wind_-3.5e-4_diurnal_5e-8",          
+    "wind_-2e-4_diurnal_5e-8",    
 
-    "wind_-5.5e-4_new"            
+    "wind_-4.5e-4_diurnal_4e-8",
+    "wind_-4.5e-4_diurnal_2e-8",
+    "wind_-3e-4_diurnal_4e-8",  
+    "wind_-3e-4_diurnal_2e-8",  
 
-    "wind_-5.5e-4_heating_-3.5e-8"
-    "wind_-1.5e-4_heating_-3.5e-8"
-    "wind_-5.5e-4_cooling_3.5e-8" 
-    "wind_-1.5e-4_cooling_3.5e-8" 
+
+    "wind_-5.5e-4_diurnal_5.5e-8", 
+    "wind_-1.5e-4_diurnal_5.5e-8", 
+
+    "wind_-5.5e-4_new",            
+
+    "wind_-5.5e-4_heating_-3.5e-8",
+    "wind_-1.5e-4_heating_-3.5e-8",
+    "wind_-5.5e-4_cooling_3.5e-8", 
+    "wind_-1.5e-4_cooling_3.5e-8", 
 ]
 
 test_files = [test_files_all[num]]
@@ -81,17 +80,19 @@ test_files = [test_files_all[num]]
 Riᶜ = train_parameters["Riᶜ"]
 Pr = train_parameters["Pr"]
 
-solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
-                                                        timestep=1, convective_adjustment=convective_adjustment)
+# solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACTED_FILE_PATH, FILE_DIR,
+#                                                         timestep=1, convective_adjustment=convective_adjustment)
 
 diurnal = occursin("diurnal", test_files[1])
 
-if test_files[1] in train_files
+if num <= 3
     DIR_NAME = "train_$(test_files[1])"
     animation_type = "Training"
+elseif num >= 4 && num <= 7
+    DIR_NAME = "test_$(test_files[1])"
+    animation_type = "Interpolating"
 else
     DIR_NAME = "test_$(test_files[1])"
-    # animation_type = "Interpolating"
     animation_type = "Extrapolating"
 end
 
@@ -103,5 +104,5 @@ plot_data = NDE_profile_oceananigans(joinpath(FILE_DIR, DIR_NAME), train_files, 
                                   OUTPUT_PATH=joinpath(FILE_DIR, DIR_NAME, "profiles_fluxes_oceananigans.jld2"))
 
 animate_profiles_fluxes_final(plot_data, axis_images, 
-                    joinpath(FILE_DIR, DIR_NAME, "$(test_files[1])"),
-                    animation_type=animation_type, n_trainings=n_trainings, training_types="Wind + Diurnal Heating & Cooling")
+                    joinpath(FILE_DIR, DIR_NAME, "$(test_files[1])_60fps"),
+                    animation_type=animation_type, n_trainings=n_trainings, training_types="Wind + Diurnal Heating & Cooling", fps=60)

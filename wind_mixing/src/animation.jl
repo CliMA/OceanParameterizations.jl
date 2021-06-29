@@ -1086,6 +1086,11 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     # colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
     colors = distinguishable_colors(length(uw_data), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
+    temp_color = colors[2]
+    colors[2] = colors[4]
+    colors[4] = temp_color
+    # colors[4] = RGB(0,0,0)
+
     u_img = axis_images.u
     v_img = axis_images.v
     T_img = axis_images.T
@@ -1197,7 +1202,7 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
     rowgap!(fig.layout, Relative(1 / rel_size / aspect))
 
     alpha=0.5
-    truth_linewidth = 7
+    truth_linewidth =8
     linewidth = 3
     
     CairoMakie.xlims!(ax_u, u_min, u_max)
