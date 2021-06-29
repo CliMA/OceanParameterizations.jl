@@ -1292,7 +1292,7 @@ function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_t
 
 end
 
-function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulation_str, fps=30, gif=false, mp4=true)
+function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulation_str, fps=30, gif=false, mp4=true, colorscheme=:ice, rev=false)
     xy_file = jldopen(joinpath(FILE_DIR, "xy_slice.jld2"))
     xz_file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
     yz_file = jldopen(joinpath(FILE_DIR, "yz_slice.jld2"))
@@ -1353,7 +1353,7 @@ function animate_LES_3D(FILE_DIR, OUTPUT_PATH, axis_images; num_frames, simulati
     color_range_min = minimum([minimum(minimum.(T_xzs)), minimum(minimum.(T_yzs)), minimum(minimum.(T_xys))])
 
     color_range = (color_range_min, color_range_max)
-    colormap = cgrad(:ice, scale=:log10)
+    colormap = cgrad(colorscheme, scale=:log10, rev=rev)
 
     close(xy_file)
     close(xz_file)
