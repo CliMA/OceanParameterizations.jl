@@ -100,6 +100,8 @@ trim!(fig.layout)
 fig
 save("final_results/data_diurnal.png", fig, px_per_unit = 4)
 
+T_loss(data) = sum(data) / 1153
+
 losses_training = []
 
 for train_file in train_files
@@ -107,9 +109,9 @@ for train_file in train_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     loss_min = argmin([loss, loss_mpp, loss_kpp])
 
@@ -126,9 +128,9 @@ for interpolating_file in interpolating_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 
@@ -147,9 +149,9 @@ for extrapolating_file in extrapolating_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 
@@ -168,9 +170,9 @@ for diurnal_file in extrapolating_diurnal_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 

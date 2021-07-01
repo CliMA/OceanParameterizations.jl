@@ -124,9 +124,8 @@ fig = CairoMakie.Figure(resolution=(1000, 650))
 ax =fig[1,1] = CairoMakie.Axis(fig, xlabel="Buoyancy Flux / m² s⁻³", ylabel="Momentum Flux / m² s⁻²")
 color_palette = distinguishable_colors(4, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
-rectangle_heating = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (-1e-8, -5e-4), (-1e-8, -2e-4)], color=("paleturquoise3", 0.5))
-rectangle_cooling = CairoMakie.poly!(ax, Point2f0[(3e-8, -2e-4), (3e-8, -5e-4), (1e-8, -5e-4), (1e-8, -2e-4)], color=("paleturquoise3", 0.5))
 
+rectangle = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (3e-8, -5e-4), (3e-8, -2e-4)], color=("paleturquoise3", 0.5))
 
 training_points = CairoMakie.scatter!(ax, buoyancy_fluxes_training, momentum_fluxes_training, color=color_palette[1])
 interpolating_points = CairoMakie.scatter!(ax, buoyancy_fluxes_interpolating, momentum_fluxes_interpolating, color=color_palette[2])
@@ -137,13 +136,15 @@ diurnal_line_2 = CairoMakie.lines!(ax, [-5.5e-8, 5.5e-8], [-5.5e-4, -5.5e-4], co
 
 # diurnal_points = CairoMakie.scatter!(ax, buoyancy_fluxes_diurnal, momentum_fluxes_diurnal, color=color_palette[4])
 
-legend = fig[2,1] = CairoMakie.Legend(fig, [training_points, interpolating_points, extrapolating_points, diurnal_line, rectangle_heating],
+legend = fig[2,1] = CairoMakie.Legend(fig, [training_points, interpolating_points, extrapolating_points, diurnal_line_1, rectangle],
                                             ["Training", "Interpolating", "Extrapolating", "Diurnal Fluxes", "Interpolation Region"], orientation=:horizontal)
 
 rowsize!(fig.layout, 1, CairoMakie.Relative(0.95))
 trim!(fig.layout)
 fig
 save("final_results/data_WCWH.png", fig, px_per_unit = 4)
+
+T_loss(data) = sum(data) / 1153
 
 losses_training = []
 
@@ -152,9 +153,9 @@ for train_file in train_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     loss_min = argmin([loss, loss_mpp, loss_kpp])
 
@@ -171,9 +172,9 @@ for interpolating_file in interpolating_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 
@@ -192,9 +193,9 @@ for extrapolating_file in extrapolating_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 
@@ -213,9 +214,9 @@ for diurnal_file in diurnal_files
     data = file["NDE_profile"]
     close(file)
 
-    loss = data["loss"] + data["loss_gradient"]
-    loss_mpp = data["loss_modified_pacanowski_philander"] + data["loss_modified_pacanowski_philander_gradient"]
-    loss_kpp = data["loss_kpp"] + data["loss_kpp_gradient"]
+    loss = T_loss(data["T_losses"])
+    loss_mpp = T_loss(data["T_losses_modified_pacanowski_philander"])
+    loss_kpp = T_loss(data["T_losses_kpp"])
 
     @show loss, loss_mpp, loss_kpp
 
@@ -238,8 +239,7 @@ loss_colors = Dict(
     "kpp" => color_palette[3],
 )
 
-rectangle_heating = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (-1e-8, -5e-4), (-1e-8, -2e-4)], color=("paleturquoise3", 0.5))
-rectangle_cooling = CairoMakie.poly!(ax, Point2f0[(3e-8, -2e-4), (3e-8, -5e-4), (1e-8, -5e-4), (1e-8, -2e-4)], color=("paleturquoise3", 0.5))
+rectangle = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (3e-8, -5e-4), (3e-8, -2e-4)], color=("paleturquoise3", 0.5))
 
 NDE_point = CairoMakie.scatter!(ax, [buoyancy_fluxes_training[1]], [momentum_fluxes_training[1]], color=loss_colors["NDE"])
 mpp_point = CairoMakie.scatter!(ax, [buoyancy_fluxes_training[1]], [momentum_fluxes_training[1]], color=loss_colors["mpp"])

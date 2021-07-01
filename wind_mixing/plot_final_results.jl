@@ -1,7 +1,8 @@
-using WindMixing: plot_LES_3D
 using Images, FileIO
 using ImageTransformations
 using CairoMakie
+using JLD2
+using WindMixing: plot_profiles_fluxes_final
 
 u_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\u.png"))))
 v_img = rotr90(load(assetpath(joinpath(pwd(), "images_plot\\v.png"))))
@@ -25,14 +26,17 @@ axis_images = (
     T_3D = T_3D_img,
 )
 
-# FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu5.5e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling"
-FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu0.0e+00_Qb5.0e-08_f1.0e-04_Nh256_Nz128_free_convection"
-# FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu7.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind"
+RESULTS_DIR = "C:\\Users\\xinle\\Documents\\OceanParameterizations.jl\\final_results"
+NDE_DIR = "18sim_old"
 
-frame = 289
-OUTPUT_PATH = "final_results\\LES_FC_$(frame).png"
+filename = "train_wind_-5e-4_heating_-3e-8_new"
 
-# file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
+file = jldopen(joinpath(RESULTS_DIR, NDE_DIR, filename, "profiles_fluxes_oceananigans.jld2"))
 
-# close(file)
-plot_LES_3D(frame, FILE_DIR, OUTPUT_PATH, axis_images, title="", colorscheme=:turbo, rev=false)
+plot_data = file["NDE_profile"]
+
+close(file)
+
+frame = 1009
+
+plot_profiles_fluxes_final(plot_data, frame, axis_images, "final_results\\profiles_fluxes_$(filename)_$(frame).png")

@@ -30,6 +30,8 @@ g = 9.80655f0
 α = 2f-4
 ∂T₀∂z_bottom = (T₀[end-1] - T₀[end]) / (Lz / Nz)
 
+frame = 1009
+
 times = 𝒟.t
 
 # constants_kpp = (f=f₀, α=α, g=g, Nz=Nz, H=Lz)
@@ -115,6 +117,7 @@ for i in 1:size(Ri_solution_pp, 2)
     Ri_solution_pp[:,i] = local_richardson_profile(u_solution_pp[:,i], v_solution_pp[:,i], T_solution_pp[:,i], g, α)
 end
 
+##
 # Get rid of ∞ and super large values.
 Ri_solution_pp = clamp.(Ri_solution_pp, -1, 2)
 
@@ -143,56 +146,54 @@ fps=60
 
 times_days = data["t"] ./ 86400
 
-frame = Node(1)
-
-time_point = @lift [times_days[$frame]]
+time_point = times_days[frame]
 
 u_data = [
-    data["truth_u"],
+    data["truth_u"][:, frame],
     # data["test_u_modified_pacanowski_philander"],
-    data["test_u_kpp"],
+    data["test_u_kpp"][:, frame],
     # data["test_u"],
-    u_solution_pp,
+    u_solution_pp[:, frame],
 ]
 
 v_data = [
-    data["truth_v"],
+    data["truth_v"][:, frame],
     # data["test_v_modified_pacanowski_philander"],
-    data["test_v_kpp"],
+    data["test_v_kpp"][:, frame],
     # data["test_v"],
-    v_solution_pp,
+    v_solution_pp[:, frame],
 ]
 
 T_data = [
-    data["truth_T"],
+    data["truth_T"][:, frame],
     # data["test_T_modified_pacanowski_philander"],
-    data["test_T_kpp"],
+    data["test_T_kpp"][:, frame],
     # data["test_T"],
-    T_solution_pp,
+    T_solution_pp[:, frame],
 ]
 
 uw_data = [
-    data["truth_uw"],
+    data["truth_uw"][:, frame],
     # data["test_uw_modified_pacanowski_philander"],
-    data["test_uw_kpp"],
+    data["test_uw_kpp"][:, frame],
     # data["test_uw"],
-    uw_solution_pp,
+    uw_solution_pp[:, frame],
 ]
 
 vw_data = [
-    data["truth_vw"],
+    data["truth_vw"][:, frame],
     # data["test_vw_modified_pacanowski_philander"],
-    data["test_vw_kpp"],
+    data["test_vw_kpp"][:, frame],
     # data["test_vw"],
-    vw_solution_pp,
+    vw_solution_pp[:, frame],
 ]
 
 wT_data = [
-    data["truth_wT"],
+    data["truth_wT"][:, frame],
     # data["test_wT_modified_pacanowski_philander"],
-    data["test_wT_kpp"],
+    data["test_wT_kpp"][:, frame],
     # data["test_wT"],
-    wT_solution_pp,
+    wT_solution_pp[:, frame],
 ]
 
 uw_data .*= 1f4
@@ -200,24 +201,12 @@ vw_data .*= 1f4
 wT_data .*= 1f5
 
 Ri_data = [
-    clamp.(data["truth_Ri"], -1, 2),
+    clamp.(data["truth_Ri"][:, frame], -1, 2),
     # clamp.(data["test_Ri_modified_pacanowski_philander"], -1, 2),
-    clamp.(data["test_Ri_kpp"], -1, 2),
+    clamp.(data["test_Ri_kpp"][:, frame], -1, 2),
     # clamp.(data["test_Ri"], -1, 2),
-    Ri_solution_pp
+    Ri_solution_pp[:, frame]
 ]
-
-u_frames = [@lift data[:,$frame] for data in u_data]
-v_frames = [@lift data[:,$frame] for data in v_data]
-T_frames = [@lift data[:,$frame] for data in T_data]
-
-uw_frames = [@lift data[:,$frame] for data in uw_data]
-vw_frames = [@lift data[:,$frame] for data in vw_data]
-wT_frames = [@lift data[:,$frame] for data in wT_data]
-
-Ri_frames = [@lift data[:,$frame] for data in Ri_data]
-
-# losses_point_frames = [@lift [data[$frame]] for data in losses_data]
 
 @inline function find_lims(datasets)
     return maximum(maximum.(datasets)), minimum(minimum.(datasets))
@@ -241,15 +230,15 @@ Riᶜ = train_parameters.Riᶜ
 Pr = train_parameters.Pr
 loss_scalings = train_parameters.loss_scalings
 
-BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Temperature Flux = %.1e m s⁻¹ °C" data["truth_uw"][end, 1] maximum(data["truth_wT"][end, :])
+# BC_str = @sprintf "Momentum Flux = %.1e m² s⁻², Temperature Flux = %.1e m s⁻¹ °C" data["truth_uw"][end, 1] maximum(data["truth_wT"][end, :])
 
-plot_title = @lift "Traditional Parameterisations: $BC_str, Time = $(round(times_days[$frame], digits=2)) days"
+# plot_title = @lift "Traditional Parameterisations: $BC_str, Time = $(round(times_days[$frame], digits=2)) days"
 
 # fig = Figure(resolution=(1920, 1080))
 fig = Figure(resolution=(1920, 960))
 
 # colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
-colors = distinguishable_colors(length(uw_data), [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
+colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
 u_img = axis_images.u
 v_img = axis_images.v
@@ -365,12 +354,12 @@ alpha=0.5
 truth_linewidth = 7
 linewidth = 3
 
-CairoMakie.xlims!(ax_u, u_min, u_max)
-CairoMakie.xlims!(ax_v, v_min, v_max)
-CairoMakie.xlims!(ax_T, T_min, T_max)
-CairoMakie.xlims!(ax_uw, uw_min, uw_max)
-CairoMakie.xlims!(ax_vw, vw_min, vw_max)
-CairoMakie.xlims!(ax_wT, wT_min, wT_max)
+# CairoMakie.xlims!(ax_u, u_min, u_max)
+# CairoMakie.xlims!(ax_v, v_min, v_max)
+# CairoMakie.xlims!(ax_T, T_min, T_max)
+# CairoMakie.xlims!(ax_uw, uw_min, uw_max)
+# CairoMakie.xlims!(ax_vw, vw_min, vw_max)
+# CairoMakie.xlims!(ax_wT, wT_min, wT_max)
 CairoMakie.xlims!(ax_Ri, -1, 2)
 # CairoMakie.xlims!(ax_losses, times[1], times[end])
 
@@ -384,58 +373,47 @@ CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
 # CairoMakie.ylims!(ax_losses, losses_min, losses_max)
 
 u_lines = [
-     lines!(ax_u, u_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_u, u_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(u_data)]
+     lines!(ax_u, u_data[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_u, u_data[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(u_data)]
 ]
 
 v_lines = [
-     lines!(ax_v, v_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_v, v_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(v_data)]
+     lines!(ax_v, v_data[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_v, v_data[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(v_data)]
 ]
 
 T_lines = [
-     lines!(ax_T, T_frames[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_T, T_frames[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(T_data)]
+    lines!(ax_T, data["truth_T"][:, 1], zc, linewidth=linewidth, color=colors[end], linestyle=:dot)
+     lines!(ax_T, T_data[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_T, T_data[i], zc, linewidth=linewidth, color=colors[i]) for i in 2:length(T_data)]
 ]
 
 uw_lines = [
-     lines!(ax_uw, uw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_uw, uw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(uw_data)]
+     lines!(ax_uw, uw_data[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_uw, uw_data[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(uw_data)]
 ]
 
 vw_lines = [
-     lines!(ax_vw, vw_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_vw, vw_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(vw_data)]
+     lines!(ax_vw, vw_data[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_vw, vw_data[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(vw_data)]
 ]
 
 wT_lines = [
-    lines!(ax_wT, wT_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-   [lines!(ax_wT, wT_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(wT_data)]
+    lines!(ax_wT, wT_data[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+   [lines!(ax_wT, wT_data[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(wT_data)]
 ]
 
 Ri_lines = [
-     lines!(ax_Ri, Ri_frames[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
-    [lines!(ax_Ri, Ri_frames[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
+     lines!(ax_Ri, Ri_data[1], zf, linewidth=truth_linewidth, color=(colors[1], alpha));
+    [lines!(ax_Ri, Ri_data[i], zf, linewidth=linewidth, color=colors[i]) for i in 2:length(Ri_data)]
 ]
 
-axislegend(ax_T, T_lines, ["Oceananigans.jl Large Eddy Simulation", "K-Profile Parameterisation", "Pacanowski-Philander Model"], "Data Type", position = :rb)
+axislegend(ax_T, T_lines, ["Initial Stratification", "Oceananigans.jl Large Eddy Simulation", "K-Profile Parameterisation", "Pacanowski-Philander Model"], "Data Type", position = :rb)
 
 
-supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
+# supertitle = fig[0, :] = Label(fig, plot_title, textsize=25)
 
 trim!(fig.layout)
+fig
 
-print_frame = maximum([1, Int(floor(length(times)/20))])
-
-function print_progress(n, n_total, print_frame, type)
-    if n % print_frame == 0
-        @info "Animating $(type) frame $n/$n_total"
-    end
-end
-
-@info "Starting Animation"
-
-CairoMakie.record(fig, "$FILE_PATH.mp4", 1:length(times_days), framerate=fps, compression=1) do n
-    print_progress(n, length(times_days), print_frame, "mp4")
-    frame[] = n
-end
+save("final_results/kpp_pp_comparison.png", fig, px_per_unit=4)
