@@ -40,12 +40,25 @@ function parse_command_line_arguments()
             default = "Tsit5"
             arg_type = String
 
-        "--name"
-            help = "Experiment name (also determines name of output directory)."
-            default = "testing_free_conection_nde"
+        "--output-directory"
+            help = "Output directory filepath."
+            default = joinpath(@__DIR__, "testing")
             arg_type = String
 
-        "--epochs"
+        "--training-simulations"
+            help = "Simulation IDs (list of integers separated by spaces) to train the neural differential equation on." *
+                   "All other simulations will be used for testing/validation."
+            action = :append_arg
+            nargs = '+'
+            arg_type = Int
+            range_tester = (id -> id in FreeConvection.SIMULATION_IDS)
+
+        "--burn-in-epochs"
+            help = "Number of epochs to train on the partial time series."
+            default = 0
+            arg_type = Int
+
+        "--training-epochs"
             help = "Number of epochs per optimizer to train on the full time series."
             default = 10
             arg_type = Int
@@ -60,13 +73,9 @@ function parse_command_line_arguments()
             default = ""
             arg_type = String
 
-        "--training-simulations"
-            help = "Simulation IDs (list of integers separated by spaces) to train the neural differential equation on." *
-                   "All other simulations will be used for testing/validation."
-            action = :append_arg
-            nargs = '+'
-            arg_type = Int
-            range_tester = (id -> id in FreeConvection.SIMULATION_IDS)
+        "--animate-training-data"
+            help = "Produce gif and mp4 animations of each training simulation's data."
+            action = :store_true
     end
 
     return parse_args(settings)
@@ -85,8 +94,9 @@ nde_type = Dict(
 Nz = args["grid-points"]
 NDEType = nde_type[args["base-parameterization"]]
 algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
-experiment_name = args["name"]
-full_epochs = args["epochs"]
+
+burn_in_epochs = args["burn-in-epochs"]
+full_epochs = args["training-epochs"]
 
 conv = args["conv"]
 spatial_causality = args["spatial_causality"]
@@ -95,13 +105,14 @@ ids_train = args["training-simulations"][1]
 ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
 validate_simulation_ids(ids_train, ids_test)
 
-output_dir = joinpath(@__DIR__, experiment_name)
+output_dir = args["output-directory"]
 mkpath(output_dir)
 
+animate_training_simulations = args["animate-training-data"]
 
 @info "Planting loggers..."
 
-log_filepath = joinpath(output_dir, "$(experiment_name)_training.log")
+log_filepath = joinpath(output_dir, "training.log")
 TeeLogger(
     OceananigansLogger(),
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
@@ -138,13 +149,14 @@ data = load_data(ids_train, ids_test, Nz)
 training_datasets = data.training_datasets
 coarse_training_datasets = data.coarse_training_datasets
 
+if animate_training_simulations
+    @info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
 
-@info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
-
-for id in keys(training_datasets)
-    filepath = joinpath(output_dir, "free_convection_training_data_$id")
-    if !isfile(filepath * ".mp4") || !isfile(filepath * ".gif")
-        animate_training_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
+    for id in keys(training_datasets)
+        filepath = joinpath(output_dir, "free_convection_training_data_$id")
+        if !isfile(filepath * ".mp4") || !isfile(filepath * ".gif")
+            animate_training_data(training_datasets[id], coarse_training_datasets[id]; filepath, frameskip=5)
+        end
     end
 end
 
@@ -182,7 +194,7 @@ n_batches = ceil(Int, n_obs / batch_size)
 @info "Training data loader contains $n_obs pairs of observations (batch size = $batch_size)."
 
 
-@info "Training neural network on fluxes: ⟨T⟩(z) -> ⟨w'T⟩(z) mapping..."
+@info "Training neural network on fluxes: ⟨T⟩(z) -> ⟨w′T′⟩(z) mapping..."
 
 causal_penalty = nothing
 
@@ -219,17 +231,6 @@ for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
 end
 
 
-@info "Animating what the neural network has learned so far (T -> wT mapping)..."
-
-for (id, ds) in coarse_training_datasets
-    filepath = joinpath(output_dir, "learned_free_convection_initial_guess_$id")
-    if !isfile(filepath * ".mp4") || !isfile(filepath * ".gif")
-        animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-                                        filepath=filepath, frameskip=5)
-    end
-end
-
-
 @info "Saving initial neural network weights to disk..."
 
 initial_nn_filepath = joinpath(output_dir, "free_convection_initial_neural_network.jld2")
@@ -246,16 +247,16 @@ end
 
 nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
 
-training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
-training_epochs     = (10,   10,      10,       10,       10)
-opt = ADAM()
+if burn_in_epochs > 0
+    training_iterations = (1:20, 1:5:101, 1:10:201, 1:20:401, 1:40:801)
+    opt = ADAM()
 
-for (iterations, epochs) in zip(training_iterations, training_epochs)
-    @info "Training free convection NDE with iterations=$iterations for $epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
-                                        iterations, opt, epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
+    for iterations in training_iterations
+        @info "Training free convection NDE with iterations=$iterations for $burn_in_epochs epochs  with $(typeof(opt))(η=$(opt.eta))..."
+        train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
+                                            iterations, opt, burn_in_epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
+    end
 end
-
 
 @info "Training the neural differential equation on the entire solution while decreasing the learning rate..."
 
@@ -269,11 +270,11 @@ for opt in optimizers
 end
 
 
-@info "Saving final neural network weights to disk..."
+@info "Saving trained neural network weights to disk..."
 
-final_nn_filepath = joinpath(output_dir, "free_convection_final_neural_network.jld2")
+trained_nn_filepath = joinpath(output_dir, "free_convection_trained_neural_network.jld2")
 
-jldopen(final_nn_filepath, "w") do file
+jldopen(trained_nn_filepath, "w") do file
     file["grid_points"] = Nz
     file["neural_network"] = NN
     file["T_scaling"] = T_scaling
