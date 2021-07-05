@@ -2,6 +2,7 @@ using Logging
 using Printf
 using Random
 using Statistics
+using LinearAlgebra
 
 using ArgParse
 using LoggingExtras
@@ -17,6 +18,8 @@ using FreeConvection
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
+
+LinearAlgebra.BLAS.set_num_threads(1)
 
 function parse_command_line_arguments()
     settings = ArgParseSettings()
