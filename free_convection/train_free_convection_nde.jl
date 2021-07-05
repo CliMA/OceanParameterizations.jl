@@ -260,7 +260,7 @@ end
 @info "Training the neural differential equation on the entire solution while decreasing the learning rate..."
 
 burn_in_iterations = 1:9:1153
-optimizers = [ADAM(1e-3), ADAM(5e-4)]
+optimizers = [ADAM(1e-3)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
