@@ -29,19 +29,27 @@ function validate_simulation_ids(ids_train, ids_test)
     return nothing
 end
 
-function load_data(ids_train, ids_test, Nz)
+function load_data(ids_train, ids_test, Nz; convective_adjustment_K)
 
     @info "Constructing FieldTimeSeries..."
 
+    grid_1d = RegularRectilinearGrid(topology=(Flat, Flat, Bounded), size=128, extent=256, halo=3)
+
     datasets = Dict{Int, FieldDataset}(
-        id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; ArrayType=Array{Float32}, metadata_paths=["parameters"])
+        id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; grid=grid_1d, ArrayType=Array{Float32}, metadata_paths=["parameters"])
         for id in SIMULATION_IDS
     )
 
     @info "Injecting surface fluxes..."
 
-    for id in SIMULATION_IDS
-        add_surface_fluxes!(datasets[id])
+    for ds in values(datasets)
+        add_surface_fluxes!(ds)
+    end
+
+    @info "Diagnosing convective adjustment fluxes..."
+
+    for ds in values(datasets)
+        add_convective_adjustment_flux!(ds, convective_adjustment_K)
     end
 
     @info "Coarsening grid..."

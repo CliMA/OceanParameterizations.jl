@@ -111,7 +111,7 @@ mkpath(output_dir)
 animate_training_simulations = args["animate-training-data"]
 
 # Save command line arguments used to an executable shell script
-open(joinpath(data_directory, "run_three_layer_constant_fluxes.sh"), "w") do io
+open(joinpath(output_dir, "run_three_layer_constant_fluxes.sh"), "w") do io
     write(io, "#!/bin/sh\n")
     write(io, "julia " * basename(@__FILE__) * " " * join(ARGS, " ") * "\n")
 end
@@ -150,7 +150,7 @@ end
 
 @info "Loading training data..."
 
-data = load_data(ids_train, ids_test, Nz)
+data = load_data(ids_train, ids_test, Nz, convective_adjustment_K=10)
 
 training_datasets = data.training_datasets
 coarse_training_datasets = data.coarse_training_datasets

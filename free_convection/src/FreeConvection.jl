@@ -2,7 +2,7 @@ module FreeConvection
 
 export
     # Utils
-    coarse_grain, add_surface_fluxes!,
+    coarse_grain, add_surface_fluxes!, add_convective_adjustment_flux!,
 
     # Animations
     animate_training_data, animate_learned_free_convection,
@@ -44,8 +44,20 @@ using Oceananigans.Units
 using Oceananigans: OceananigansLogger, Center, Face
 using Oceananigans.Utils: prettytime
 
+using LinearAlgebra: Tridiagonal
+
+using Oceananigans:
+    CPU, RegularRectilinearGrid, CenterField, ZFaceField, ComputedField, set!, compute!, interior,
+    FluxBoundaryCondition, GradientBoundaryCondition, TracerBoundaryConditions, fill_halo_regions!,
+    Forcing, IncompressibleModel, Simulation, run!
+
+using Oceananigans.Grids: Periodic, Bounded
+using Oceananigans.OutputWriters: NetCDFOutputWriter, TimeInterval
+using Oceananigans.AbstractOperations: @at, ∂z
+
 include("coarse_grain.jl")
 include("add_surface_fluxes.jl")
+include("convective_adjustment_flux.jl")
 include("animations.jl")
 include("training_data.jl")
 include("free_convection_nde.jl")

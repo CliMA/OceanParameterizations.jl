@@ -1,15 +1,3 @@
-using LinearAlgebra: Tridiagonal
-
-using Oceananigans:
-    CPU, RegularRectilinearGrid, ZFaceField, ComputedField, set!, compute!, interior,
-    FluxBoundaryCondition, GradientBoundaryCondition, TracerBoundaryConditions, fill_halo_regions!,
-    Forcing, IncompressibleModel, Simulation, run!
-
-using Oceananigans.Grids: Periodic, Bounded
-using Oceananigans.OutputWriters: NetCDFOutputWriter, TimeInterval
-using Oceananigans.AbstractOperations: @at, ∂z
-
-
 function convective_adjustment!(model, Δt, K)
     Nz, Δz = model.grid.Nz, model.grid.Δz
     T = model.tracers.T
