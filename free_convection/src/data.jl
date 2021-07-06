@@ -46,12 +46,6 @@ function load_data(ids_train, ids_test, Nz; convective_adjustment_K)
         add_surface_fluxes!(ds)
     end
 
-    @info "Diagnosing convective adjustment fluxes..."
-
-    for ds in values(datasets)
-        add_convective_adjustment_flux!(ds, convective_adjustment_K)
-    end
-
     @info "Coarsening grid..."
 
     les_grid = datasets[1]["T"].grid
