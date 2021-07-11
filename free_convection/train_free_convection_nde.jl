@@ -150,10 +150,29 @@ end
 
 @info "Loading training data..."
 
-data = load_data(ids_train, ids_test, Nz, convective_adjustment_K=10)
+data = load_data(ids_train, ids_test, Nz)
 
 training_datasets = data.training_datasets
 coarse_training_datasets = data.coarse_training_datasets
+
+
+@info "Computing convective adjustment solutions and fluxes (and missing fluxes)..."
+
+for (id, ds) in coarse_training_datasets
+    sol = oceananigans_convective_adjustment(ds; output_dir)
+
+    grid = ds["T"].grid
+    times = ds["T"].times
+
+    ds.fields["T_param"] = FieldTimeSeries(grid, (Center, Center, Center), times, ArrayType=Array{Float32})
+    ds.fields["wT_param"] = FieldTimeSeries(grid, (Center, Center, Face), times, ArrayType=Array{Float32})
+    ds.fields["wT_missing"] = FieldTimeSeries(grid, (Center, Center, Face), times, ArrayType=Array{Float32})
+
+    ds.fields["T_param"][1, 1, :, :] .= sol.T
+    ds.fields["wT_param"][1, 1, :, :] .= sol.wT
+    ds.fields["wT_missing"].data[1, 1, :, :] .= ds.fields["wT"].data[1, 1, :, :] .- ds.fields["wT_param"].data[1, 1, :, :]
+end
+
 
 if animate_training_simulations
     @info "Animating ⟨T⟩(z,t) and ⟨w'T⟩(z,t) training data..."
@@ -165,7 +184,6 @@ if animate_training_simulations
         end
     end
 end
-
 
 @info "Wrangling (T, wT) training data..."
 
