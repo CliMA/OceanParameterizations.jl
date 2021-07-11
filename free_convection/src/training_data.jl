@@ -12,7 +12,7 @@ end
 rescale(old, T_scaling, wT_scaling) =
     FreeConvectionTrainingDataInput(T_scaling.(old.temperature), wT_scaling(old.bottom_flux), wT_scaling(old.top_flux))
 
-function wrangle_input_training_data(datasets; use_missing_fluxes)
+function wrangle_input_training_data(datasets; use_missing_fluxes, time_range_skip=0)
     data = []
 
     for (id, ds) in datasets
@@ -29,7 +29,7 @@ function wrangle_input_training_data(datasets; use_missing_fluxes)
                 interior(wT)[1, 1, 1, n],
                 interior(wT)[1, 1, Nz+1, n]
             )
-            for n in 1:Nt
+            for n in 1+time_range_skip:Nt
         ]
 
         push!(data, data_id)
@@ -38,13 +38,19 @@ function wrangle_input_training_data(datasets; use_missing_fluxes)
     return cat(data..., dims=1)
 end
 
-function wrangle_output_training_data(datasets; use_missing_fluxes)
+function wrangle_output_training_data(datasets; use_missing_fluxes, time_range_skip=0)
 
     data = []
 
     for (id, ds) in datasets
+        T = ds["T"]
+        Nt = size(T, 4)
+
         wT = use_missing_fluxes ? ds["wT_missing"] : ds["wT"]
-        push!(data, interior(wT)[1, 1, :, :])
+
+        data_id = interior(wT)[1, 1, :, 1+time_range_skip:Nt]
+
+        push!(data, data_id)
     end
 
     return cat(data..., dims=2)

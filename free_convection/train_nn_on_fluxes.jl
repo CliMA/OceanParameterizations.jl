@@ -152,8 +152,8 @@ end
 
 @info "Wrangling (T, wT) training data..."
 
-input_training_data = wrangle_input_training_data(coarse_training_datasets; use_missing_fluxes)
-output_training_data = wrangle_output_training_data(coarse_training_datasets; use_missing_fluxes)
+input_training_data = wrangle_input_training_data(coarse_training_datasets, use_missing_fluxes=use_missing_fluxes, time_range_skip=1)
+output_training_data = wrangle_output_training_data(coarse_training_datasets; use_missing_fluxes, time_range_skip=1)
 
 
 @info "Scaling features..."
@@ -190,9 +190,15 @@ nn_loss(input, output) = Flux.mse(free_convection_neural_network(input), output)
 nn_training_set_loss(training_data) = mean(nn_loss(input, output) for (input, output) in training_data)
 
 function nn_callback()
-    μ_loss = nn_training_set_loss(training_data)
-    @info @sprintf("Training free convection neural network... training set MSE loss: μ_loss::%s = %.10e", typeof(μ_loss), μ_loss)
-    return μ_loss
+    losses = [nn_loss(input, output) for (input, output) in training_data]
+
+    mean_loss = mean(losses)
+    median_loss = median(losses)
+
+    @info @sprintf("Training free convection neural network... training set MSE loss: mean_loss::%s = %.10e, median_loss = %.10e",
+                   typeof(mean_loss), mean_loss, median_loss)
+
+    return mean_loss
 end
 
 optimizers = [ADAM(1e-4)]
