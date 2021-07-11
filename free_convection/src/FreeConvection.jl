@@ -14,7 +14,8 @@ export
     FreeConvectionNDE, ConvectiveAdjustmentNDE, FreeConvectionNDEParameters, train_neural_differential_equation!, solve_nde,
 
     # Testing and comparisons
-    oceananigans_convective_adjustment_nn, free_convection_kpp, free_convection_tke_mass_flux, optimize_kpp_parameters,
+    oceananigans_convective_adjustment, oceananigans_convective_adjustment_with_neural_network,
+    free_convection_kpp, free_convection_tke_mass_flux, optimize_kpp_parameters,
 
     # Testing
     compute_nde_solution_history,

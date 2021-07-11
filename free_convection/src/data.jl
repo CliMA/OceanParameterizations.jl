@@ -29,7 +29,7 @@ function validate_simulation_ids(ids_train, ids_test)
     return nothing
 end
 
-function load_data(ids_train, ids_test, Nz; convective_adjustment_K)
+function load_data(ids_train, ids_test, Nz)
 
     @info "Constructing FieldTimeSeries..."
 
