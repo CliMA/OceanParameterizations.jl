@@ -1,5 +1,8 @@
 using Oceananigans: znodes
 
+import StatsBase: percentile
+import Plots
+
 """
     animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15)
 
@@ -9,7 +12,7 @@ A `.gif` and `.mp4` will be saved. `frameskip` > 1 can be used to skip some fram
 to produce the animation more quickly. The output animation will use `fps` frames
 per second.
 """
-function animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15)
+function animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15, convective_adjustment=true)
     T = ds["T"]
     wT = ds["wT"]
     zc = znodes(T)
@@ -26,7 +29,16 @@ function animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15)
               foreground_color_legend=nothing, background_color_legend=nothing)
 
     T_lims = interior(T) |> extrema
-    wT_lims = interior(wT) |> extrema
+
+    if convective_adjustment
+        wT_les_vals = interior(wT)[:]
+        wT_param_vals = interior(ds_coarse["wT_param"])[:]
+        wT_missing_vals = interior(ds_coarse["wT_missing"])[:]
+        wT_all_vals = vcat(wT_les_vals, wT_param_vals, wT_missing_vals)
+        wT_lims = (percentile(wT_all_vals, 1), percentile(wT_all_vals, 99))
+    else
+        wT_lims = interior(wT) |> extrema
+    end
 
     anim = @animate for n=1:frameskip:length(times)
         @info "Plotting free convection data [frame $n/$(length(times))]: $filepath..."
@@ -36,20 +48,32 @@ function animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15)
         wT_profile = interior(wT)[1, 1, :, n]
         wT_coarse_profile = interior(wT_coarse)[1, 1, :, n]
 
-        wT_plot = plot()
-        plot!(wT_plot, wT_profile, zf, label="LES (Nz=$(length(zf)))", xlabel="Heat flux wT (m/s °C)",
-              xlims=wT_lims, ylabel="Depth z (meters)", title="Free convection: $time_str"; kwargs...)
-        plot!(wT_plot, wT_coarse_profile, z̄f, label="coarse (Nz=$(length(z̄f)))"; kwargs...)
+        wT_plot = Plots.plot()
+        Plots.plot!(wT_plot, wT_profile, zf, label="LES (Nz=$(length(zf)))", xlabel="Heat flux wT (m/s °C)",
+                    xlims=wT_lims, ylabel="Depth z (meters)", title="Free convection: $time_str"; kwargs...)
+        Plots.plot!(wT_plot, wT_coarse_profile, z̄f, label="coarse (Nz=$(length(z̄f)))"; kwargs...)
+
+        if convective_adjustment
+            wT_ca = interior(ds_coarse["wT_param"])[1, 1, :, n]
+            wT_missing = interior(ds_coarse["wT_missing"])[1, 1, :, n]
+            Plots.plot!(wT_plot, wT_ca, z̄f, label="convective adjustment"; kwargs...)
+            Plots.plot!(wT_plot, wT_missing, z̄f, label="missing"; kwargs...)
+        end
 
         T_profile = interior(T)[1, 1, :, n]
         T_coarse_profile = interior(T_coarse)[1, 1, :, n]
 
-        T_plot = plot()
-        plot!(T_plot, T_profile, zc, label="LES (Nz=$(length(zc)))", xlabel="Temperature T (°C)",
-              xlims=T_lims; kwargs...)
-        plot!(T_plot, T_coarse_profile, z̄c, label="coarse (Nz=$(length(z̄c)))"; kwargs...)
+        T_plot = Plots.plot()
+        Plots.plot!(T_plot, T_profile, zc, label="LES (Nz=$(length(zc)))", xlabel="Temperature T (°C)",
+                    xlims=T_lims; kwargs...)
+        Plots.plot!(T_plot, T_coarse_profile, z̄c, label="coarse (Nz=$(length(z̄c)))"; kwargs...)
 
-        plot(wT_plot, T_plot, dpi=200)
+        if convective_adjustment
+            T_ca = interior(ds_coarse["T_param"])[1, 1, :, n]
+            Plots.plot!(T_plot, T_ca, z̄c, label="convective adjustment"; kwargs...)
+        end
+
+        Plots.plot(wT_plot, T_plot, dpi=200)
     end
 
     @info "Saving $filepath..."
