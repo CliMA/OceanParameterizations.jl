@@ -147,6 +147,18 @@ end
 
 function oceananigans_convective_adjustment_with_neural_network(ds; output_dir, nn_filepath, Δt=600)
 
+    T = ds["T"]
+    wT = ds["wT"]
+    Nz = size(T, 3)
+    zc = znodes(T)
+    zf = znodes(wT)
+    Lz = abs(zf[1])
+    stop_time = T.times[end]
+    heat_flux = ds.metadata["temperature_flux"]
+
+    topo = (Periodic, Periodic, Bounded)
+    grid = RegularRectilinearGrid(topology=topo, size=(1, 1, Nz), extent=(1, 1, Lz))
+
     ## Neural network forcing
 
     final_nn = jldopen(nn_filepath, "r")
@@ -227,35 +239,34 @@ function oceananigans_convective_adjustment_with_neural_network(ds; output_dir, 
         return nothing
     end
 
-
-    simulation_neural_network = Simulation(model_neural_network, Δt=Δt, iteration_interval=1,
-                                           stop_time=stop_time, progress=progress_neural_network)
+    simulation = Simulation(model, Δt=Δt, iteration_interval=1,
+                            stop_time=stop_time, progress=progress_neural_network)
 
     ## Output writing
 
     filepath_NN = joinpath(output_dir, "oceananigans_neural_network.nc")
-    outputs_NN = (T  = model_neural_network.tracers.T,
+    outputs_NN = (T  = model.tracers.T,
                   wT = diagnose_wT_NN)
 
-    simulation_neural_network.output_writers[:solution] =
-        NetCDFOutputWriter(model_neural_network, outputs_NN,
+    simulation.output_writers[:solution] =
+        NetCDFOutputWriter(model, outputs_NN,
                            schedule = TimeInterval(Δt),
                            filepath = filepath_NN,
                            mode = "c",
                            dimensions = (wT=("zF",),))
 
     @info "Running convective adjustment simulation + neural network..."
-    run!(simulation_neural_network)
+    run!(simulation)
 
     ds_nn = NCDataset(filepath_NN)
 
     T_nn = dropdims(Array(ds_nn["T"]), dims=(1, 2))
     wT_nn = Array(ds_nn["wT"])
 
-    close(ds_nn) && rm(filepath_NN)
+    close(ds_nn)
+    rm(filepath_NN)
 
-    convective_adjustment_solution = (T=T_ca, wT=nothing)
     neural_network_solution = (T=T_nn, wT=wT_nn)
 
-    return convective_adjustment_solution, neural_network_solution
+    return neural_network_solution
 end
