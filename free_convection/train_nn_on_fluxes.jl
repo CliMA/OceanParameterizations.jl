@@ -16,6 +16,8 @@ using Oceananigans
 using OceanParameterizations
 using FreeConvection
 
+using FreeConvection: inscribe_history
+
 ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
 
@@ -198,14 +200,18 @@ function nn_callback()
     @info @sprintf("Training free convection neural network... training set MSE loss: mean_loss::%s = %.10e, median_loss = %.10e",
                    typeof(mean_loss), mean_loss, median_loss)
 
-    return mean_loss
+    return mean_loss, median_loss
 end
 
 optimizers = [ADAM(1e-4)]
+history_filepath = "neural_network_trained_on_fluxes_history.jld2"
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
     @info "Training heat flux neural network with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"
     Flux.train!(nn_loss, Flux.params(NN), mini_batch, opt, cb=Flux.throttle(nn_callback, 5))
+
+    mean_loss, median_loss = nn_callback()
+    inscribe_history(history_filepath, NN, median_loss)
 end
 
 

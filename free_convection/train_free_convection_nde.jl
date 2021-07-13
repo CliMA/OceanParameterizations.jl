@@ -105,16 +105,17 @@ ids_train = args["training-simulations"][1]
 ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
 validate_simulation_ids(ids_train, ids_test)
 
+animate_training_simulations = args["animate-training-data"]
+
 output_dir = args["output-directory"]
 mkpath(output_dir)
-
-animate_training_simulations = args["animate-training-data"]
 
 # Save command line arguments used to an executable shell script
 open(joinpath(output_dir, "train_free_convection_nde.sh"), "w") do io
     write(io, "#!/bin/sh\n")
     write(io, "julia " * basename(@__FILE__) * " " * join(ARGS, " ") * "\n")
 end
+
 
 @info "Planting loggers..."
 
