@@ -1,5 +1,6 @@
 using Printf
 using Logging
+using LinearAlgebra
 
 using ArgParse
 using LoggingExtras
@@ -12,7 +13,10 @@ using Oceananigans
 using OceanParameterizations
 using FreeConvection
 
+ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 ENV["GKSwstype"] = "100"
+
+LinearAlgebra.BLAS.set_num_threads(1)
 
 function parse_command_line_arguments()
     settings = ArgParseSettings()
@@ -53,6 +57,10 @@ function parse_command_line_arguments()
         "--animate-nde-solution"
             help = "Produce gif and mp4 animations showing the NDE solution for each simulation."
             action = :store_true
+
+        "--plot-les-flux-fraction"
+            help = "Produce plot of the LES diffusive flux fraction."
+            action = :store_true
     end
 
     return parse_args(settings)
@@ -78,6 +86,7 @@ validate_simulation_ids(ids_train, ids_test)
 
 animate_comparisons = args["animate-comparisons"]
 animate_nde_solution = args["animate-nde-solution"]
+plot_les_flux_fraction = args["plot-les-flux-fraction"]
 
 output_dir = args["output-directory"]
 mkpath(output_dir)
@@ -95,6 +104,8 @@ TeeLogger(
 @info "Loading training data..."
 
 data = load_data(ids_train, ids_test, Nz)
+
+datasets = data.datasets
 coarse_datasets = data.coarse_datasets
 
 
@@ -129,14 +140,21 @@ end
 
 @info "Gathering and computing solutions..."
 
-true_solutions = Dict(id => (T=interior(ds["T"])[1, 1, :, :], wT=interior(ds["wT"])[1, 1, :, :]) for (id, ds) in coarse_datasets)
-nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
-kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
-tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
-initial_nde_solutions = Dict(id => solve_nde(ds, initial_NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
+solutions_filepath = joinpath(output_dir, "solutions_and_history.jld2")
 
-convective_adjustment_solutions = Dict(id => oceananigans_convective_adjustment(ds; output_dir) for (id, ds) in coarse_datasets)
-oceananigans_solutions = Dict(id => oceananigans_convective_adjustment_with_neural_network(ds, output_dir=output_dir, nn_filepath=final_nn_filepath) for (id, ds) in coarse_datasets)
+if isfile(solutions_filepath)
+    @info "Loading solutions from $solutions_filepath..."
+    @error "Load the data from the JLD2 file!"
+else
+    true_solutions = Dict(id => (T=interior(ds["T"])[1, 1, :, :], wT=interior(ds["wT"])[1, 1, :, :]) for (id, ds) in coarse_datasets)
+    nde_solutions = Dict(id => solve_nde(ds, NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
+    kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datasets)
+    tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
+    initial_nde_solutions = Dict(id => solve_nde(ds, initial_NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
+
+    convective_adjustment_solutions = Dict(id => oceananigans_convective_adjustment(ds; output_dir) for (id, ds) in coarse_datasets)
+    oceananigans_solutions = Dict(id => oceananigans_convective_adjustment_with_neural_network(ds, output_dir=output_dir, nn_filepath=final_nn_filepath) for (id, ds) in coarse_datasets)
+end
 
 
 @info "Plotting loss matrix..."
@@ -174,15 +192,12 @@ end
 
 @info "Computing NDE solution history..."
 
-nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
-
-nde_history_filepath = joinpath(output_dir, "free_convection_nde_history.jld2")
-
-jldopen(nde_history_filepath, "w") do file
-    file["nde_solution_history"] = nde_solution_history
+if isfile(solutions_filepath)
+    @info "Loading NDE solution history from $solutions_filepath..."
+    @error "Load the data from the JLD2 file!"
+else
+    nde_solution_history = compute_nde_solution_history(coarse_datasets, NDEType, algorithm, final_nn_filepath, nn_history_filepath)
 end
-
-close(file)
 
 
 @info "Plotting loss(epoch)..."
@@ -199,28 +214,51 @@ plot_epoch_loss_summary_filled_curves(
 )
 
 
-@info "Plotting loss(time; epoch)..."
+# @info "Plotting loss(time; epoch)..."
 
-animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
-                 title = "Free convection loss history",
-                 filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
+# animate_nde_loss(coarse_datasets, ids_train, ids_test, nde_solution_history, true_solutions, T_scaling,
+#                  title = "Free convection loss history",
+#                  filepath = joinpath(output_dir, "free_convection_nde_loss_evolution"))
 
-#=
-@info "Comparing advective fluxes ⟨w'T'⟩ with LES diffusive flux ⟨κₑ∂zT⟩..."
 
-# t = coarse_datasets[1]["T"].times ./ 86400
-# p = plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |w'T'| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
-#          legend=:outertopright, foreground_color_legend=nothing, background_color_legend=nothing, dpi=200)
+if plot_les_flux_fraction
+    @info "Comparing advective fluxes ⟨w'T'⟩ with LES diffusive flux ⟨κₑ∂zT⟩..."
 
-# for (id, ds) in coarse_datasets
-#     advective_heat_flux = sum(ds[:wT].data .|> abs, dims=1)[:]
-#     diffusive_heat_flux = sum(ds[:κₑ_∂z_T].data .|> abs, dims=1)[:]
-#     total_heat_flux = advective_heat_flux .+ diffusive_heat_flux
-#     label = @sprintf("%d W/m²", -ds.metadata[:heat_flux_Wm⁻²])
-#     plot!(p, t, diffusive_heat_flux ./ total_heat_flux, linewidth=2, label=label)
-# end
+    import Plots
 
-# savefig(joinpath(output_dir, "les_flux_contribution.png"))
-=#
+    t = coarse_datasets[1]["T"].times ./ 86400
+    p = Plots.plot(xlabel="Time (days)", ylabel="|κₑ∂zT| / ( |w'T'| + |κₑ∂zT| )", xlims=extrema(t), grid=false, framestyle=:box,
+                   legend=:outertopright, foreground_color_legend=nothing, background_color_legend=nothing, dpi=200)
 
-# TODO: Save solutions to disk.
+    for id in FreeConvection.SIMULATION_IDS
+        ds = datasets[id]
+        advective_heat_flux = sum(ds["wT"].data[1, 1, :, :] .|> abs, dims=1)[:]
+        diffusive_heat_flux = sum(ds["κₑ_∂z_T"].data[1, 1, :, :] .|> abs, dims=1)[:]
+        total_heat_flux = advective_heat_flux .+ diffusive_heat_flux
+
+        linestyle = 1 <= id <= 9 ? :solid : :dash
+        Plots.plot!(p, t, diffusive_heat_flux ./ total_heat_flux, linewidth=2, label="simulation $id", linestyle=linestyle)
+    end
+
+    Plots.savefig(joinpath(output_dir, "les_flux_contribution.png"))
+end
+
+
+@info "Saving solutions to JLD2..."
+
+jldopen(solutions_filepath, "w") do file
+    file["grid_points"] = Nz
+    file["neural_network"] = NN
+    file["T_scaling"] = T_scaling
+    file["wT_scaling"] = wT_scaling
+
+    file["true"] = true_solutions
+    file["nde"] = nde_solutions
+    file["kpp"] = kpp_solutions
+    file["tke"] = tke_solutions
+    file["initial_nde"] = initial_nde_solutions
+    file["convective_adjustment"] = convective_adjustment_solutions
+    file["oceananigans"] = oceananigans_solutions
+
+    file["nde_history"] = nde_solution_history
+end
