@@ -33,9 +33,9 @@ function parse_command_line_arguments()
             default = "ROCK4"
             arg_type = String
 
-        "--name"
-            help = "Experiment name (also determines name of output directory)."
-            default = "layers3_depth4_relu_ROCK4"
+        "--output-directory"
+            help = "Output directory filepath."
+            default = joinpath(@__DIR__, "testing")
             arg_type = String
 
         "--training-simulations"
@@ -45,6 +45,14 @@ function parse_command_line_arguments()
             nargs = '+'
             arg_type = Int
             range_tester = (id -> id in FreeConvection.SIMULATION_IDS)
+
+        "--animate-comparisons"
+            help = "Produce gif and mp4 animations comparing the different parameterizations for each simulation."
+            action = :store_true
+
+        "--animate-nde-solution"
+            help = "Produce gif and mp4 animations showing the NDE solution for each simulation."
+            action = :store_true
     end
 
     return parse_args(settings)
@@ -61,7 +69,6 @@ nde_type = Dict(
 )
 
 Nz = args["grid-points"]
-experiment_name = args["name"]
 NDEType = nde_type[args["base-parameterization"]]
 algorithm = Meta.parse(args["time-stepper"] * "()") |> eval
 
@@ -69,12 +76,16 @@ ids_train = args["training-simulations"][1]
 ids_test = setdiff(FreeConvection.SIMULATION_IDS, ids_train)
 validate_simulation_ids(ids_train, ids_test)
 
-output_dir = joinpath(@__DIR__, experiment_name)
+animate_comparisons = args["animate-comparisons"]
+animate_nde_solution = args["animate-nde-solution"]
+
+output_dir = args["output-directory"]
+mkpath(output_dir)
 
 
 @info "Planting loggers..."
 
-log_filepath = joinpath(output_dir, "$(experiment_name)_testing.log")
+log_filepath = joinpath(output_dir, "testing.log")
 TeeLogger(
     OceananigansLogger(),
     MinLevelLogger(FileLogger(log_filepath), Logging.Info)
@@ -124,13 +135,8 @@ kpp_solutions = Dict(id => free_convection_kpp(ds) for (id, ds) in coarse_datase
 tke_solutions = Dict(id => free_convection_tke_mass_flux(ds) for (id, ds) in coarse_datasets)
 initial_nde_solutions = Dict(id => solve_nde(ds, initial_NN, NDEType, algorithm, T_scaling, wT_scaling) for (id, ds) in coarse_datasets)
 
-convective_adjustment_solutions = Dict()
-oceananigans_solutions = Dict()
-for (id, ds) in coarse_datasets
-    ca_sol, nn_sol = oceananigans_convective_adjustment_nn(ds, output_dir=output_dir, nn_filepath=final_nn_filepath)
-    convective_adjustment_solutions[id] = ca_sol
-    oceananigans_solutions[id] = nn_sol
-end
+convective_adjustment_solutions = Dict(id => oceananigans_convective_adjustment(ds; output_dir) for (id, ds) in coarse_datasets)
+oceananigans_solutions = Dict(id => oceananigans_convective_adjustment_with_neural_network(ds, output_dir=output_dir, nn_filepath=final_nn_filepath) for (id, ds) in coarse_datasets)
 
 
 @info "Plotting loss matrix..."
@@ -143,23 +149,27 @@ plot_initial_vs_final_loss_matrix(coarse_datasets, ids_train, nde_solutions, ini
                                   filepath_prefix = joinpath(output_dir, "loss_matrix_plots_initial_vs_final.png"))
 
 
-# @info "Plotting comparisons..."
+if animate_comparisons
+    @info "Animating comparisons..."
 
-# for (id, ds) in coarse_datasets
-#     filepath = joinpath(output_dir, "free_convection_comparisons_$id")
-#     plot_comparisons(ds, id, ids_train, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
-#                      convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
-#                      filepath = filepath, frameskip = 5)
-# end
+    for (id, ds) in coarse_datasets
+        filepath = joinpath(output_dir, "free_convection_comparisons_$id")
+        plot_comparisons(ds, id, ids_train, nde_solutions[id], kpp_solutions[id], tke_solutions[id],
+                         convective_adjustment_solutions[id], oceananigans_solutions[id], T_scaling,
+                         filepath = filepath, frameskip = 5)
+    end
+end
 
 
-# @info "Animating what the neural network has learned..."
+if animate_nde_solution
+    @info "Animating NDE solution..."
 
-# for (id, ds) in coarse_datasets
-#     filepath = joinpath(output_dir, "learned_free_convection_$id")
-#     animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
-#                                     filepath=filepath, frameskip=5)
-# end
+    for (id, ds) in coarse_datasets
+        filepath = joinpath(output_dir, "learned_free_convection_$id")
+        animate_learned_free_convection(ds, NN, free_convection_neural_network, NDEType, algorithm, T_scaling, wT_scaling,
+                                        filepath=filepath, frameskip=5)
+    end
+end
 
 
 @info "Computing NDE solution history..."
