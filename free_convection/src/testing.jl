@@ -343,6 +343,70 @@ function plot_loss_matrix(datasets, ids_train, nde_sols, kpp_sols, tke_sols, con
     return nothing
 end
 
+# TODO: Allow to selectively turn off different parameterizations.
+function plot_loss_matrix_filled_curves(datasets, nde_sols, kpp_sols, convective_adjustment_sols, T_scaling; filepath_prefix, rows=2, cols=3, alpha=0.3, ylims=(1e-6, 1e-1))
+
+    loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
+
+    T = datasets[1]["T"]
+    Nt = size(T, 4)
+    times = T.times ./ days
+
+    function label(id)
+         1 <= id <= 9  && return "training"
+        10 <= id <= 12 && return "Qb interpolation"
+        13 <= id <= 15 && return "Qb extrapolation"
+        16 <= id <= 18 && return "N² interpolation"
+        19 <= id <= 21 && return "N² extrapolation"
+        error("Invalid ID: $id")
+    end
+
+    T_solution = Dict(id => [interior(ds["T"])[1, 1, :, n] for n in 1:Nt] for (id, ds) in datasets)
+
+    loss_nde = Dict(id => [loss(T_solution[id][n], nde_sols[id].T[:, n]) for n in 1:Nt] for id in keys(datasets))
+    loss_kpp = Dict(id => [loss(T_solution[id][n], kpp_sols[id].T[:, n]) for n in 1:Nt] for id in keys(datasets))
+    loss_ca = Dict(id => [loss(T_solution[id][n], convective_adjustment_sols[id].T[:, n]) for n in 1:Nt] for id in keys(datasets))
+
+    fig = Figure()
+
+    colors = CairoMakie.Makie.wong_colors()
+    colors_alpha = CairoMakie.Makie.wong_colors(alpha)
+
+    for (N, sub_ids) in enumerate((10:12, 16:18, 1:9, 13:15, 19:21))
+        i = mod(N-1, cols) + 1
+        j = div(N-1, cols) + 1
+        ax = fig[i, j] = Axis(fig, title=label(sub_ids[1]), xlabel="Time (days)", ylabel="Loss", yscale=log10)
+
+        for (p, loss_param) in enumerate((loss_nde, loss_ca, loss_kpp))
+            loss_param_min = [minimum([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
+            loss_param_max = [maximum([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
+            loss_param_mean = [mean([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
+
+            for loss_param_stat in (loss_param_min, loss_param_max, loss_param_mean)
+                replace!(x -> iszero(x) ? NaN : x, loss_param_stat)
+            end
+
+            band!(ax, times, loss_param_min, loss_param_max, color=colors_alpha[p])
+            lines!(ax, times, loss_param_mean, color=colors[p])
+        end
+
+        CairoMakie.xlims!(0, times[end])
+        CairoMakie.ylims!(ylims...)
+
+        i != cols && hidexdecorations!(ax, grid=false)
+        j != 1 && hideydecorations!(ax, grid=false)
+    end
+
+    entries = [PolyElement(color=c) for c in colors[1:3]]
+    labels = ["NDE", "Convective adjustment", "KPP"]
+    Legend(fig[3, 2], entries, labels, framevisible=false, tellwidth=false, tellheight=false)
+
+    save(filepath_prefix * ".png", fig, px_per_unit=2)
+    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
+
+    return nothing
+end
+
 function plot_initial_vs_final_loss_matrix(datasets, ids_train, nde_sols, initial_nde_sols, T_scaling; filepath_prefix,
                                            rows = ceil(Int, √length(datasets)),
                                            cols = ceil(Int, √length(datasets)),

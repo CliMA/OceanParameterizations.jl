@@ -163,6 +163,9 @@ plot_loss_matrix(coarse_datasets, ids_train, nde_solutions, kpp_solutions, tke_s
                  convective_adjustment_solutions, oceananigans_solutions, T_scaling,
                  filepath_prefix = joinpath(output_dir, "loss_matrix_plots"))
 
+plot_loss_matrix_filled_curves(coarse_datasets, oceananigans_solutions, kpp_solutions, convective_adjustment_solutions, T_scaling,
+                               filepath_prefix = joinpath(output_dir, "loss_matrix_filled_curves"))
+
 plot_initial_vs_final_loss_matrix(coarse_datasets, ids_train, nde_solutions, initial_nde_solutions, T_scaling,
                                   filepath_prefix = joinpath(output_dir, "loss_matrix_plots_initial_vs_final"))
 
