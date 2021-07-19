@@ -186,6 +186,7 @@ if animate_training_simulations
     end
 end
 
+
 @info "Wrangling (T, wT) training data..."
 
 input_training_data = wrangle_input_training_data(coarse_training_datasets)

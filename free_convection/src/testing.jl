@@ -108,7 +108,7 @@ function plot_epoch_loss_summary(ids, nde_solutions, true_solutions, T_scaling; 
     return nothing
 end
 
-function plot_epoch_loss_summary_filled_curves(ids, nde_solutions, true_solutions, T_scaling; filepath_prefix, alpha=0.5)
+function plot_epoch_loss_summary_filled_curves(ids, nde_solutions, true_solutions, T_scaling; filepath_prefix, alpha=0.3)
     epochs = length(nde_solutions[first(ids)])
 
     fig = Figure()
@@ -142,12 +142,16 @@ function plot_epoch_loss_summary_filled_curves(ids, nde_solutions, true_solution
         min_loss_training = [minimum([loss_histories[id][e] for id in sub_ids]) for e in 1:epochs]
         max_loss_training = [maximum([loss_histories[id][e] for id in sub_ids]) for e in 1:epochs]
         band!(ax1, 1:epochs, min_loss_training, max_loss_training, color=color(sub_ids[1]; alpha))
+
+        mean_loss_training = [mean([loss_histories[id][e] for id in sub_ids]) for e in 1:epochs]
+        lines!(ax1, 1:epochs, mean_loss_training, color=color(sub_ids[1]))
     end
 
     CairoMakie.xlims!(0, epochs)
 
     entry_ids = (1, 10, 13, 16, 19)
-    entries = [PolyElement(color=color(id; alpha)) for id in entry_ids]
+    # entries = [PolyElement(color=color(id; alpha)) for id in entry_ids]
+    entries = [PolyElement(color=color(id)) for id in entry_ids]
     labels = [label(id) for id in entry_ids]
 
     Legend(fig[1, 2], entries, labels, framevisible=false)
