@@ -41,11 +41,6 @@ quadratic(x) = 0.5x^2 -3x + 5
 
                     @test length(y_coarse) == N
                     @test mean(y_interior) ≈ mean(y_coarse_interior)
-
-                    if func == linear
-                        @show diff(y_coarse_interior)
-                        @test all(diff(y_coarse_interior) .≈ diff(y_coarse_interior)[1])
-                    end
                 end
             end
         end
