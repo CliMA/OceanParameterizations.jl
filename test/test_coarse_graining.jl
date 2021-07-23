@@ -1,37 +1,48 @@
 using Oceananigans.Grids: Center, Face
-using OceanParameterizations.DataWrangling: coarse_grain_linear_interpolation
+
+linear(x) = 0.5x - 3
+quadratic(x) = 0.5x^2 -3x + 5
 
 @testset "Coarse Graining" begin
     @testset "Center" begin
-        linear(x, m, c) = m * x + c
+        for func in [linear, quadratic]
+            @testset "$func" begin
+                x = range(0, 100, length=100)
+                y = func.(x)
 
-        y_linear = Array(linear.(1:100, 0.5, -3))
-        N = 20
-        
-        y_linear_coarse = coarse_grain(y_linear, N, Center)
+                N = 20
+                y_coarse = coarse_grain(y, N, Center())
 
-        @test length(y_linear_coarse) == N
-        @test all(diff(y_linear_coarse) .≈ diff(y_linear_coarse)[1])
-        @test mean(y_linear) ≈ mean(y_linear_coarse)
+                @test length(y_coarse) == N
+                @test mean(y_coarse) ≈ mean(y_coarse)
+
+                if func == linear
+                    @test all(diff(y_coarse) .≈ diff(y_coarse)[1])
+                end
+            end
+        end
     end
 
     @testset "Face" begin
-        linear(x, m, c) = m * x + c
-        quadratic(x, a, b, c) = a * x ^ 2 + b * x + c
-        
-        
-        y_linear = Array(linear.(1:100, 0.5, -3))
-        y_quadratic = Array(quadratic.(1:100, 0.5, -3, 5))
-        N = 20
-        
-        y_linear_coarse = coarse_grain_linear_interpolation(y_linear, N, Face)
-        y_linear_quadratic = coarse_grain_linear_interpolation(y_quadratic, N, Face)
+        for func in [linear, quadratic]
+            @testset "$func" begin
+                # 102 -> 22 tests the case where the interior can be easily coarse grained like `Center`.
+                # 129 -> 33 tests the case where we need to interpolate between grid cells.
+                lengths = [(102, 22), (129, 33)]
 
-        @test length(y_linear_coarse) == N
-        @test all(diff(y_linear_coarse) .≈ diff(y_linear_coarse)[1])
-        @test mean(y_linear) ≈ mean(y_linear_coarse)
+                for (n, N) in lengths
+                    x = range(0, 100, length=n)
+                    y = func.(x)
 
-        @test length(y_linear_quadratic) == N
-        @test_skip mean(y_quadratic[2:end-1]) ≈ mean(y_linear_quadratic[2:end-1])
+                    y_coarse = coarse_grain(y, N, Face())
+
+                    y_interior = y[2:end-1]
+                    y_coarse_interior = y_coarse[2:end-1]
+
+                    @test length(y_coarse) == N
+                    @test mean(y_interior) ≈ mean(y_coarse_interior)
+                end
+            end
+        end
     end
 end
