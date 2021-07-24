@@ -377,7 +377,7 @@ function plot_loss_matrix_filled_curves(datasets, nde_sols, kpp_sols, convective
         j = div(N-1, cols) + 1
         ax = fig[i, j] = Axis(fig, title=label(sub_ids[1]), xlabel="Time (days)", ylabel="Loss", yscale=log10)
 
-        for (p, loss_param) in enumerate((loss_nde, loss_ca, loss_kpp))
+        for (p, loss_param) in enumerate((loss_kpp, loss_ca, loss_nde))
             loss_param_min = [minimum([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
             loss_param_max = [maximum([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
             loss_param_mean = [mean([loss_param[id][n] for id in sub_ids]) for n in 1:Nt]
@@ -453,6 +453,56 @@ function plot_initial_vs_final_loss_matrix(datasets, ids_train, nde_sols, initia
             Legend(fig[0, :], ax_ij, orientation=:horizontal, tellwidth=false, tellheight=true, framevisible=false)
         end
     end
+
+    save(filepath_prefix * ".png", fig, px_per_unit=2)
+    save(filepath_prefix * ".pdf", fig, pt_per_unit=2)
+
+    return nothing
+end
+
+function plot_initial_vs_final_loss_matrix_filled_curves(datasets, ids_train, nde_sols, initial_nde_sols, T_scaling; filepath_prefix, rows=2, cols=3, alpha=0.3, ylims=(1e-6, 1e-1))
+
+    loss(T, T̂) = Flux.mse(T_scaling.(T), T_scaling.(T̂))
+
+    T = datasets[1]["T"]
+    Nt = size(T, 4)
+    times = T.times ./ days
+
+    T_solution = Dict(id => [interior(ds["T"])[1, 1, :, n] for n in 1:Nt] for (id, ds) in datasets)
+    loss_nde = Dict(id => [loss(T_solution[id][n], nde_sols[id].T[:, n]) for n in 1:Nt] for id in keys(datasets))
+    loss_init = Dict(id => [loss(T_solution[id][n], initial_nde_sols[id].T[:, n]) for n in 1:Nt] for id in keys(datasets))
+
+    loss_nde_min = [minimum([loss_nde[id][n] for id in keys(datasets)]) for n in 1:Nt]
+    loss_nde_max = [maximum([loss_nde[id][n] for id in keys(datasets)]) for n in 1:Nt]
+    loss_nde_mean = [mean([loss_nde[id][n] for id in keys(datasets)]) for n in 1:Nt]
+
+    loss_init_min = [minimum([loss_init[id][n] for id in keys(datasets)]) for n in 1:Nt]
+    loss_init_max = [maximum([loss_init[id][n] for id in keys(datasets)]) for n in 1:Nt]
+    loss_init_mean = [mean([loss_init[id][n] for id in keys(datasets)]) for n in 1:Nt]
+
+    for loss_param_stat in (loss_nde_min, loss_nde_max, loss_nde_mean, loss_init_min, loss_init_max, loss_init_mean)
+        replace!(x -> iszero(x) ? NaN : x, loss_param_stat)
+    end
+
+    fig = Figure()
+
+    colors = CairoMakie.Makie.wong_colors()
+    colors_alpha = CairoMakie.Makie.wong_colors(alpha)
+
+    ax = fig[1, 1] = Axis(fig, xlabel="Time (days)", ylabel="Loss", yscale=log10)
+
+    band!(ax, times, loss_nde_min, loss_nde_max, color=colors_alpha[1])
+    lines!(ax, times, loss_nde_mean, color=colors[1])
+
+    band!(ax, times, loss_init_min, loss_init_max, color=colors_alpha[2])
+    lines!(ax, times, loss_init_mean, color=colors[2])
+
+    CairoMakie.xlims!(0, times[end])
+    CairoMakie.ylims!(ylims...)
+
+    entries = [PolyElement(color=c) for c in colors[1:2]]
+    labels = ["Trained on time series", "Trained on fluxes"]
+    Legend(fig[0, 1], entries, labels, orientation=:horizontal, tellheight=true, framevisible=false)
 
     save(filepath_prefix * ".png", fig, px_per_unit=2)
     save(filepath_prefix * ".pdf", fig, pt_per_unit=2)

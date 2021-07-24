@@ -169,6 +169,8 @@ plot_loss_matrix_filled_curves(coarse_datasets, oceananigans_solutions, kpp_solu
 plot_initial_vs_final_loss_matrix(coarse_datasets, ids_train, nde_solutions, initial_nde_solutions, T_scaling,
                                   filepath_prefix = joinpath(output_dir, "loss_matrix_plots_initial_vs_final"))
 
+plot_initial_vs_final_loss_matrix_filled_curves(coarse_datasets, ids_train, nde_solutions, initial_nde_solutions, T_scaling,
+                                                filepath_prefix = joinpath(output_dir, "loss_matrix_plots_online_vs_offline_filled_curves"))
 
 if animate_comparisons
     @info "Animating comparisons..."
