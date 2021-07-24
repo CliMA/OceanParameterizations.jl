@@ -22,7 +22,7 @@ export
     plot_epoch_loss, plot_epoch_loss_summary, plot_epoch_loss_summary_filled_curves,
     animate_nde_loss, plot_comparisons,
     plot_loss_matrix, plot_loss_matrix_filled_curves,
-    plot_initial_vs_final_loss_matrix,
+    plot_initial_vs_final_loss_matrix, plot_initial_vs_final_loss_matrix_filled_curves,
 
     # Data
     validate_simulation_ids, load_data

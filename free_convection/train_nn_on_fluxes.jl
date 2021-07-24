@@ -129,13 +129,16 @@ if use_convective_adjustment
         grid = ds["T"].grid
         times = ds["T"].times
 
+        # ds.fields["wT"].data .+= ds.fields["κₑ_∂z_T"].data
+
         ds.fields["T_param"] = FieldTimeSeries(grid, (Center, Center, Center), times, ArrayType=Array{Float32})
         ds.fields["wT_param"] = FieldTimeSeries(grid, (Center, Center, Face), times, ArrayType=Array{Float32})
         ds.fields["wT_missing"] = FieldTimeSeries(grid, (Center, Center, Face), times, ArrayType=Array{Float32})
 
         ds.fields["T_param"][1, 1, :, :] .= sol.T
         ds.fields["wT_param"][1, 1, :, :] .= sol.wT
-        ds.fields["wT_missing"].data[1, 1, :, :] .= ds.fields["wT"].data[1, 1, :, :] .- ds.fields["wT_param"].data[1, 1, :, :]
+
+        ds.fields["wT_missing"].data .= ds.fields["wT"].data .- ds.fields["wT_param"].data
     end
 end
 

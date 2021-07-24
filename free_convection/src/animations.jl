@@ -56,8 +56,10 @@ function animate_training_data(ds, ds_coarse; filepath, frameskip=1, fps=15, con
         if convective_adjustment
             wT_ca = interior(ds_coarse["wT_param"])[1, 1, :, n]
             wT_missing = interior(ds_coarse["wT_missing"])[1, 1, :, n]
+            wT_les_flux = interior(ds_coarse["κₑ_∂z_T"])[1, 1, :, n]
             Plots.plot!(wT_plot, wT_ca, z̄f, label="convective adjustment"; kwargs...)
             Plots.plot!(wT_plot, wT_missing, z̄f, label="missing"; kwargs...)
+            Plots.plot!(wT_plot, wT_les_flux, z̄f, label="κₑ ∂z(T)"; kwargs...)
         end
 
         T_profile = interior(T)[1, 1, :, n]
