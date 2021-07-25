@@ -1,4 +1,4 @@
-import Zygote: Params, pullback
+using GalacticOptim
 
 function inscribe_history(history_filepath, NN, loss)
     jldopen(history_filepath, "a") do file
@@ -52,23 +52,27 @@ function train_neural_differential_equation!(NN, NDEType, algorithm, datasets, T
     true_sols = [T_scaling.(interior(datasets[id]["T"])[1, 1, :, iterations]) for id in ids]
     true_sols = cat(true_sols..., dims=2)
 
-    function nde_loss()
-        nde_sols = cat([solve_nde(ndes[id], NN, T₀[id], algorithm, nde_params[id]) |> Array for id in ids]..., dims=2)
-        if !isnothing(causal_penalty)
-            return Flux.mse(nde_sols, true_sols) + causal_penalty(NN)
-        else
-            return Flux.mse(nde_sols, true_sols)
-        end
-     end
+    weights, reconstruct = Flux.destructure(NN)
 
-    function nde_callback()
-        mse_loss = nde_loss()
-        @info @sprintf("Training free convection NDE... MSE loss: μ_loss::%s = %.12e", typeof(mse_loss), mse_loss)
-        inscribe_history(history_filepath, NN, mse_loss)
-        return nothing
+    function nde_loss(weights, extra_params)
+        nde_sols = cat([solve(ndes[id], algorithm, reltol=1e-4, u0=T₀[id], p=[weights; nde_params[id]], sense=InterpolatingAdjoint(autojacvec=ZygoteVJP(), checkpointing=true)) |> Array for id in ids]..., dims=2)
+        return Flux.mse(nde_sols, true_sols)
     end
 
-    Flux.train!(nde_loss, Flux.params(NN), Iterators.repeated((), epochs), opt, cb=nde_callback)
+    function nde_callback(weights, extra_params)
+        mse_loss = nde_loss(weights, extra_params)
+        @info @sprintf("Training free convection NDE... MSE loss: μ_loss::%s = %.12e", typeof(mse_loss), mse_loss)
+        NN = reconstruct(weights)
+        inscribe_history(history_filepath, NN, mse_loss)
+        return false
+    end
 
-    return nothing
+    nde_loss_galactic = OptimizationFunction(nde_loss, GalacticOptim.AutoZygote())
+    prob = OptimizationProblem(nde_loss_galactic, weights, [])
+    sol = solve(prob, ADAM(), cb=nde_callback, maxiters=epochs)
+
+    weights_final = sol.minimizer
+    NN_final = reconstruct(weights_final)
+
+    return NN_final
 end
