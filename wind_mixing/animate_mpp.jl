@@ -10,37 +10,39 @@ using JLD2
 using FileIO
 
 PATH = joinpath(pwd(), "extracted_training_output")
-# PATH = "D:\\University Matters\\Massachusetts Institute of Technology\\CLiMA Project\\OceanParameterizations.jl\\training_output"
+PATH = "D:\\Output_o"
+loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=1f0, ∂v∂z=1f0, ∂T∂z=1f0)
+𝒟train = WindMixing.data(["wind_-3.5e-4_diurnal_3.5e-8"], scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+FILE_PATH = PATH
+# DATA_NAME = "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad"
 
-DATA_NAME = "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_grad"
+# DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
+# ispath(DATA_PATH)
 
-DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
-ispath(DATA_PATH)
+# FILE_PATH = joinpath(pwd(), "Output", DATA_NAME)
 
-FILE_PATH = joinpath(pwd(), "Output", DATA_NAME)
-
-if !ispath(FILE_PATH)
-    mkdir(FILE_PATH)
-end
+# if !ispath(FILE_PATH)
+#     mkdir(FILE_PATH)
+# end
 
 
-file = jldopen(DATA_PATH, "r")
+# file = jldopen(DATA_PATH, "r")
 
-train_files = file["training_info/train_files"]
-train_parameters = file["training_info/parameters"]
-loss_scalings = file["training_info/loss_scalings"]
-mpp_parameters = file["parameters"]
+# train_files = file["training_info/train_files"]
+# train_parameters = file["training_info/parameters"]
+# loss_scalings = file["training_info/loss_scalings"]
+# mpp_parameters = file["parameters"]
 
-𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
-close(file)
+# 𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+# close(file)
 
-ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
+# ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
 
-# ν₀ = 1f-4
-# ν₋ = 1f-1
-# ΔRi = 1f-1
-# Riᶜ = 0.25f0
-# Pr = 1f0
+ν₀ = 1f-4
+ν₋ = 1f-1
+ΔRi = 1f-1
+Riᶜ = 0.25f0
+Pr = 1f0
 
 # ν₀ = train_parameters["ν₀"]
 # ν₋ = train_parameters["ν₋"]
@@ -58,28 +60,32 @@ uw_NN = re(zeros(Float32, length(weights)))
 vw_NN = re(zeros(Float32, length(weights)))
 wT_NN = re(zeros(Float32, length(weights)))
 
+# to_run = [
+#     "wind_-5e-4_cooling_3e-8_new",   
+#     "wind_-5e-4_cooling_1e-8_new",   
+#     "wind_-2e-4_cooling_3e-8_new",   
+#     "wind_-2e-4_cooling_1e-8_new",   
+#     "wind_-5e-4_heating_-3e-8_new",  
+#     "wind_-2e-4_heating_-1e-8_new",  
+#     "wind_-2e-4_heating_-3e-8_new",  
+#     "wind_-5e-4_heating_-1e-8_new",  
+  
+#     "wind_-3.5e-4_cooling_2e-8_new", 
+#     "wind_-3.5e-4_heating_-2e-8_new",
+  
+#     "wind_-5e-4_cooling_2e-8_new",   
+#     "wind_-3.5e-4_cooling_3e-8_new", 
+#     "wind_-3.5e-4_cooling_1e-8_new", 
+#     "wind_-2e-4_cooling_2e-8_new",   
+#     "wind_-3.5e-4_heating_-3e-8_new",
+#     "wind_-3.5e-4_heating_-1e-8_new",
+#     "wind_-2e-4_heating_-2e-8_new",  
+#     "wind_-5e-4_heating_-2e-8_new",  
+#   ]
+
 to_run = [
-    "wind_-5e-4_cooling_3e-8_new",   
-    "wind_-5e-4_cooling_1e-8_new",   
-    "wind_-2e-4_cooling_3e-8_new",   
-    "wind_-2e-4_cooling_1e-8_new",   
-    "wind_-5e-4_heating_-3e-8_new",  
-    "wind_-2e-4_heating_-1e-8_new",  
-    "wind_-2e-4_heating_-3e-8_new",  
-    "wind_-5e-4_heating_-1e-8_new",  
-  
-    "wind_-3.5e-4_cooling_2e-8_new", 
-    "wind_-3.5e-4_heating_-2e-8_new",
-  
-    "wind_-5e-4_cooling_2e-8_new",   
-    "wind_-3.5e-4_cooling_3e-8_new", 
-    "wind_-3.5e-4_cooling_1e-8_new", 
-    "wind_-2e-4_cooling_2e-8_new",   
-    "wind_-3.5e-4_heating_-3e-8_new",
-    "wind_-3.5e-4_heating_-1e-8_new",
-    "wind_-2e-4_heating_-2e-8_new",  
-    "wind_-5e-4_heating_-2e-8_new",  
-  ]
+  "wind_-3.5e-4_diurnal_3.5e-8"
+]
 
 for test_file in to_run
     @info "running $test_file"

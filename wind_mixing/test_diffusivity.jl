@@ -9,7 +9,7 @@ include("modified_pacalowski_philander_model.jl")
 # include("modified_diffusivity_model.jl")
 
 ds = jldopen(joinpath(pwd(), "Data", "three_layer_constant_fluxes_hr192_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128__statistics.jld2"))
-OUTPUT_NAME = "modified_diffusivity_tstep60_wind_mixing_higher_diffusivity_test.mp4"
+OUTPUT_NAME = "test_mpp_base.mp4"
 SIMULATION_NAME = "Wind Mixing test"
 
 ## Load LES grid information, boundary conditions, and initial conditions
@@ -28,7 +28,7 @@ f₀ = ds["parameters/coriolis_parameter"]
 ΔRis = [0.1, 1.]
 constants = OceanTurb.Constants(Float64, f=f₀)
 parameters = cat(PacanowskiPhilander.Parameters(), [ModifiedPacanowskiPhilanderParameters(ΔRi = ΔRi) for ΔRi in ΔRis]..., dims=1)
-models = cat(PacanowskiPhilander.Model(N=Nz, L=Lz, stepper=:BackwardEuler, constants=constants, parameters=parameters[1]), 
+models = cat(PacanowskiPhilander.Model(N=Nz, L=Lz, stepper=:BackwardEuler, constants=constants, parameters=parameters), 
                 [ModifiedPacanowskiPhilanderModel(N=Nz, L=Lz, stepper=:BackwardEuler, constants=constants, parameters=parameters[i+1]) for i in 1:length(ΔRis)]..., dims=1)
 model_names = cat("Oceananigans.jl LES", "Pacanowski-Philander", ["Modified Pacanowski-Philander ΔRi = $ΔRi" for ΔRi in ΔRis]..., dims=1)
 # pp_parameters = PacanowskiPhilander.Parameters()
@@ -206,7 +206,7 @@ legend = fig[1, 4] = Legend(fig, U_lines, model_names)
 supertitle = fig[0, :] = Label(fig, plot_title, textsize=30)
 trim!(fig.layout)
 
-record(fig, joinpath(pwd(), "Output/$OUTPUT_NAME"), 1:length(times), framerate=15) do n
+record(fig, joinpath(pwd(), "Output/$OUTPUT_NAME"), 1:length(times), framerate=30) do n
     @info "Animating Pacanowski-Philander wind-mixing frame $n/$(length(times))..."
     frame[] = n
 end

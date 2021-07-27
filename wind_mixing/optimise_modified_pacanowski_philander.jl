@@ -9,7 +9,7 @@ train_files = [
     # "wind_-5e-4_cooling_3e-8_new",   
     # "wind_-5e-4_cooling_2e-8_new",   
     # "wind_-5e-4_cooling_1e-8_new",   
-    # "wind_-3.5e-4_cooling_3e-8_new", 
+    "wind_-3.5e-4_cooling_3e-8_new", 
     "wind_-3.5e-4_cooling_2e-8_new", 
     # "wind_-3.5e-4_cooling_1e-8_new", 
     # "wind_-2e-4_cooling_3e-8_new",   

@@ -31,10 +31,9 @@ BLAS.set_num_threads(1)
 #     # "wind_-2e-4_heating_-1e-8",
 # ]
 
-train_files = ["wind_-2e-4_diurnal_3.5e-8"]
+train_files = ["wind_-5e-4_cooling_3e-8"]
 
- 
-PATH = pwd()
+ PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
 OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
@@ -99,8 +98,8 @@ hidden_units = 400
 N_outputs = 31
 
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, 32, swish), Dense(32, 400, swish), Dense(400, N_outputs)))
-# weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, swish), Dense(hidden_units, hidden_units, swish), Dense(hidden_units, N_outputs)))
-weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
+weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, leakyrelu), Dense(hidden_units, N_outputs)))
+# weights, re = Flux.destructure(Chain(Dense(N_inputs, 50, mish), Dense(50, 20, mish), Dense(20, 31)))
 
 uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
@@ -137,10 +136,10 @@ train_parameters = Dict(
 
 train_epochs = [1]
 train_tranges = [1:20:200]
-train_iterations = [5]
+train_iterations = [3]
 train_optimizers = [[ADAM(3e-4)]]
 
-timestepper = ROCK4()
+timestepper = Rosenbrock23()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
     @info "Writing metadata"

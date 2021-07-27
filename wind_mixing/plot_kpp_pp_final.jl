@@ -235,7 +235,7 @@ loss_scalings = train_parameters.loss_scalings
 # plot_title = @lift "Traditional Parameterisations: $BC_str, Time = $(round(times_days[$frame], digits=2)) days"
 
 # fig = Figure(resolution=(1920, 1080))
-fig = Figure(resolution=(1920, 960))
+fig = Figure(resolution=(2000, 960))
 
 # colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 colors = distinguishable_colors(length(uw_data)+1, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
@@ -371,6 +371,15 @@ CairoMakie.ylims!(ax_vw, minimum(zf), 0)
 CairoMakie.ylims!(ax_wT, minimum(zf), 0)
 CairoMakie.ylims!(ax_Ri, minimum(zf), 0)
 # CairoMakie.ylims!(ax_losses, losses_min, losses_max)
+
+label_a = fig[1, 1, Top()] = Label(fig, "a)", textsize = 20, halign = :right)
+label_b = fig[1, 3, Top()] = Label(fig, "b)", textsize = 20, halign = :right)
+label_d = fig[1, 6, Top()] = Label(fig, "d)", textsize = 20, halign = :right)
+label_e = fig[3, 1, Top()] = Label(fig, "e)", textsize = 20, halign = :right)
+label_f = fig[3, 3, Top()] = Label(fig, "f)", textsize = 20, halign = :right)
+label_g = fig[3, 6, Top()] = Label(fig, "g)", textsize = 20, halign = :right)
+
+label_c = T_layout[1, 1, Top()] = Label(fig, "c)", textsize = 20, halign = :right)
 
 u_lines = [
      lines!(ax_u, u_data[1], zc, linewidth=truth_linewidth, color=(colors[1], alpha));
