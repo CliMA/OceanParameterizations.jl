@@ -127,6 +127,26 @@ directories = Dict(
     "wind_-1.5e-4_cooling_3.5e-8"   => "Data/three_layer_constant_fluxes_linear_hr192_Qu1.5e-04_Qb3.5e-08_f1.0e-04_Nh256_Nz128_WC_8days_statistics.jld2",
 )
 
+datadeps_files = Dict(
+    "wind_-5e-4_cooling_3e-8" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC/",
+    "wind_-5e-4_cooling_3e-8_cubic" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_cubic_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_cubic/"
+)
+
+function load_data(filenames; Nz_coarse=32, scaling=ZeroMeanUnitVarianceScaling)
+    !isa(filenames, Array) && (filenames = [filenames])
+
+    for name in filenames
+        @assert haskey(datadeps_files, name)
+    end
+
+    for name in filenames
+        register(DataDep(name, "LES generated using Oceananigans.jl", "$(datadeps_files[name])/instantaneous_statistics_with_halos.jld2", sha2_256))
+    end
+
+    FILE_PATHS = [@datadep_str "$(name)/instantaneous_statistics_with_halos.jld2" for name in filenames]
+
+    TrainingDatasets(FILE_PATHS, Nz_coarse=Nz_coarse, scaling=scaling)
+end
 
 function diurnal_fluxes(train_files, constants)
     α, g = constants.α, constants.g

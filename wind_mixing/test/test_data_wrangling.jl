@@ -1,4 +1,5 @@
 using WindMixing: TrainingDatasets
+using WindMixing: load_data
 
 using Oceananigans
 using Oceananigans.OutputReaders
@@ -10,13 +11,14 @@ using Oceananigans.OutputReaders
 using OceanParameterizations
 
 @testset "Data Wrangling" begin
-    dirnames = [
-        "three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC",
-        "three_layer_constant_fluxes_cubic_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_cubic"
+    simulations = [
+        "wind_-5e-4_cooling_3e-8",
+        "wind_-5e-4_cooling_3e-8_cubic" 
     ]
 
     Nzs_coarse = [32, 64]
-    multiple_datasets = [TrainingDatasets(dirnames, Nz_coarse=Nz) for Nz in Nzs_coarse]
+    # multiple_datasets = [TrainingDatasets(dirnames, Nz_coarse=Nz) for Nz in Nzs_coarse]
+    multiple_datasets = [load_data(simulations, Nz_coarse=Nz) for Nz in Nzs_coarse]
 
     @testset "Coarse-Grained Grid Size" begin
         for i in 1:length(Nzs_coarse)
@@ -68,8 +70,6 @@ using OceanParameterizations
             us = vcat([interior(dataset["u*"]) for dataset in datasets.data]...)
             vs = vcat([interior(dataset["v*"]) for dataset in datasets.data]...)
             Ts = vcat([interior(dataset["T*"]) for dataset in datasets.data]...)
-
-            @show length(us)
 
             uws = vcat([interior(dataset["wu*"]) for dataset in datasets.data]...)
             vws = vcat([interior(dataset["wv*"]) for dataset in datasets.data]...)

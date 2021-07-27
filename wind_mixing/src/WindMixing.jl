@@ -20,7 +20,7 @@ export data, read_les_output,
        optimise_modified_pacanowski_philander,
        extract_NN, extract_parameters_modified_pacanowski_philander_optimisation,
        diurnal_fluxes,
-       directories
+       directories, datadeps_files
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face
@@ -42,6 +42,7 @@ using CairoMakie
 using Printf
 using CUDA
 using LinearAlgebra
+using DataDeps
 
 mse(x::Tuple{Array{Float64,2}, Array{Float64,2}}) = Flux.mse(x[1], x[2])
 mse(x::Tuple{Array{Float32,2}, Array{Float64,2}}) = Flux.mse(Float64.(x[1]), x[2])
