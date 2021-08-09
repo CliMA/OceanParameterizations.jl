@@ -51,7 +51,7 @@ using JLD2
                  "gradient_scaling" => 5f-3, 
                "training_fractions" => training_fractions,
                           "diurnal" => false,
-                          "diffusivity_scheme" => diffusivity_scheme
+               "diffusivity_scheme" => diffusivity_scheme
     )
 
     train_epoch = 1
@@ -64,14 +64,7 @@ using JLD2
     write_metadata_NDE_training(FILE_PATH, train_files, train_epoch, train_trange, train_parameters, train_optimizer, uw_NN, vw_NN, wT_NN)
     uw_NN, vw_NN, wT_NN = train_NDE(uw_NN, vw_NN, wT_NN, train_files, train_trange, timestepper, train_optimizer, train_epoch, FILE_PATH,
                                                          maxiters = train_iteration, 
-                                    modified_pacanowski_philander = train_parameters["modified_pacanowski_philander"], 
-                                            convective_adjustment = train_parameters["convective_adjustment"],
-                                                               ν₀ = train_parameters["ν₀"], 
-                                                               ν₋ = train_parameters["ν₋"], 
-                                                              ΔRi = train_parameters["ΔRi"], 
-                                                              Riᶜ = train_parameters["Riᶜ"], 
-                                                               Pr = train_parameters["Pr"],
-                                                                κ = train_parameters["κ"],
+                                               diffusivity_scheme = train_parameters["diffusivity_scheme"],
                                                    train_gradient = train_parameters["train_gradient"],
                                                      zero_weights = train_parameters["zero_weights"],
                                                 #  gradient_scaling = train_parameters["gradient_scaling"],
@@ -82,5 +75,5 @@ using JLD2
     file = jldopen(FILE_PATH)
     @info file
     close(file)
-    # rm(FILE_PATH)
+    rm(FILE_PATH)
 end

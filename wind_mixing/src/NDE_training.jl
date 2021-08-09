@@ -16,10 +16,9 @@ function prepare_parameters_NDE_training(uw_NN, vw_NN, wT_NN, Nz)
     NN_constructions = (uw=re_uw, vw=re_vw, wT=re_wT)
     weights = Float32[uw_weights; vw_weights; wT_weights]
 
-    NN_sizes = (uw=size_uw_NN, vw=size_vw_NN, wT=size_wT_NN)
     NN_ranges = (uw=uw_range, vw=vw_range, wT=wT_range)
 
-    return derivatives, NN_constructions, weights, NN_sizes, NN_ranges
+    return derivatives, NN_constructions, weights, NN_ranges
 end
 
 function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₋, Riᶜ, ΔRi, Pr, κ, conditions)
@@ -202,7 +201,9 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivati
     uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
     σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
     σ_u, σ_v, σ_T = scalings.u.σ, scalings.v.σ, scalings.T.σ
-     
+    
+    ν∂u∂z, ν∂v∂z, ν∂T∂z = diffusivity_scheme(x, dataset, derivatives)
+
     uw_interior = uw_NN(x)
     vw_interior = vw_NN(x)
     wT_interior = wT_NN(x)
@@ -211,25 +212,17 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivati
         uw = [0f0; uw_interior; 0f0]
         vw = [0f0; vw_interior; 0f0]
         wT = [0f0; wT_interior; 0f0]
+
+        ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); ν∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
+        ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); ν∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
+        ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); ν∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
     else
         uw = [BCs.uw.bottom; uw_interior; BCs.uw.top]
         vw = [BCs.vw.bottom; vw_interior; BCs.vw.top]
         wT = [BCs.wT.bottom; wT_interior; BCs.wT.top]
     end
 
-    if conditions.modified_pacanowski_philander || conditions.convective_adjustment
-        ν∂u∂z, ν∂v∂z, ν∂T∂z = diffusivity_scheme(x, dataset, derivatives)
-
-        if conditions.zero_weights
-            ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); ν∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
-            ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); ν∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
-            ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); ν∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
-        end
-
-        return uw .- ν∂u∂z, vw .- ν∂v∂z, wT .- ν∂T∂z
-    else
-        return uw, vw, wT
-    end
+    return uw .- ν∂u∂z, vw .- ν∂v∂z, wT .- ν∂T∂z
 end
 
 function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
@@ -341,67 +334,18 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
     return [∂u∂t; ∂v∂t; ∂T∂t]
 end
 
-#TODO: add diurnal functionality
-function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimizers, epochs, FILE_PATH; 
-                    maxiters=500, ν₀=1f-4, ν₋=1f-1, ΔRi=1f0, Riᶜ=0.25, Pr=1f0, κ=10f0,
-                    modified_pacanowski_philander=false, convective_adjustment=false, train_gradient=false,
-                    zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing, diurnal=false, 
-                    Nz=32, scaling=ZeroMeanUnitVarianceScaling)
-    @assert !modified_pacanowski_philander || !convective_adjustment
-
-    train_parameters = Dict(
-                               "ν₀" => ν₀, 
-                               "ν₋" => ν₋, 
-                              "ΔRi" => ΔRi, 
-                              "Riᶜ" => Riᶜ, 
-                               "Pr" => Pr, 
-                                "κ" => κ,
-    "modified_pacanowski_philander" => modified_pacanowski_philander, 
-            "convective_adjustment" => convective_adjustment,
-                   "train_gradient" => train_gradient,
-                     "zero_weights" => zero_weights, 
-                 "gradient_scaling" => gradient_scaling, 
-               "training_fractions" => training_fractions,
-                          "diurnal" => diurnal
-    )
-
-    zero_weights && (@assert modified_pacanowski_philander || convective_adjustment)
-
-    @info "Loading training data"
-
-    𝒟train = load_data(train_files, Nz_coarse=Nz, scaling=scaling)
-
-    @info "Setting up constants"
-    
-    n_simulations = length(𝒟train.data)
-
-    conditions = (modified_pacanowski_philander=modified_pacanowski_philander, convective_adjustment=convective_adjustment, 
-                    train_gradient=train_gradient, zero_weights=zero_weights, diurnal=diurnal)
-    
-    derivatives, NN_constructions, weights, NN_sizes, NN_ranges = prepare_parameters_NDE_training(uw_NN, vw_NN, wT_NN, Nz)
-
-    @info "Setting up training data"
-
-    !isa(tsteps, Array) && (tsteps = [tsteps for i in 1:n_simulations])
+function prepare_training_data!(𝒟train, tsteps, n_simulations)
+    u_trains = [interior(𝒟train.data[i]["u*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    v_trains = [interior(𝒟train.data[i]["v*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    T_trains = [interior(𝒟train.data[i]["T*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
 
     uvT₀s = [
-        [interior(𝒟train.data[i]["u*"])[1,1,:,tsteps[i][1]]; interior(𝒟train.data[i]["v*"])[1,1,:,tsteps[i][1]]; interior(𝒟train.data[i]["T*"])[1,1,:,tsteps[i][1]]] 
-        for i in 1:n_simulations
+        [u_trains[i][:,1]; v_trains[i][:,1]; T_trains[i][:,1]] for i in 1:n_simulations
     ]
 
-    uvT_trains = [
-        [interior(𝒟train.data[i]["u*"])[1,1,:,tsteps[i]]; interior(𝒟train.data[i]["v*"])[1,1,:,tsteps[i]]; interior(𝒟train.data[i]["T*"])[1,1,:,tsteps[i]]]
-        for i in 1:n_simulations
-    ]
-
-    u_trains, v_trains, T_trains = split_u.(uvT_trains, Nz), split_v.(uvT_trains, Nz), split_T.(uvT_trains, Nz)
-
-    uvT_trains_gradients = [
-        [interior(𝒟train.data[i]["∂u∂z*"])[1,1,:,tsteps[i]]; interior(𝒟train.data[i]["∂v∂z*"])[1,1,:,tsteps[i]]; interior(𝒟train.data[i]["∂T∂z*"])[1,1,:,tsteps[i]]]
-        for i in 1:n_simulations
-    ]
-
-    u_trains_gradients, v_trains_gradients, T_trains_gradients = split_u.(uvT_trains_gradients, Nz+1), split_v.(uvT_trains_gradients, Nz+1), split_T.(uvT_trains_gradients, Nz+1)
+    ∂u∂zs = [interior(𝒟train.data[i]["∂u∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    ∂v∂zs = [interior(𝒟train.data[i]["∂v∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    ∂T∂zs = [interior(𝒟train.data[i]["∂T∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
 
     t_trains = [Float32.(𝒟train.data[i]["u"].times[tsteps[i]]) for i in 1:n_simulations]
     @assert typeof(t_trains[1][1]) == Float32
@@ -411,8 +355,46 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
     end
 
     t_trains .= [times ./ times[end] for times in t_trains]
-
     tspan_trains = [(t[1], t[end]) for t in t_trains]
+
+    profiles = (u=u_trains, v=v_trains, T=T_trains, ∂u∂z=∂u∂zs, ∂v∂z=∂v∂zs, ∂T∂z=∂T∂zs)
+    times = (t=t_trains, tspan=tspan_trains)
+
+    return profiles, uvT₀s, times
+end
+
+#TODO: add diurnal functionality
+function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimizers, epochs, FILE_PATH; 
+                    maxiters=500, diffusivity_scheme=RiBasedDiffusivity(1f-4, 1f-1, 1f-1, 0.25f0, 1f0), train_gradient=false,
+                    zero_weights=false, gradient_scaling=5f-3, training_fractions=nothing, diurnal=false, 
+                    Nz=32, scaling=ZeroMeanUnitVarianceScaling)
+
+    train_parameters = Dict(
+               "diffusivity_scheme" => diffusivity_scheme,
+                   "train_gradient" => train_gradient,
+                     "zero_weights" => zero_weights, 
+                 "gradient_scaling" => gradient_scaling, 
+               "training_fractions" => training_fractions,
+                          "diurnal" => diurnal
+    )
+
+    @info "Loading training data"
+
+    𝒟train = load_data(train_files, Nz_coarse=Nz, scaling=scaling)
+
+    @info "Setting up constants"
+    
+    n_simulations = length(𝒟train.data)
+
+    conditions = (train_gradient=train_gradient, zero_weights=zero_weights, diurnal=diurnal)
+    
+    derivatives, NN_constructions, weights, NN_ranges = prepare_parameters_NDE_training(uw_NN, vw_NN, wT_NN, Nz)
+
+    @info "Setting up training data"
+
+    !isa(tsteps, Array) && (tsteps = [tsteps for i in 1:n_simulations])
+
+    training_profiles, uvT₀s, times = prepare_training_data!(𝒟train, tsteps, n_simulations)
 
     @info "Setting up equations and boundary conditions"
 
@@ -425,14 +407,6 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         for dataset in 𝒟train.data
     ]
 
-    if modified_pacanowski_philander
-        diffusivity_scheme = RiBasedDiffusivity(ν₀, ν₋, ΔRi, Riᶜ, Pr)
-    elseif convective_adjustment
-        diffusivity_scheme = ConvectiveAdjustment(κ)
-    else
-        diffusivity_scheme = NoDiffusivity()
-    end
-
     if diurnal
         # prob_NDEs = [
         #     ODEProblem(
@@ -442,28 +416,28 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         error("Diurnal Flux not Implemented yet")
     else
         prob_NDEs = [ODEProblem((x, p, t) -> NDE(x, p, t, 𝒟train.data[i], NN_ranges, NN_constructions, conditions, derivatives, diffusivity_scheme), 
-                                    uvT₀s[i], tspan_trains[i]) for i in 1:n_simulations]
+                                    uvT₀s[i], times.tspan[i]) for i in 1:n_simulations]
     end
 
     function determine_loss_scalings()
         if training_fractions === nothing
             loss_scalings = (u=1, v=1, T=1, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
         else
-            sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_trains[i])) for i in 1:n_simulations]        
+            sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
             u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
 
-            u_loss = mean(loss.(u_trains, u_sols))
-            v_loss = mean(loss.(v_trains, v_sols))
-            T_loss = mean(loss.(T_trains, T_sols))
-
+            u_loss = [loss(training_profiles.u[i], u_sols[i]) for i in 1:n_simulations] |> mean
+            v_loss = [loss(training_profiles.v[i], v_sols[i]) for i in 1:n_simulations] |> mean
+            T_loss = [loss(training_profiles.T[i], T_sols[i]) for i in 1:n_simulations] |> mean
+    
             if train_gradient
                 u_sols_gradients = [∂_∂z(sol, derivatives.face) for sol in u_sols]
                 v_sols_gradients = [∂_∂z(sol, derivatives.face) for sol in v_sols]
                 T_sols_gradients = [∂_∂z(sol, derivatives.face) for sol in T_sols]
 
-                ∂u∂z_loss = mean(loss.(u_trains_gradients, u_sols_gradients))
-                ∂v∂z_loss = mean(loss.(v_trains_gradients, v_sols_gradients))
-                ∂T∂z_loss = mean(loss.(T_trains_gradients, T_sols_gradients))
+                ∂u∂z_loss = [loss(training_profiles.∂u∂z[i], u_sols_gradients[i]) for i in 1:n_simulations] |> mean
+                ∂v∂z_loss = [loss(training_profiles.∂v∂z[i], v_sols_gradients[i]) for i in 1:n_simulations] |> mean
+                ∂T∂z_loss = [loss(training_profiles.∂T∂z[i], T_sols_gradients[i]) for i in 1:n_simulations] |> mean
             else
                 ∂u∂z_loss = 0
                 ∂v∂z_loss = 0
@@ -480,12 +454,15 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
 
     loss_scalings = determine_loss_scalings()
 
+    @info "Defining Loss Functions"
+
     function loss_NDE(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_trains[i])) for i in 1:n_simulations]        
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
         u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
-        u_loss = mean(loss.(u_trains, u_sols))
-        v_loss = mean(loss.(v_trains, v_sols))
-        T_loss = mean(loss.(T_trains, T_sols))
+
+        u_loss = [loss(training_profiles.u[i], u_sols[i]) for i in 1:n_simulations] |> mean
+        v_loss = [loss(training_profiles.v[i], v_sols[i]) for i in 1:n_simulations] |> mean
+        T_loss = [loss(training_profiles.T[i], T_sols[i]) for i in 1:n_simulations] |> mean
 
         losses = (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=0, ∂v∂z=0, ∂T∂z=0)
         scaled_losses = apply_loss_scalings(losses, loss_scalings)
@@ -494,7 +471,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
     end
 
     function loss_gradient_NDE(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_trains[i])) for i in 1:n_simulations]
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]
         # sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, saveat=t_trains[i])) for i in 1:n_simulations]
 
         u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
@@ -503,12 +480,13 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         v_sols_gradients = [∂_∂z(sol, derivatives.face) for sol in v_sols]
         T_sols_gradients = [∂_∂z(sol, derivatives.face) for sol in T_sols]
 
-        u_loss = mean(loss.(u_trains, u_sols))
-        v_loss = mean(loss.(v_trains, v_sols))
-        T_loss = mean(loss.(T_trains, T_sols))
-        ∂u∂z_loss = mean(loss.(u_trains_gradients, u_sols_gradients))
-        ∂v∂z_loss = mean(loss.(v_trains_gradients, v_sols_gradients))
-        ∂T∂z_loss = mean(loss.(T_trains_gradients, T_sols_gradients))
+        u_loss = [loss(training_profiles.u[i], u_sols[i]) for i in 1:n_simulations] |> mean
+        v_loss = [loss(training_profiles.v[i], v_sols[i]) for i in 1:n_simulations] |> mean
+        T_loss = [loss(training_profiles.T[i], T_sols[i]) for i in 1:n_simulations] |> mean
+
+        ∂u∂z_loss = [loss(training_profiles.∂u∂z[i], u_sols_gradients[i]) for i in 1:n_simulations] |> mean
+        ∂v∂z_loss = [loss(training_profiles.∂v∂z[i], v_sols_gradients[i]) for i in 1:n_simulations] |> mean
+        ∂T∂z_loss = [loss(training_profiles.∂T∂z[i], T_sols_gradients[i]) for i in 1:n_simulations] |> mean
         
         losses = (u=u_loss, v=v_loss, T=T_loss, ∂u∂z=∂u∂z_loss, ∂v∂z=∂v∂z_loss, ∂T∂z=∂T∂z_loss)
         scaled_losses = apply_loss_scalings(losses, loss_scalings)
