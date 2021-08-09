@@ -1,3 +1,4 @@
+using Base: Integer
 using WindMixing: TrainingDatasets
 using WindMixing: load_data
 
@@ -20,22 +21,48 @@ using OceanParameterizations
     # multiple_datasets = [TrainingDatasets(dirnames, Nz_coarse=Nz) for Nz in Nzs_coarse]
     multiple_datasets = [load_data(simulations, Nz_coarse=Nz) for Nz in Nzs_coarse]
 
+    profiles_str = ["u*", "v*", "T*"]
+    fluxes_str = ["wu*", "wv*", "wT*"]
+    profile_gradients_str = ["∂u∂z*", "∂v∂z*", "∂T∂z*"]
+
+    @testset "Data Type" begin
+        for datasets in multiple_datasets
+            for data in datasets.data
+                for str in [profiles_str; fluxes_str; profile_gradients_str]
+                    @test interior(data[str]) isa SubArray{Float32}
+                    @test data[str].times isa Array{Float32}
+
+                    grid = data[str].grid
+
+                    for property in propertynames(grid)
+                        value = getproperty(grid, property)
+                        if isa(value, Number) && !isa(value, Integer)
+                            @test value isa Float32
+                        end
+                    end
+                end
+
+                for (key, value) in data.metadata
+                    if isa(value, Number) && !isa(value, Integer)
+                        @test value isa Float32
+                    end
+                end
+            end
+        end
+    end
+
     @testset "Coarse-Grained Grid Size" begin
         for i in 1:length(Nzs_coarse)
             Nz_coarse = Nzs_coarse[i]
             datasets = multiple_datasets[i]
             for data in datasets.data
-                @test length(interior(data["u*"])[1,1,:,1]) == Nz_coarse
-                @test length(interior(data["v*"])[1,1,:,1]) == Nz_coarse
-                @test length(interior(data["T*"])[1,1,:,1]) == Nz_coarse
+                for str in profiles_str
+                    @test length(interior(data[str])[1,1,:,1]) == Nz_coarse
+                end
 
-                @test length(interior(data["wu*"])[1,1,:,1]) == Nz_coarse + 1
-                @test length(interior(data["wv*"])[1,1,:,1]) == Nz_coarse + 1
-                @test length(interior(data["wT*"])[1,1,:,1]) == Nz_coarse + 1
-
-                @test length(interior(data["∂u∂z*"])[1,1,:,1]) == Nz_coarse + 1
-                @test length(interior(data["∂v∂z*"])[1,1,:,1]) == Nz_coarse + 1
-                @test length(interior(data["∂T∂z*"])[1,1,:,1]) == Nz_coarse + 1
+                for str in [fluxes_str; profile_gradients_str]
+                    @test length(interior(data[str])[1,1,:,1]) == Nz_coarse + 1
+                end
 
                 @test data["u*"].grid.Nz == Nz_coarse
                 @test data["v*"].grid.Nz == Nz_coarse
@@ -44,6 +71,7 @@ using OceanParameterizations
                 @test data["wu*"].grid.Nz == Nz_coarse
                 @test data["wv*"].grid.Nz == Nz_coarse
                 @test data["wT*"].grid.Nz == Nz_coarse
+                end
             end
         end
     end
@@ -75,21 +103,23 @@ using OceanParameterizations
             vws = vcat([interior(dataset["wv*"]) for dataset in datasets.data]...)
             wTs = vcat([interior(dataset["wT*"]) for dataset in datasets.data]...)
 
-            @test isapprox(mean(us), 0f0, atol=eps(maximum(us)))
-            @test isapprox(mean(vs), 0f0, atol=eps(maximum(vs)))
-            @test isapprox(mean(Ts), 0f0, atol=eps(maximum(Ts)))
+            @test all([datasets.scalings == dataset.metadata["scalings"] for dataset in datasets.data])
 
-            @test isapprox(mean(uws), 0f0, atol=eps(maximum(us)))
-            @test isapprox(mean(vws), 0f0, atol=eps(maximum(vs)))
-            @test isapprox(mean(wTs), 0f0, atol=eps(maximum(Ts)))
+            @test isapprox(mean(us), 0f0, atol=eps(maximum(abs, us)))
+            @test isapprox(mean(vs), 0f0, atol=eps(maximum(abs, vs)))
+            @test isapprox(mean(Ts), 0f0, atol=12 * eps(maximum(abs, Ts)))
 
-            @test isapprox(std(us), 1f0, atol=eps(maximum(us)))
-            @test isapprox(std(vs), 1f0, atol=eps(maximum(vs)))
-            @test isapprox(std(Ts), 1f0, atol=eps(maximum(Ts)))
+            @test isapprox(mean(uws), 0f0, atol=eps(maximum(abs, us)))
+            @test isapprox(mean(vws), 0f0, atol=eps(maximum(abs, vs)))
+            @test isapprox(mean(wTs), 0f0, atol=eps(maximum(abs, Ts)))
 
-            @test isapprox(std(uws), 1f0, atol=eps(maximum(us)))
-            @test isapprox(std(vws), 1f0, atol=eps(maximum(vs)))
-            @test isapprox(std(wTs), 1f0, atol=eps(maximum(Ts)))
+            @test isapprox(std(us), 1f0, atol=eps(maximum(abs, us)))
+            @test isapprox(std(vs), 1f0, atol=eps(maximum(abs, vs)))
+            @test isapprox(std(Ts), 1f0, atol=eps(maximum(abs, Ts)))
+
+            @test isapprox(std(uws), 1f0, atol=eps(maximum(abs, us)))
+            @test isapprox(std(vws), 1f0, atol=eps(maximum(abs, vs)))
+            @test isapprox(std(wTs), 1f0, atol=eps(maximum(abs, Ts)))
         end
     end
 

@@ -180,12 +180,10 @@ function TrainingDatasets(datasets::Vector{FieldDataset{Dict{String, FieldTimeSe
     TrainingDatasets(datasets_coarse, scalings)
 end
 
-function TrainingDatasets(dirnames; Nz_coarse=32, scaling=ZeroMeanUnitVarianceScaling)
-    dirnames isa String && (dirnames = [dirnames])
+function TrainingDatasets(FILE_PATHS; Nz_coarse=32, scaling=ZeroMeanUnitVarianceScaling)
+    FILE_PATHS isa String && (FILE_PATHS = [FILE_PATHS])
     
-    FILE_PATHs = [joinpath(pwd(), "Data", dirname, "instantaneous_statistics_with_halos.jld2") for dirname in dirnames]
-
-    datasets = [FieldDataset(PATH, ArrayType=Array{Float32}, metadata_paths=["parameters"]) for PATH in FILE_PATHs]
+    datasets = [FieldDataset(PATH, ArrayType=Array{Float32}, metadata_paths=["parameters"]) for PATH in FILE_PATHS]
 
     for ds in datasets
         apply_surface_fluxes!(ds)
@@ -196,7 +194,7 @@ function TrainingDatasets(dirnames; Nz_coarse=32, scaling=ZeroMeanUnitVarianceSc
 
     fine_grid = datasets[1]["T"].grid
 
-    domain = (fine_grid.zF[1], fine_grid.Nz+1)
+    domain = (fine_grid.zF[1], fine_grid.zF[fine_grid.Nz+1])
     coarse_grid = RegularRectilinearGrid(Float32, topology=(Oceananigans.Flat, Oceananigans.Flat, Oceananigans.Bounded), size=Nz_coarse, z=domain)
 
     datasets_coarse = [coarse_grain(ds, coarse_grid) for ds in datasets]
@@ -205,6 +203,7 @@ function TrainingDatasets(dirnames; Nz_coarse=32, scaling=ZeroMeanUnitVarianceSc
 
     for ds in datasets_coarse
         add_scaled_data!(ds, scalings)
+        add_scalings!(ds, scalings)
         add_scaled_gradients!(ds)
     end
 
@@ -214,4 +213,8 @@ end
 function apply_surface_fluxes!(ds)
     interior(ds["wu"])[:, :, end, :] .= ds.metadata["momentum_flux"]
     interior(ds["wT"])[:, :, end, :] .= ds.metadata["temperature_flux"]
+end
+
+function add_scalings!(ds, scalings)
+    ds.metadata["scalings"] = scalings
 end

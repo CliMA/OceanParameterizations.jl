@@ -33,7 +33,7 @@ BLAS.set_num_threads(1)
 
 train_files = ["wind_-5e-4_cooling_3e-8"]
 
- PATH = pwd()
+PATH = pwd()
 
 OUTPUT_PATH = joinpath(PATH, "training_output")
 OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
@@ -94,7 +94,8 @@ Pr = 1f0
 # wT_NN = file["neural_network/wT"]
 
 N_inputs = 96
-hidden_units = 400
+# hidden_units = 400
+hidden_units = 20
 N_outputs = 31
 
 # weights, re = Flux.destructure(Chain(Dense(N_inputs, 32, swish), Dense(32, 400, swish), Dense(400, N_outputs)))
@@ -139,7 +140,7 @@ train_tranges = [1:20:200]
 train_iterations = [3]
 train_optimizers = [[ADAM(3e-4)]]
 
-timestepper = Rosenbrock23()
+timestepper = ROCK4()
 
 function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, uw_NN, vw_NN, wT_NN, timestepper)
     @info "Writing metadata"

@@ -25,6 +25,58 @@ function write_metadata_NDE_training(FILE_PATH, train_files, train_epochs, train
     end
 end
 
+function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN, wT_NN, optimizer)
+    jldopen(FILE_PATH, "a") do file
+        profile_loss = losses.u + losses.v + losses.T
+        gradient_loss = losses.∂u∂z + losses.∂v∂z + losses.∂T∂z
+        total_loss = profile_loss + gradient_loss
+
+        if !haskey(file, "training_data/loss/total")
+            file["training_info/loss_scalings"] = loss_scalings
+            file["training_data/loss/total/1"] = total_loss
+            file["training_data/loss/profile/1"] = profile_loss
+            file["training_data/loss/gradient/1"] = gradient_loss
+
+            file["training_data/loss/u/1"] = losses.u
+            file["training_data/loss/v/1"] = losses.v
+            file["training_data/loss/T/1"] = losses.T
+
+            file["training_data/loss/∂u∂z/1"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/1"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/1"] = losses.∂T∂z
+
+            file["training_data/neural_network/uw/1"] = uw_NN
+            file["training_data/neural_network/vw/1"] = vw_NN
+            file["training_data/neural_network/wT/1"] = wT_NN
+
+            file["training_data/optimizer/η/1"] = optimizer.eta
+            file["training_data/optimizer/β/1"] = optimizer.beta
+            file["training_data/optimizer/state/1"] = optimizer.state
+        else
+            count = length(keys(file["training_data/loss/total"])) + 1
+            file["training_data/loss/total/$count"] = total_loss
+            file["training_data/loss/profile/$count"] = profile_loss
+            file["training_data/loss/gradient/$count"] = gradient_loss
+
+            file["training_data/loss/u/$count"] = losses.u
+            file["training_data/loss/v/$count"] = losses.v
+            file["training_data/loss/T/$count"] = losses.T
+
+            file["training_data/loss/∂u∂z/$count"] = losses.∂u∂z
+            file["training_data/loss/∂v∂z/$count"] = losses.∂v∂z
+            file["training_data/loss/∂T∂z/$count"] = losses.∂T∂z
+
+            file["training_data/neural_network/uw/$count"] = uw_NN
+            file["training_data/neural_network/vw/$count"] = vw_NN
+            file["training_data/neural_network/wT/$count"] = wT_NN
+
+            file["training_data/optimizer/η/$count"] = optimizer.eta
+            file["training_data/optimizer/β/$count"] = optimizer.beta
+            file["training_data/optimizer/state/$count"] = optimizer.state
+        end
+    end
+end
+
 function write_data_NDE_training(FILE_PATH, losses, loss_scalings, uw_NN, vw_NN, wT_NN, stage, optimizer)
     jldopen(FILE_PATH, "a") do file
         profile_loss = losses.u + losses.v + losses.T
