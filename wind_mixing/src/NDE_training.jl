@@ -80,14 +80,14 @@ function NDE(x, p, t, dataset, NN_ranges, NN_constructions, conditions, derivati
     uw_range, vw_range, wT_range = NN_ranges.uw, NN_ranges.vw, NN_ranges.wT
     uw_weights, vw_weights, wT_weights = p[uw_range], p[vw_range], p[wT_range]
 
-    uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom, wT_top = p[wT_range[end] + 1:end]
-    BCs = (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
+    # uw_bottom, uw_top, vw_bottom, vw_top, wT_bottom, wT_top = p[wT_range[end] + 1:end]
+    # BCs = (uw=(top=uw_top, bottom=uw_bottom), vw=(top=vw_top, bottom=vw_bottom), wT=(top=wT_top, bottom=wT_bottom))
 
     re_uw, re_vw, re_wT = NN_constructions.uw, NN_constructions.vw, NN_constructions.wT
     uw_NN = re_uw(uw_weights)
     vw_NN = re_vw(vw_weights)
     wT_NN = re_wT(wT_weights)
-    return predict_NDE(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivatives, diffusivity_scheme)
+    return predict_NDE(uw_NN, vw_NN, wT_NN, x, dataset, t, conditions, derivatives, diffusivity_scheme)
 end
 
 function NDE(x, p, t, NN_ranges, NN_constructions, conditions, scalings, constants, derivatives, filters)
@@ -193,14 +193,18 @@ end
 
 (scheme::AbstractBaseDiffusivity)(x, dataset, derivatives) = calculate_diffusive_flux(scheme, x, dataset, derivatives)
 
-function predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivatives, diffusivity_scheme)
-    H = dataset["u"].grid.Lz
+function predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, t, conditions, derivatives, diffusivity_scheme)
+    uw_top = dataset.metadata["momentum_flux"]
+    vw_top = ConstantMomentumFlux(0f0)
+    wT_top = dataset.metadata["temperature_flux"]
 
     scalings = dataset.metadata["scalings"]
     
-    uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
-    σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
-    σ_u, σ_v, σ_T = scalings.u.σ, scalings.v.σ, scalings.T.σ
+    BCs = (
+        uw=(top=uw_top(0f0, 0f0, t) |> scalings.uw, bottom=0f0 |> scalings.uw),
+        vw=(top=vw_top(0f0, 0f0, t) |> scalings.vw, bottom=0f0 |> scalings.vw),
+        wT=(top=wT_top(0f0, 0f0, t) |> scalings.wT, bottom=0f0 |> scalings.wT),
+    )
     
     ν∂u∂z, ν∂v∂z, ν∂T∂z = diffusivity_scheme(x, dataset, derivatives)
 
@@ -291,7 +295,7 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constan
     end
 end
 
-function predict_NDE(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivatives, diffusivity_scheme)
+function predict_NDE(uw_NN, vw_NN, wT_NN, x, dataset, t, conditions, derivatives, diffusivity_scheme)
     Nz = Int64(dataset["u"].grid.Nz)
     H = dataset["u"].grid.Lz
     τ = dataset.metadata["τ"]
@@ -307,7 +311,7 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivativ
     u = @view x[1:Nz]
     v = @view x[Nz + 1:2Nz]
 
-    uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, BCs, conditions, derivatives, diffusivity_scheme)
+    uw, vw, wT = predict_flux(uw_NN, vw_NN, wT_NN, x, dataset, t, conditions, derivatives, diffusivity_scheme)
     
     ∂u∂t = -τ / H * σ_uw / σ_u .* derivatives.cell * uw .+ f * τ / σ_u .* (σ_v .* v .+ μ_v)
     ∂v∂t = -τ / H * σ_vw / σ_v .* derivatives.cell * vw .- f * τ / σ_v .* (σ_u .* u .+ μ_u)
@@ -335,17 +339,17 @@ function predict_NDE(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constant
 end
 
 function prepare_training_data!(𝒟train, tsteps, n_simulations)
-    u_trains = [interior(𝒟train.data[i]["u*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
-    v_trains = [interior(𝒟train.data[i]["v*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
-    T_trains = [interior(𝒟train.data[i]["T*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    u_trains = [interior(𝒟train.data[i]["u*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
+    v_trains = [interior(𝒟train.data[i]["v*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
+    T_trains = [interior(𝒟train.data[i]["T*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
 
     uvT₀s = [
         [u_trains[i][:,1]; v_trains[i][:,1]; T_trains[i][:,1]] for i in 1:n_simulations
     ]
 
-    ∂u∂zs = [interior(𝒟train.data[i]["∂u∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
-    ∂v∂zs = [interior(𝒟train.data[i]["∂v∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
-    ∂T∂zs = [interior(𝒟train.data[i]["∂T∂z*"])[1,1,:,tsteps[i][1]] for i in 1:n_simulations]
+    ∂u∂zs = [interior(𝒟train.data[i]["∂u∂z*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
+    ∂v∂zs = [interior(𝒟train.data[i]["∂v∂z*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
+    ∂T∂zs = [interior(𝒟train.data[i]["∂T∂z*"])[1,1,:,tsteps[i]] for i in 1:n_simulations]
 
     t_trains = [Float32.(𝒟train.data[i]["u"].times[tsteps[i]]) for i in 1:n_simulations]
     @assert typeof(t_trains[1][1]) == Float32
@@ -398,15 +402,6 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
 
     @info "Setting up equations and boundary conditions"
 
-    BCs = [
-        [
-            interior(dataset["wu*"])[1,1,1,1], interior(dataset["wu*"])[1,1,end,1],
-            interior(dataset["wv*"])[1,1,1,1], interior(dataset["wv*"])[1,1,end,1],
-            interior(dataset["wT*"])[1,1,1,1], interior(dataset["wT*"])[1,1,end,1],
-        ]
-        for dataset in 𝒟train.data
-    ]
-
     if diurnal
         # prob_NDEs = [
         #     ODEProblem(
@@ -423,7 +418,7 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         if training_fractions === nothing
             loss_scalings = (u=1, v=1, T=1, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
         else
-            sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
+            sols = [Array(solve(prob_NDEs[i], timestepper, p=weights, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
             u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
 
             u_loss = [loss(training_profiles.u[i], u_sols[i]) for i in 1:n_simulations] |> mean
@@ -456,8 +451,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
 
     @info "Defining Loss Functions"
 
-    function loss_NDE(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
+    function loss_NDE(weights, p)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=weights, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]        
         u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
 
         u_loss = [loss(training_profiles.u[i], u_sols[i]) for i in 1:n_simulations] |> mean
@@ -470,8 +465,8 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
         return sum(scaled_losses), scaled_losses, loss_scalings
     end
 
-    function loss_gradient_NDE(weights, BCs)
-        sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]
+    function loss_gradient_NDE(weights, p)
+        sols = [Array(solve(prob_NDEs[i], timestepper, p=weights, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=times.t[i])) for i in 1:n_simulations]
         # sols = [Array(solve(prob_NDEs[i], timestepper, p=[weights; BCs[i]], reltol=1f-3, saveat=t_trains[i])) for i in 1:n_simulations]
 
         u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
@@ -497,12 +492,13 @@ function train_NDE(uw_NN, vw_NN, wT_NN, train_files, tsteps, timestepper, optimi
     @info "Setting up optimization problem"
 
     if train_gradient
+        @info "gradient loss"
         f_loss = OptimizationFunction(loss_gradient_NDE, GalacticOptim.AutoZygote())
     else
         f_loss = OptimizationFunction(loss_NDE, GalacticOptim.AutoZygote())
     end
 
-    prob_loss = OptimizationProblem(f_loss, weights, BCs)
+    prob_loss = OptimizationProblem(f_loss, weights)
 
     @inline function rounded_percentage(num, den)
         return round(num / den * 100, sigdigits=3)

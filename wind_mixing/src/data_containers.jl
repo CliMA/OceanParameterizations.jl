@@ -129,7 +129,11 @@ directories = Dict(
 
 datadeps_files = Dict(
     "wind_-5e-4_cooling_3e-8" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_linear_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC/",
-    "wind_-5e-4_cooling_3e-8_cubic" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_cubic_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_cubic/"
+    "wind_-5e-4_cooling_3e-8_cubic" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_cubic_hr192_Qu5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_WC_cubic/",
+    "diurnal_Qu_-5e-4_diurnal_Qb_3e-8" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_sinusoidal_Qu_sinusoidal_Qb_cubic_hr192_Qu-5.0e-042.4e+010.0e+000.0e+00_Qb3.0e-082.4e+010.0e+000.0e+00_f1.0e-04_Nh256_Nz128_diurnal_Qb_Qu/",
+    "constant_Qu_-5e-4_constant_Qb_3e-8" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_cubic_hr192_Qu-5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_constant_Qb_Qu/",
+    "constant_Qu_-5e-4_constant_Qb_3e-8_2" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_constant_fluxes_cubic_hr192_Qu-5.0e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_constant_Qb_Qu_2/",
+    "diurnal_Qu_-5e-4_diurnal_Qb_3e-8_2" => "https://engaging-web.mit.edu/~xinkai/OceanParameterizations.jl/Data/three_layer_sinusoidal_Qu_sinusoidal_Qb_cubic_hr192_Qu-5.0e-042.4e+010.0e+000.0e+00_Qb3.0e-082.4e+010.0e+000.0e+00_f1.0e-04_Nh256_Nz128_diurnal_Qb_Qu_2/",
 )
 
 function load_data(filenames; Nz_coarse=32, scaling=ZeroMeanUnitVarianceScaling)

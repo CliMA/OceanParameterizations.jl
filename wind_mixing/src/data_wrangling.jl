@@ -210,9 +210,31 @@ function TrainingDatasets(FILE_PATHS; Nz_coarse=32, scaling=ZeroMeanUnitVariance
     TrainingDatasets(datasets_coarse, scalings)
 end
 
+# function parse_BCs!(ds)
+#     FT = ds["u"][1,1,1,1] |> typeof
+#     # momentum_flux_surface(x, y, t)::FT = Base.@invokelatest (ds.metadata["momentum_flux"] |> Meta.parse |> eval)(x, y, t)
+#     momentum_flux_surface(x, y, t)::FT = Base.@invokelatest ("f(x, y, t) = sin(t)" |> Meta.parse |> eval)(x, y, t)
+
+#     ds.metadata["func"] = momentum_flux_surface
+#     # somefunc(x, y, t) = sin(t)
+#     # ds.metadata["func"] = somefunc
+
+#     @assert haskey(ds.metadata, "func")
+#   end
+
 function apply_surface_fluxes!(ds)
-    interior(ds["wu"])[:, :, end, :] .= ds.metadata["momentum_flux"]
-    interior(ds["wT"])[:, :, end, :] .= ds.metadata["temperature_flux"]
+    # FT = ds["u"][1,1,1,1] |> typeof
+    # momentum_flux_surface(x, y, t) = FT(Base.@invokelatest (ds.metadata["momentum_flux"] |> Meta.parse |> eval)(x, y, t))
+    # ds.metadata["testfunc"] = ds.metadata["momentum_flux"] |> Meta.parse |> eval
+
+    for i in 1:size(ds["wu"] |> interior, 1), j in 1:size(ds["wu"] |> interior, 2), tstep in 1:length(ds["wu"].times)
+        x = ds["wu"].grid.xF[i]
+        y = ds["wu"].grid.yF[j]
+        t = ds["wu"].times[tstep]
+
+        interior(ds["wu"])[i, j, end, tstep] = ds.metadata["boundary_condition_u_top"](x, y, t)
+        interior(ds["wT"])[i, j, end, tstep] = ds.metadata["boundary_condition_θ_top"](x, y, t)
+    end
 end
 
 function add_scalings!(ds, scalings)

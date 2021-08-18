@@ -1,6 +1,6 @@
-using Base: Integer
 using WindMixing: TrainingDatasets
 using WindMixing: load_data
+using WindMixing
 
 using Oceananigans
 using Oceananigans.OutputReaders
@@ -13,8 +13,10 @@ using OceanParameterizations
 
 @testset "Data Wrangling" begin
     simulations = [
-        "wind_-5e-4_cooling_3e-8",
-        "wind_-5e-4_cooling_3e-8_cubic" 
+        # "wind_-5e-4_cooling_3e-8",
+        # "wind_-5e-4_cooling_3e-8_cubic",
+        "constant_Qu_-5e-4_constant_Qb_3e-8_2",
+        "diurnal_Qu_-5e-4_diurnal_Qb_3e-8_2",
     ]
 
     Nzs_coarse = [32, 64]

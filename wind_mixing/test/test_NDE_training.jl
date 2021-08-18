@@ -1,3 +1,4 @@
+using WindMixing
 using WindMixing: train_NDE
 using WindMixing: write_metadata_NDE_training
 using WindMixing: RiBasedDiffusivity
@@ -8,8 +9,8 @@ using JLD2
 
 @testset "NDE Training" begin
     train_files = [
-        "wind_-5e-4_cooling_3e-8",
-        "wind_-5e-4_cooling_3e-8_cubic" 
+      "constant_Qu_-5e-4_constant_Qb_3e-8_2",
+      "diurnal_Qu_-5e-4_diurnal_Qb_3e-8_2",
     ]
 
     𝒟train = load_data(train_files)
@@ -17,6 +18,8 @@ using JLD2
     OUTPUT_PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl\\training_output"
     FILE_NAME = "test_NDE_training"
     FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
+    EXTRACTED_FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME)_extracted.jld2")
+
 
     ν₀ = 1f-4
     ν₋ = 1f-1
@@ -75,5 +78,15 @@ using JLD2
     file = jldopen(FILE_PATH)
     @info file
     close(file)
+
+    extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
+
+    extracted_file = jldopen(EXTRACTED_FILE_PATH)
+    
+    @info extracted_file
+
+    close(extracted_file)
+
     rm(FILE_PATH)
+    rm(EXTRACTED_FILE_PATH)
 end

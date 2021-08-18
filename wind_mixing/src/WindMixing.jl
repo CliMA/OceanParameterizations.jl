@@ -20,7 +20,8 @@ export data, read_les_output,
        optimise_modified_pacanowski_philander,
        extract_NN, extract_parameters_modified_pacanowski_philander_optimisation,
        diurnal_fluxes,
-       directories, datadeps_files
+       directories, datadeps_files,
+       ConstantMomentumFlux, ConstantTemperatureFlux, SinusoidalMomentumFlux, SinusoidalTemperatureFlux
 
 using Flux, Plots
 using Oceananigans.Grids: Center, Face
@@ -62,6 +63,7 @@ include("training_postprocessing.jl")
 include("k_profile_parameterization.jl")
 include("loss.jl")
 include("plotting.jl")
+include("surface_fluxes.jl")
 include("data_wrangling.jl")
 
 function __init__()

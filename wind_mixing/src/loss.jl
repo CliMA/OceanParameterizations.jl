@@ -1,5 +1,5 @@
 function loss(a, b)
-    return Flux.mse(a, b)    
+    return Flux.mse(a, b)
 end
 
 @views split_u(uvT, Nz) = uvT[1:Nz, :]
