@@ -1,15 +1,3 @@
-using LinearAlgebra: Tridiagonal
-
-using Oceananigans:
-    CPU, RegularRectilinearGrid, ZFaceField, ComputedField, set!, compute!, interior,
-    FluxBoundaryCondition, GradientBoundaryCondition, TracerBoundaryConditions, fill_halo_regions!,
-    Forcing, IncompressibleModel, Simulation, run!
-
-using Oceananigans.Grids: Periodic, Bounded
-using Oceananigans.OutputWriters: NetCDFOutputWriter, TimeInterval
-using Oceananigans.AbstractOperations: @at, ∂z
-
-
 function convective_adjustment!(model, Δt, K)
     Nz, Δz = model.grid.Nz, model.grid.Δz
     T = model.tracers.T
@@ -39,7 +27,29 @@ function convective_adjustment!(model, Δt, K)
     return nothing
 end
 
-function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=600)
+function diagnose_convective_adjustment_wT(model, K, heat_flux)
+    grid = model.grid
+    Nz, Δz = grid.Nz, grid.Δz
+    T = model.tracers.T
+
+    ∂T∂z = ComputedField(@at (Center, Center, Face) ∂z(T))
+    compute!(∂T∂z)
+
+    κ_∂T∂z = ZFaceField(grid)
+
+    for k in 1:Nz+1
+        κ = ∂T∂z[1, 1, k] < 0 ? K : 0
+        κ_∂T∂z[1, 1, k] = - κ * ∂T∂z[1, 1, k]
+    end
+
+    # Super dirty hack since ∂T∂z[1, 1, Nz] value seems huge and I have no idea why...
+    κ_∂T∂z[1, 1, Nz+1] = heat_flux
+    κ_∂T∂z[1, 1, Nz] = (κ_∂T∂z[1, 1, Nz-1] + κ_∂T∂z[1, 1, Nz+1]) / 2
+
+    return κ_∂T∂z
+end
+
+function base_model(ds; forcing=NamedTuple())
     ρ₀ = 1027.0
     cₚ = 4000.0
     f  = ds.metadata["coriolis_parameter"]
@@ -71,6 +81,83 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=
     T_bc_top = FluxBoundaryCondition(heat_flux)
     T_bc_bottom = GradientBoundaryCondition(∂T₀∂z)
     T_bcs = TracerBoundaryConditions(grid, top=T_bc_top, bottom=T_bc_bottom)
+
+    ## Model setup
+
+    model = IncompressibleModel(grid=grid, boundary_conditions=(T=T_bcs,), forcing=forcing)
+
+    T₀ = reshape(Array(interior(T)[1, 1, :, 1]), size(grid)...)
+    set!(model, T=T₀)
+
+    return model
+end
+
+function oceananigans_convective_adjustment(ds; output_dir, Δt=600, K=10)
+    model = base_model(ds)
+
+    ## Simulation setup
+
+    function progress_convective_adjustment(simulation)
+        clock = simulation.model.clock
+        # @info "Convective adjustment: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
+        convective_adjustment!(simulation.model, simulation.Δt, K)
+        return nothing
+    end
+
+    stop_time = ds["T"].times[end]
+
+    simulation = Simulation(model, Δt=Δt,
+        iteration_interval = 1,
+                 stop_time = stop_time,
+                  progress = progress_convective_adjustment)
+
+    ## Output writing
+
+    heat_flux = ds.metadata["temperature_flux"]
+
+    filepath = joinpath(output_dir, "oceananigans_convective_adjustment.nc")
+
+    outputs = (
+        T  = model.tracers.T,
+        wT = model -> diagnose_convective_adjustment_wT(model, K, heat_flux)
+    )
+
+    simulation.output_writers[:solution] =
+        NetCDFOutputWriter(model, outputs,
+            schedule = TimeInterval(Δt),
+            filepath = filepath,
+                mode = "c",
+          dimensions = (wT=("xC", "yC", "zF"),))
+
+    @info "Running convective adjustment simulation..."
+    run!(simulation)
+
+    ds_nc = NCDataset(filepath)
+
+    T = dropdims(Array(ds_nc["T"]), dims=(1, 2))
+    wT = dropdims(Array(ds_nc["wT"]), dims=(1, 2))
+
+    close(ds_nc)
+    rm(filepath)
+
+    solution = (; T, wT)
+
+    return solution
+end
+
+function oceananigans_convective_adjustment_with_neural_network(ds; output_dir, nn_filepath, Δt=600)
+
+    T = ds["T"]
+    wT = ds["wT"]
+    Nz = size(T, 3)
+    zc = znodes(T)
+    zf = znodes(wT)
+    Lz = abs(zf[1])
+    stop_time = T.times[end]
+    heat_flux = ds.metadata["temperature_flux"]
+
+    topo = (Periodic, Periodic, Bounded)
+    grid = RegularRectilinearGrid(topology=topo, size=(1, 1, Nz), extent=(1, 1, Lz))
 
     ## Neural network forcing
 
@@ -134,21 +221,9 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=
 
     ## Model setup
 
-    model_convective_adjustment = IncompressibleModel(grid=grid, boundary_conditions=(T=T_bcs,))
-    model_neural_network = IncompressibleModel(grid=grid, boundary_conditions=(T=T_bcs,), forcing=(T=T_forcing,))
-
-    T₀ = reshape(Array(interior(T)[1, 1, :, 1]), size(grid)...)
-    set!(model_convective_adjustment, T=T₀)
-    set!(model_neural_network, T=T₀)
+    model = base_model(ds, forcing=(T=T_forcing,))
 
     ## Simulation setup
-
-    function progress_convective_adjustment(simulation)
-        clock = simulation.model.clock
-        # @info "Convective adjustment: iteration = $(clock.iteration), time = $(prettytime(clock.time))"
-        convective_adjustment!(simulation.model, simulation.Δt, K)
-        return nothing
-    end
 
     function progress_neural_network(simulation)
         model = simulation.model
@@ -164,48 +239,34 @@ function oceananigans_convective_adjustment_nn(ds; output_dir, nn_filepath, Δt=
         return nothing
     end
 
-    simulation_convective_adjustment = Simulation(model_convective_adjustment, Δt=Δt, iteration_interval=1,
-                                                  stop_time=stop_time, progress=progress_convective_adjustment)
-    simulation_neural_network = Simulation(model_neural_network, Δt=Δt, iteration_interval=1,
-                                           stop_time=stop_time, progress=progress_neural_network)
+    simulation = Simulation(model, Δt=Δt, iteration_interval=1,
+                            stop_time=stop_time, progress=progress_neural_network)
 
     ## Output writing
 
-    filepath_CA = joinpath(output_dir, "oceananigans_convective_adjustment.nc")
-    outputs_CA = (T  = model_convective_adjustment.tracers.T,)
-
-    simulation_convective_adjustment.output_writers[:solution] =
-        NetCDFOutputWriter(model_convective_adjustment, outputs_CA,
-                           schedule = TimeInterval(Δt),
-                           filepath = filepath_CA,
-                           mode = "c")
-
     filepath_NN = joinpath(output_dir, "oceananigans_neural_network.nc")
-    outputs_NN = (T  = model_neural_network.tracers.T,
-                  wT = model -> diagnose_wT_NN(model))
+    outputs_NN = (T  = model.tracers.T,
+                  wT = diagnose_wT_NN)
 
-    simulation_neural_network.output_writers[:solution] =
-        NetCDFOutputWriter(model_neural_network, outputs_NN,
+    simulation.output_writers[:solution] =
+        NetCDFOutputWriter(model, outputs_NN,
                            schedule = TimeInterval(Δt),
                            filepath = filepath_NN,
                            mode = "c",
                            dimensions = (wT=("zF",),))
 
-    @info "Running convective adjustment simulation..."
-    run!(simulation_convective_adjustment)
-
     @info "Running convective adjustment simulation + neural network..."
-    run!(simulation_neural_network)
+    run!(simulation)
 
-    ds_ca = NCDstack(filepath_CA)
-    ds_nn = NCDstack(filepath_NN)
+    ds_nn = NCDataset(filepath_NN)
 
-    T_ca = dropdims(Array(ds_ca[:T]), dims=(1, 2))
-    T_nn = dropdims(Array(ds_nn[:T]), dims=(1, 2))
-    wT_nn = Array(ds_nn[:wT])
+    T_nn = dropdims(Array(ds_nn["T"]), dims=(1, 2))
+    wT_nn = Array(ds_nn["wT"])
 
-    convective_adjustment_solution = (T=T_ca, wT=nothing)
+    close(ds_nn)
+    rm(filepath_NN)
+
     neural_network_solution = (T=T_nn, wT=wT_nn)
 
-    return convective_adjustment_solution, neural_network_solution
+    return neural_network_solution
 end

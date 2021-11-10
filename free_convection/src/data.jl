@@ -1,8 +1,8 @@
 using Oceananigans: Flat, Bounded, RegularRectilinearGrid
 
-ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/lesbrary/neural_free_convection_training_data"
+ENGAGING_LESBRARY_DIR = "https://engaging-web.mit.edu/~alir/neural_free_convection_training_data"
 
-SIMULATION_IDS = 1:9
+SIMULATION_IDS = 1:21
 
 LESBRARY_DATA_DEPS = [
     DataDep("free_convection_$id",
@@ -33,15 +33,17 @@ function load_data(ids_train, ids_test, Nz)
 
     @info "Constructing FieldTimeSeries..."
 
+    grid_1d = RegularRectilinearGrid(topology=(Flat, Flat, Bounded), size=128, extent=256, halo=3)
+
     datasets = Dict{Int, FieldDataset}(
-        id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; ArrayType=Array{Float32}, metadata_paths=["parameters"])
+        id => FieldDataset(@datadep_str "free_convection_$id/instantaneous_statistics_with_halos.jld2"; grid=grid_1d, ArrayType=Array{Float32}, metadata_paths=["parameters"])
         for id in SIMULATION_IDS
     )
 
     @info "Injecting surface fluxes..."
 
-    for id in SIMULATION_IDS
-        add_surface_fluxes!(datasets[id])
+    for ds in values(datasets)
+        add_surface_fluxes!(ds)
     end
 
     @info "Coarsening grid..."
