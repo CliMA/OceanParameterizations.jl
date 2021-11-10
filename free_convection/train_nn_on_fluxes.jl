@@ -207,7 +207,7 @@ function nn_callback()
 end
 
 optimizers = [ADAM(1e-4)]
-history_filepath = "neural_network_trained_on_fluxes_history.jld2"
+history_filepath = joinpath(output_dir, "neural_network_trained_on_fluxes_history.jld2")
 
 for opt in optimizers, e in 1:epochs, (i, mini_batch) in enumerate(data_loader)
     @info "Training heat flux neural network with $(typeof(opt))(η=$(opt.eta))... (epoch $e/$epochs, mini-batch $i/$n_batches)"

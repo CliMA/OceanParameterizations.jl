@@ -111,9 +111,9 @@ coarse_datasets = data.coarse_datasets
 
 @info "Reading neural network from disk..."
 
-nn_history_filepath = joinpath(output_dir, "neural_network_history.jld2")
-final_nn_filepath = joinpath(output_dir, "free_convection_trained_neural_network.jld2")
-initial_nn_filepath = joinpath(output_dir, "free_convection_initial_neural_network.jld2")
+nn_history_filepath = joinpath(output_dir, "neural_network_trained_on_fluxes_history.jld2")
+final_nn_filepath = joinpath(output_dir, "neural_network_trained_on_fluxes.jld2")
+initial_nn_filepath = joinpath(output_dir, "neural_network_trained_on_fluxes.jld2")
 
 file = jldopen(final_nn_filepath, "r")
 NN = file["neural_network"]

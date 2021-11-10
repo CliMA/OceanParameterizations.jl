@@ -189,8 +189,8 @@ end
 
 @info "Wrangling (T, wT) training data..."
 
-input_training_data = wrangle_input_training_data(coarse_training_datasets)
-output_training_data = wrangle_output_training_data(coarse_training_datasets)
+input_training_data = wrangle_input_training_data(coarse_training_datasets, use_missing_fluxes=false)
+output_training_data = wrangle_output_training_data(coarse_training_datasets, use_missing_fluxes=false)
 
 
 @info "Scaling features..."
@@ -291,8 +291,9 @@ optimizers = [ADAM(1e-3)]
 
 for opt in optimizers
     @info "Training free convection NDE with iterations=$burn_in_iterations for $full_epochs epochs with $(typeof(opt))(η=$(opt.eta))..."
-    train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
-                                        burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
+    global NN
+    NN = train_neural_differential_equation!(NN, NDEType, algorithm, coarse_training_datasets, T_scaling, wT_scaling,
+                                             burn_in_iterations, opt, full_epochs, history_filepath=nn_history_filepath, causal_penalty=causal_penalty)
 end
 
 
