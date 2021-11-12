@@ -1,6 +1,6 @@
 using Statistics: mean
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: Field, location
+using Oceananigans.Fields: Field, location, interior
 using Oceananigans.OutputReaders: FieldTimeSeries, FieldDataset
 
 """
