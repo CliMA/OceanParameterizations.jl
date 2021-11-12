@@ -77,7 +77,7 @@ function coarse_grain(field::Field{X, Y, Center}, new_grid; dims=3) where {X, Y}
 
     coarse_data = zeros(size(coarse_field))
     field_interior = interior(field)[1, 1, :]
-    coarse_data[1, 1, :] .= OceanParameterizations.coarse_grain(field_interior, new_grid.Nz, Center())
+    coarse_data[1, 1, :] .= coarse_grain(field_interior, new_grid.Nz, Center())
 
     set!(coarse_field, coarse_data)
 
@@ -97,7 +97,7 @@ function coarse_grain(field::Field{X, Y, Face}, new_grid; dims=3) where {X, Y}
 
     coarse_data = zeros(size(location(coarse_field), new_grid))
     field_interior = interior(field)[1, 1, :]
-    coarse_data[1, 1, :] .= OceanParameterizations.coarse_grain(field_interior, new_grid.Nz+1, Face())
+    coarse_data[1, 1, :] .= coarse_grain(field_interior, new_grid.Nz+1, Face())
 
     set!(coarse_field, coarse_data)
 
