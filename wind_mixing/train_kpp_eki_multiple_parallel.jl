@@ -228,8 +228,8 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
         @info i
         params_i = get_ϕ_final(prior, ensemble_kalman_process)
         push!(paramss, params_i)
-        
-        G_ens = zeros(length(prior), N_ensemble)
+
+        G_ens = zeros(18, N_ensemble)
 
         Threads.@threads for j in 1:N_ensemble
             G_ens[:,j] .=  G(params_i[:, i])
