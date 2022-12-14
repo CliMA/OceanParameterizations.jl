@@ -2,6 +2,7 @@
 @info "Loading packages"
 using EnsembleKalmanProcesses
 using EnsembleKalmanProcesses.ParameterDistributions
+using EnsembleKalmanProcesses.Localizers
 using WindMixing
 using OceanParameterizations
 using OceanTurb
@@ -219,32 +220,42 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
 
     initial_ensemble = EKP.construct_initial_ensemble(rng, prior, N_ensemble)
 
-    ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, failure_handler_method=SampleSuccGauss())
+    
+    locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
+    
+    for loc in locs
+        loc_count = 1
+        ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, localization_method=loc, failure_handler_method=SampleSuccGauss())
 
-    ##
-    paramss = []
+        # ekiobj = EKP.EnsembleKalmanProcess(initial_ensemble, y, Γ, Inversion(); localization_method = loc)
+        paramss = []
 
-    for i in 1:N_iteration
-        @info i
-        params_i = get_ϕ_final(prior, ensemble_kalman_process)
-        push!(paramss, params_i)
+        for i in 1:N_iteration
+            @info i
+            params_i = get_ϕ_final(prior, ensemble_kalman_process)
+            push!(paramss, params_i)
 
-        G_ens = zeros(dim_output, N_ensemble)
+            G_ens = zeros(dim_output, N_ensemble)
 
-        Threads.@threads for j in 1:N_ensemble
-            G_ens[:,j] .=  G(params_i[:, j])
+            Threads.@threads for j in 1:N_ensemble
+                G_ens[:,j] .=  G(params_i[:, j])
+            end
+
+            EKP.update_ensemble!(ensemble_kalman_process, G_ens)
         end
 
-        EKP.update_ensemble!(ensemble_kalman_process, G_ens)
-    end
+        final_ensemble = get_ϕ_final(prior, ensemble_kalman_process)
+        push!(paramss, final_ensemble)
 
-    final_ensemble = get_ϕ_final(prior, ensemble_kalman_process)
-    push!(paramss, final_ensemble)
+        jldopen(FILE_PATH, "w") do file
+            file["final_ensemble_$loc_count"] = final_ensemble
+            file["ensemble_parameters_$loc_count"] = paramss
+        end
 
-    jldopen(FILE_PATH, "w") do file
-        file["final_ensemble"] = final_ensemble
-        file["ensemble_parameters"] = paramss
+        loc_count += 1
     end
+    ##
+
 
     # final_parameters = mean(final_ensemble, dims=2)[:]
 end
