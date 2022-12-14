@@ -239,6 +239,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     end
 
     final_ensemble = get_ϕ_final(prior, ensemble_kalman_process)
+    push!(paramss, final_ensemble)
 
     jldopen(FILE_PATH, "w") do file
         file["final_ensemble"] = final_ensemble
