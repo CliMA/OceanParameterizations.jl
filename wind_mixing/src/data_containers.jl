@@ -1,3 +1,5 @@
+# using Oceananigans.OutputReaders: FieldDataset
+
 directories = Dict(
     "free_convection"          => "2DaySuite/three_layer_constant_fluxes_hr48_Qu0.0e+00_Qb1.2e-07_f1.0e-04_Nh256_Nz128_free_convection_statistics.jld2",
     "strong_wind"              => "2DaySuite/three_layer_constant_fluxes_hr48_Qu1.0e-03_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind_statistics.jld2",
