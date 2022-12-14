@@ -247,7 +247,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
         final_ensemble = get_ϕ_final(prior, ensemble_kalman_process)
         push!(paramss, final_ensemble)
 
-        jldopen(FILE_PATH, "w") do file
+        jldopen(FILE_PATH, "a+") do file
             file["final_ensemble_$loc_count"] = final_ensemble
             file["ensemble_parameters_$loc_count"] = paramss
         end
