@@ -221,8 +221,10 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     initial_ensemble = EKP.construct_initial_ensemble(rng, prior, N_ensemble)
 
     
-    locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
-    loc_count = 1
+    # locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
+    locs = [SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
+
+    loc_count = 5
     
     for loc in locs
         ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, localization_method=loc, failure_handler_method=SampleSuccGauss())
