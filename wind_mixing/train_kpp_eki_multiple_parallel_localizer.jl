@@ -194,39 +194,38 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     KU₀_prior = constrained_gaussian("KU₀", 1e-6, 1e-6 / std_scale, 0, Inf) # Interior viscosity for velocity
     KT₀_prior = constrained_gaussian("KT₀", 1e-7, 1e-7 / std_scale, 0, Inf) # Interior diffusivity for temperature
 
-    prior = combine_distributions([
-        CSL_prior,
-        Cτ_prior,
-        CNL_prior,
-        Cstab_prior,
-        Cunst_prior,
-        Cn_prior,
-        Cmτ_U_prior,
-        Cmτ_T_prior,
-        Cmb_U_prior,
-        Cmb_T_prior,
-        Cd_U_prior,
-        Cd_T_prior,
-        Cb_U_prior,
-        Cb_T_prior,
-        CRi_prior,
-        CKE_prior,
-        KU₀_prior,
-        KT₀_prior
-    ])
-
-    rng_seed = 41
-    rng = Random.MersenneTwister(rng_seed)
-
-    initial_ensemble = EKP.construct_initial_ensemble(rng, prior, N_ensemble)
 
     
-    # locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
-    locs = [SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
-
-    loc_count = 5
+    locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
+    loc_count = 1
     
     for loc in locs
+        prior = combine_distributions([
+            CSL_prior,
+            Cτ_prior,
+            CNL_prior,
+            Cstab_prior,
+            Cunst_prior,
+            Cn_prior,
+            Cmτ_U_prior,
+            Cmτ_T_prior,
+            Cmb_U_prior,
+            Cmb_T_prior,
+            Cd_U_prior,
+            Cd_T_prior,
+            Cb_U_prior,
+            Cb_T_prior,
+            CRi_prior,
+            CKE_prior,
+            KU₀_prior,
+            KT₀_prior
+        ])
+    
+        rng_seed = 41
+        rng = Random.MersenneTwister(rng_seed)
+    
+        initial_ensemble = EKP.construct_initial_ensemble(rng, prior, N_ensemble)
+    
         ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, localization_method=loc, failure_handler_method=SampleSuccGauss())
 
         # ekiobj = EKP.EnsembleKalmanProcess(initial_ensemble, y, Γ, Inversion(); localization_method = loc)
