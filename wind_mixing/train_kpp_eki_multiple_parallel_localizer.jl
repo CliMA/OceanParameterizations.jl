@@ -196,8 +196,10 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
 
 
     
-    locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
-    loc_count = 1
+    # locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
+    locs = [SECFisher(), SEC(1.0, 0.1)]
+
+    loc_count = 6
     
     for loc in locs
         prior = combine_distributions([
