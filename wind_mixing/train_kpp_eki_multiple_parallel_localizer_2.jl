@@ -222,7 +222,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     # locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
 
 
-    ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, localization_method=Delta())
+    ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng)
 
     ##
     paramss = []
@@ -240,7 +240,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
             G_ens[:,j] .=  G(params_i[:, j])
         end
 
-        @info G_ens[1:10, 1:10]
+        # @info G_ens[1:10, 1:10]
 
         EKP.update_ensemble!(ensemble_kalman_process, G_ens)
     end
