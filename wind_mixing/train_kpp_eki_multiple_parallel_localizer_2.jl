@@ -29,7 +29,7 @@ N_iteration = parse(Int64, ARGS[2])
 # N_ensemble = 180
 # N_iteration = 5
 
-FILE_PATH = "Data/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_4sim_loc_delta.jld2"
+FILE_PATH = "Data/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_4sim_loc_delta_test.jld2"
 
 function kpp_model(parameters, BCs, ICs)
     CSL, Cτ, CNL, Cstab, Cunst, Cn, Cmτ_U, Cmτ_T, Cmb_U, Cmb_T, Cd_U, Cd_T, Cb_U, Cb_T, CRi, CKE, KU₀, KT₀ = parameters
@@ -222,7 +222,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     # locs = [Delta(), RBF(1.0), RBF(0.1), BernoulliDropout(0.1), SEC(10.0), SECFisher(), SEC(1.0, 0.1)]
 
 
-    ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); localization_method=Delta())
+    ensemble_kalman_process = EKP.EnsembleKalmanProcess(initial_ensemble, y_true, Γ, Inversion(); rng=rng, localization_method=Delta())
 
     ##
     paramss = []
@@ -230,6 +230,9 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     for i in 1:N_iteration
         @info i
         params_i = get_ϕ_final(prior, ensemble_kalman_process)
+        @info params_i[1:10]
+        @info get_ϕ_final(prior, ensemble_kalman_process)[1:10]
+
         push!(paramss, params_i)
 
         G_ens = zeros(dim_output, N_ensemble)
