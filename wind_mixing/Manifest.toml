@@ -1377,6 +1377,11 @@ git-tree-sha1 = "b086b7ea07f8e38cf122f5016af580881ac914fe"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "0.3.7"
 
+[[NamedTupleTools]]
+git-tree-sha1 = "63831dcea5e11db1c0925efe5ef5fc01d528c522"
+uuid = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
+version = "0.13.7"
+
 [[NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
 git-tree-sha1 = "440165bf08bc500b8fe4a7be2dc83271a00c0716"
@@ -1535,6 +1540,12 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.11"
+
+[[PairPlots]]
+deps = ["Contour", "Measures", "NamedTupleTools", "PolygonOps", "Printf", "RecipesBase", "Requires", "StaticArrays", "Statistics", "StatsBase", "Tables"]
+git-tree-sha1 = "7e29c57d2f8786d471ce4d71b764b000b2b0d6dc"
+uuid = "43a3c2be-4208-490b-832a-a21dcd55d7da"
+version = "0.4.0"
 
 [[Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Pkg"]
