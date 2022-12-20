@@ -17,7 +17,7 @@ export data, read_les_output,
        local_richardson,
        smoothing_filter,
        loss, loss_gradient,
-       optimise_modified_pacanowski_philander,
+       optimise_modified_pacanowski_philander, optimise_modified_pacanowski_philander_noν₀
        extract_NN, extract_parameters_modified_pacanowski_philander_optimisation,
        diurnal_fluxes,
        directories, datadeps_files,
