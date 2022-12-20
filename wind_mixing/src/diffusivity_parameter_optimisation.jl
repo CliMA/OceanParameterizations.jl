@@ -398,7 +398,7 @@ function optimise_modified_pacanowski_philander_noν₀(train_files, tsteps, tim
         f_loss = OptimizationFunction(loss_mpp, GalacticOptim.AutoZygote())
     end
 
-    prob_loss = OptimizationProblem(f_loss, scaled_parameters)
+    prob_loss = OptimizationProblem(f_loss, scaled_parameters, lb=[0f0, 0f0, 0f0, 0f0], ub=[10f0, 10f0, 10f0, 10f0])
 
     @info "Writing metadata"
 

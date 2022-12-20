@@ -10,7 +10,6 @@ using Plots
 using Oceananigans.Grids
 using JLD2
 using FileIO
-using Optim
 
 BLAS.set_num_threads(1)
 
