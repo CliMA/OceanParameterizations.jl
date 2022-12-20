@@ -35,7 +35,7 @@ using JLD2
 using FileIO
 using BSON
 using OrdinaryDiffEq, DiffEqSensitivity
-using GalacticOptim
+using GalacticOptim, Optim
 using Statistics
 using Random
 using Logging
