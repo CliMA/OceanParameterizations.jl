@@ -53,7 +53,7 @@ PATH = pwd()
 if train_gradient
     FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_grad_new"
 else
-    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)__nonu0_var_nograd_new"
+    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_nograd_new"
 end
 
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")

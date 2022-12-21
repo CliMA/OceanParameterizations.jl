@@ -27,7 +27,8 @@ train_files = [
 ]
 
 PATH = pwd()
-PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
+PATH = "C:\\Users\\xinle\\MIT\\test"
+
 
 FILE_NAME = "parameter_optimisation_18sim_windcooling_windheating_5params_LBFGS_scale_1e-3"
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
