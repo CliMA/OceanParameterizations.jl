@@ -16,19 +16,34 @@ using JLD2
 ##
 @info "Loading data"
 train_files = [
-    "wind_-5e-4_cooling_3e-8_new",
-    "wind_-5e-4_new",
-    "wind_-2.5e-4_heating_-2.5e-8",
-    "cooling_5e-8_new"
+    "wind_-5e-4_cooling_3e-8_new",   
+    "wind_-5e-4_cooling_2e-8_new",   
+    "wind_-5e-4_cooling_1e-8_new",   
+    "wind_-3.5e-4_cooling_3e-8_new", 
+    "wind_-3.5e-4_cooling_2e-8_new", 
+    "wind_-3.5e-4_cooling_1e-8_new", 
+    "wind_-2e-4_cooling_3e-8_new",   
+    "wind_-2e-4_cooling_2e-8_new",   
+    "wind_-2e-4_cooling_1e-8_new",   
+    "wind_-5e-4_heating_-3e-8_new",  
+    "wind_-5e-4_heating_-2e-8_new",  
+    "wind_-5e-4_heating_-1e-8_new",  
+    "wind_-3.5e-4_heating_-3e-8_new",
+    "wind_-3.5e-4_heating_-2e-8_new",
+    "wind_-3.5e-4_heating_-1e-8_new",
+    "wind_-2e-4_heating_-3e-8_new",  
+    "wind_-2e-4_heating_-2e-8_new",  
+    "wind_-2e-4_heating_-1e-8_new",  
 ]
 
 N_ensemble = parse(Int64, ARGS[1])
 N_iteration = parse(Int64, ARGS[2])
+N_sims = length(train_files)
 
 # N_ensemble = 180
 # N_iteration = 5
 
-FILE_PATH = "Data/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_4sim.jld2"
+FILE_PATH = "Data/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_$(N_sims)sim.jld2"
 
 function kpp_model(parameters, BCs, ICs)
     CSL, Cτ, CNL, Cstab, Cunst, Cn, Cmτ_U, Cmτ_T, Cmb_U, Cmb_T, Cd_U, Cd_T, Cb_U, Cb_T, CRi, CKE, KU₀, KT₀ = parameters
