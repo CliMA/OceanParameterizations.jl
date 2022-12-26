@@ -126,7 +126,7 @@ function kpp_model(parameters, BCs, ICs)
 
         WT[Nz+1, n] = WT_flux
     end
-    return T[:, 1:100:end][:]
+    return T[:, 1:20:end][:]
 end
 
 kpp_model(parameters) = kpp_model(parameters, BCs_unscaled, ICs_unscaled)
@@ -142,7 +142,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
 
     ICs_unscaled = [(u=data.u.coarse[:,1], v=data.v.coarse[:,1], T=data.T.coarse[:,1]) for data in 𝒟tests]
 
-    T_coarse_sampled = vcat([data.T.coarse[:, 1:100:end][:] for data in 𝒟tests]...)
+    T_coarse_sampled = vcat([data.T.coarse[:, 1:20:end][:] for data in 𝒟tests]...)
 
     function G(parameters)
         Ts = vcat([kpp_model(parameters, BCs_unscaled[i], ICs_unscaled[i]) for i in eachindex(𝒟tests)]...)
@@ -238,11 +238,15 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
 
     ##
     paramss = []
-
+    
     for i in 1:N_iteration
         @info i
         params_i = get_ϕ_final(prior, ensemble_kalman_process)
         push!(paramss, params_i)
+
+        jldopen(FILE_PATH, "a+") do file
+            file["iteration/$i"] = params_i
+        end
 
         G_ens = zeros(dim_output, N_ensemble)
 
@@ -256,7 +260,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     final_ensemble = get_ϕ_final(prior, ensemble_kalman_process)
     push!(paramss, final_ensemble)
 
-    jldopen(FILE_PATH, "w") do file
+    jldopen(FILE_PATH, "a+") do file
         file["final_ensemble"] = final_ensemble
         file["ensemble_parameters"] = paramss
     end
