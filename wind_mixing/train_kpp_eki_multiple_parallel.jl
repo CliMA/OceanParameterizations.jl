@@ -43,7 +43,7 @@ N_sims = length(train_files)
 # N_ensemble = 180
 # N_iteration = 5
 
-FILE_PATH = "Data/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_$(N_sims)sim.jld2"
+FILE_PATH = "training_output/kpp_eki_$(N_ensemble)ensemble_$(N_iteration)iters_$(N_sims)sim.jld2"
 
 function kpp_model(parameters, BCs, ICs)
     CSL, Cτ, CNL, Cstab, Cunst, Cn, Cmτ_U, Cmτ_T, Cmb_U, Cmb_T, Cd_U, Cd_T, Cb_U, Cb_T, CRi, CKE, KU₀, KT₀ = parameters
