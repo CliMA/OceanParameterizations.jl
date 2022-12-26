@@ -21,6 +21,10 @@ optimizer_type = ARGS[4]
 # rate_str = ARGS[4]
 # rate = parse(Float64, rate_str)
 
+# T_fraction = 0.8f0
+# N_sims = 1
+# train_gradient = false
+# optimizer_type = "BFGS"
 
 train_files_all = [       
     "wind_-5e-4_cooling_3e-8_new",   
@@ -49,6 +53,8 @@ train_files = train_files_all[1:N_sims]
 
 PATH = pwd()
 # PATH = "D:\\University Matters\\MIT\\CLiMA Project\\OceanParameterizations.jl"
+# PATH = "C:\\Users\\xinle\\MIT\\test"
+
 
 if train_gradient
     FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_grad_new"
@@ -73,6 +79,7 @@ end
 
 tsteps = 1:20:1153
 maxiters = 200
+# maxiters = 2
 
 training_fractions = (T=T_fraction, profile=0.5f0, ∂T∂z=T_fraction)
 
@@ -106,7 +113,7 @@ mpp_parameters = file["parameters"]
 close(file)
 
 ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-ν₀ = 1f-4
+ν₀ = 1f-5
 
 N_inputs = 96
 hidden_units = 400
