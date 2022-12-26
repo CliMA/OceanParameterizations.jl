@@ -140,8 +140,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
 
     ICs_unscaled = [(u=data.u.coarse[:,1], v=data.v.coarse[:,1], T=data.T.coarse[:,1]) for data in 𝒟tests]
 
-    T_coarse_sampled = vcat([data.T.coarse[:, 1:20:end][:] for data in 𝒟tests]...)
-
+    # T_coarse_sampled = vcat([data.T.coarse[:, 1:20:end][:] for data in 𝒟tests]...)
     uvT_coarse_sampled = vcat([vcat(data.u.coarse[:, 1:20:end][:], data.v.coarse[:, 1:20:end][:], data.T.coarse[:, 1:20:end][:]) for data in 𝒟tests]...)
 
     function G(parameters)
@@ -149,12 +148,14 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
         return Ts
     end
 
-    dim_output = length(T_coarse_sampled)
+    # dim_output = length(T_coarse_sampled)
+    dim_output = length(uvT_coarse_sampled)
+
 
     Γ = 1e-4 * I
 
     noise_dist = MvNormal(zeros(dim_output), Γ)
-    y_true = T_coarse_sampled .+ rand(noise_dist)
+    y_true = uvT_coarse_sampled .+ rand(noise_dist)
 
     std_scale = 4
 
