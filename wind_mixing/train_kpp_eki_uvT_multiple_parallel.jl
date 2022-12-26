@@ -124,7 +124,7 @@ function kpp_model(parameters, BCs, ICs)
         VW[Nz+1, n] = VW_flux
         WT[Nz+1, n] = WT_flux
     end
-    return vcat(U[:, 1:20:end][:], V[:, 1:20:end][:], T[:, 1:20:end][:])
+    return vcat(U[:, 1:50:end][:], V[:, 1:50:end][:], T[:, 1:50:end][:])
 end
 
 kpp_model(parameters) = kpp_model(parameters, BCs_unscaled, ICs_unscaled)
@@ -141,7 +141,7 @@ function train_kpp_model(train_files, N_ensemble, N_iteration, FILE_PATH)
     ICs_unscaled = [(u=data.u.coarse[:,1], v=data.v.coarse[:,1], T=data.T.coarse[:,1]) for data in 𝒟tests]
 
     # T_coarse_sampled = vcat([data.T.coarse[:, 1:20:end][:] for data in 𝒟tests]...)
-    uvT_coarse_sampled = vcat([vcat(data.u.coarse[:, 1:20:end][:], data.v.coarse[:, 1:20:end][:], data.T.coarse[:, 1:20:end][:]) for data in 𝒟tests]...)
+    uvT_coarse_sampled = vcat([vcat(data.u.coarse[:, 1:50:end][:], data.v.coarse[:, 1:50:end][:], data.T.coarse[:, 1:50:end][:]) for data in 𝒟tests]...)
 
     function G(parameters)
         Ts = vcat([kpp_model(parameters, BCs_unscaled[i], ICs_unscaled[i]) for i in eachindex(𝒟tests)]...)
