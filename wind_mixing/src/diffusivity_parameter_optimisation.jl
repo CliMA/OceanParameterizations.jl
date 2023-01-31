@@ -33,7 +33,7 @@ function DE(x, p, t, derivatives, scalings, constants, BCs)
 end
 
 function optimise_modified_pacanowski_philander(train_files, tsteps, timestepper, optimizers, maxiters, FILE_PATH;
-                                                n_simulations, ν₀ = 1f-4, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0, Pr=1f0,
+                                                n_simulations, ν₀ = 1f-5, ν₋ = 1f-1, ΔRi=0.1f0, Riᶜ=0.25f0, Pr=1f0,
                                                 train_gradient=true, gradient_scaling=5f-3,
                                                 training_fractions=nothing)
     @info "Loading training data"
