@@ -103,3 +103,11 @@ display(fig)
 
 save("plots/3D_LES.png", fig, px_per_unit=4, pt_per_unit=2)
 save("plots/3D_LES.pdf", fig, px_per_unit=4, pt_per_unit=2)
+
+##
+close(xz_file)
+close(xy_file)
+close(yz_file)
+close(instantaneous_statistics)
+
+##
