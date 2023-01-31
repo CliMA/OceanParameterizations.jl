@@ -25,7 +25,13 @@ colormap = cgrad(colorscheme, scale=:log10, rev=false)
 
 ##
 fig = Figure(resolution=(2000, 2000), fontsize=50, figure_padding = 50)
-ax = fig[1:3,1:3] = CairoMakie.Axis3(fig, aspect=(1, 1, 0.5), xlabel=L"x (m) $ $", ylabel=L"y (m) $ $", zlabel=L"z (m) $ $", 
+
+ga = fig[1:3,1:3] = GridLayout()
+gb = fig[4,1] = GridLayout()
+gc = fig[4,2] = GridLayout()
+gd = fig[4,3] = GridLayout()
+
+ax = CairoMakie.Axis3(ga[1,1], aspect=(1, 1, 0.5), xlabel=L"x (m) $ $", ylabel=L"y (m) $ $", zlabel=L"z (m) $ $", 
                                      xlabeloffset=100, zlabeloffset=150, ylabeloffset=100)
 
 x_xz = fill(xC[1], 128)
@@ -59,6 +65,9 @@ end
 T_yz
 
 yz_surface = CairoMakie.surface!(ax, x_yz, y_yz, z_yz, color=T_yz, colormap=colormap)
+colorbar = CairoMakie.Colorbar(ga[1, 2], xy_surface, label=L"$T$ ($\degree$C)")
+
+colorbar.alignmode = Mixed(right = 0)
 
 x_xy = xC
 y_xy = yC
@@ -72,13 +81,21 @@ xz_surface.colorrange = color_range
 yz_surface.colorrange = color_range
 xy_surface.colorrange = color_range
 
-ax_u = CairoMakie.Axis(fig[4,1], ylabel=L"z (m) $ $", xlabel=L"$u$ (m s$^{-1}$)")
-ax_v = CairoMakie.Axis(fig[4,2], ylabel=L"z (m) $ $", xlabel=L"$v$ (m s$^{-1}$)")
-ax_T = CairoMakie.Axis(fig[4,3], ylabel=L"z (m) $ $", xlabel=L"$T$ ($\degree$C)")
+ax_u = CairoMakie.Axis(gb[1,1], ylabel=L"z (m) $ $", xlabel=L"$\overline{u}$ (m s$^{-1}$)")
+ax_v = CairoMakie.Axis(gc[1,1], ylabel=L"z (m) $ $", xlabel=L"$\overline{v}$ (m s$^{-1}$)")
+ax_T = CairoMakie.Axis(gd[1,1], ylabel=L"z (m) $ $", xlabel=L"$\overline{T}$ ($\degree$C)")
 
 lines!(ax_u, instantaneous_statistics["timeseries/u/$iteration"][:], zC, linewidth=10)
 lines!(ax_v, instantaneous_statistics["timeseries/v/$iteration"][:], zC, linewidth=10)
 lines!(ax_T, instantaneous_statistics["timeseries/T/$iteration"][:], zC, linewidth=10)
+
+for (label, layout) in zip(["A", "B", "C", "D"], [ga, gb, gc, gd])
+    Label(layout[1, 1, TopLeft()], label,
+        fontsize = 50,
+        font = :bold,
+        padding = (0, 50, 25, 0),
+        halign = :right)
+end
 
 display(fig)
 
