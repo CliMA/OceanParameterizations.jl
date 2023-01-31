@@ -27,10 +27,11 @@ axis_images = (
 
 # FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu5.5e-04_Qb3.0e-08_f1.0e-04_Nh256_Nz128_strong_wind_weak_cooling"
 # FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu0.0e+00_Qb5.0e-08_f1.0e-04_Nh256_Nz128_free_convection"
-FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu7.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind"
+# FILE_DIR = "C:\\Users\\xinle\\Downloads\\three_layer_constant_fluxes_linear_hr144_Qu7.0e-04_Qb0.0e+00_f1.0e-04_Nh256_Nz128_strong_wind"
+FILE_DIR = "Data\\three_layer_constant_fluxes_linear_hr144_Qu2.2e-04_Qb5.0e-08_f1.0e-04_Nh256_Nz128_weak_wind_strong_cooling"
 
 frame = 145
-OUTPUT_PATH = "final_results\\LES_WM_$(frame)_2.png"
+OUTPUT_PATH = "final_results\\test_LES.png"
 
 # file = jldopen(joinpath(FILE_DIR, "xz_slice.jld2"))
 
