@@ -3,30 +3,63 @@ using Colors
 using Makie.GeometryBasics
 using JLD2
 
+ρ_ref = 1026
+α = 2e-4
+cₚ = 3991
+g = 9.81
+
+b_to_T = ρ_ref * cₚ / (α * g)
+
+# training_data = [
+#     (-5e-4, -1e-8),
+#     (-5e-4, -2e-8),
+#     (-5e-4, -3e-8),
+
+#     (-3.5e-4, -1e-8),
+#     (-3.5e-4, -2e-8),
+#     (-3.5e-4, -3e-8),
+
+#     (-2e-4, -1e-8),
+#     (-2e-4, -2e-8),
+#     (-2e-4, -3e-8),
+
+#     (-5e-4, 1e-8),
+#     (-5e-4, 2e-8),
+#     (-5e-4, 3e-8),
+
+#     (-3.5e-4, 1e-8),
+#     (-3.5e-4, 2e-8),
+#     (-3.5e-4, 3e-8),
+
+#     (-2e-4, 1e-8),
+#     (-2e-4, 2e-8),
+#     (-2e-4, 3e-8),
+# ]
+
 training_data = [
-    (-5e-4, -1e-8),
-    (-5e-4, -2e-8),
-    (-5e-4, -3e-8),
+    (5e-4 * ρ_ref, -1e-8 * b_to_T),
+    (5e-4 * ρ_ref, -2e-8 * b_to_T),
+    (5e-4 * ρ_ref, -3e-8 * b_to_T),
 
-    (-3.5e-4, -1e-8),
-    (-3.5e-4, -2e-8),
-    (-3.5e-4, -3e-8),
+    (3.5e-4 * ρ_ref, -1e-8 * b_to_T),
+    (3.5e-4 * ρ_ref, -2e-8 * b_to_T),
+    (3.5e-4 * ρ_ref, -3e-8 * b_to_T),
 
-    (-2e-4, -1e-8),
-    (-2e-4, -2e-8),
-    (-2e-4, -3e-8),
+    (2e-4 * ρ_ref, -1e-8 * b_to_T),
+    (2e-4 * ρ_ref, -2e-8 * b_to_T),
+    (2e-4 * ρ_ref, -3e-8 * b_to_T),
 
-    (-5e-4, 1e-8),
-    (-5e-4, 2e-8),
-    (-5e-4, 3e-8),
+    (5e-4 * ρ_ref, 1e-8 * b_to_T),
+    (5e-4 * ρ_ref, 2e-8 * b_to_T),
+    (5e-4 * ρ_ref, 3e-8 * b_to_T),
 
-    (-3.5e-4, 1e-8),
-    (-3.5e-4, 2e-8),
-    (-3.5e-4, 3e-8),
+    (3.5e-4 * ρ_ref, 1e-8 * b_to_T),
+    (3.5e-4 * ρ_ref, 2e-8 * b_to_T),
+    (3.5e-4 * ρ_ref, 3e-8 * b_to_T),
 
-    (-2e-4, 1e-8),
-    (-2e-4, 2e-8),
-    (-2e-4, 3e-8),
+    (2e-4 * ρ_ref, 1e-8 * b_to_T),
+    (2e-4 * ρ_ref, 2e-8 * b_to_T),
+    (2e-4 * ρ_ref, 3e-8 * b_to_T),
 ]
 
 train_files = [
@@ -55,16 +88,28 @@ train_files = [
     "wind_-2e-4_cooling_3e-8_new"   
 ]
 
-interpolating_data = [
-    (-4.5e-4, 2.5e-8),
-    (-4.5e-4, 1.5e-8),
-    (-2.5e-4, 2.5e-8),
-    (-2.5e-4, 1.5e-8),
+# interpolating_data = [
+#     (-4.5e-4, 2.5e-8),
+#     (-4.5e-4, 1.5e-8),
+#     (-2.5e-4, 2.5e-8),
+#     (-2.5e-4, 1.5e-8),
 
-    (-4.5e-4, -2.5e-8),
-    (-4.5e-4, -1.5e-8),
-    (-2.5e-4, -2.5e-8),
-    (-2.5e-4, -1.5e-8),
+#     (-4.5e-4, -2.5e-8),
+#     (-4.5e-4, -1.5e-8),
+#     (-2.5e-4, -2.5e-8),
+#     (-2.5e-4, -1.5e-8),
+# ]
+
+interpolating_data = [
+    (4.5e-4 * ρ_ref, 2.5e-8 * b_to_T),
+    (4.5e-4 * ρ_ref, 1.5e-8 * b_to_T),
+    (2.5e-4 * ρ_ref, 2.5e-8 * b_to_T),
+    (2.5e-4 * ρ_ref, 1.5e-8 * b_to_T),
+
+    (4.5e-4 * ρ_ref, -2.5e-8 * b_to_T),
+    (4.5e-4 * ρ_ref, -1.5e-8 * b_to_T),
+    (2.5e-4 * ρ_ref, -2.5e-8 * b_to_T),
+    (2.5e-4 * ρ_ref, -1.5e-8 * b_to_T),
 ]
 
 interpolating_files = [
@@ -79,12 +124,20 @@ interpolating_files = [
     "wind_-2.5e-4_heating_-1.5e-8"
 ]
 
+# extrapolating_data = [
+#     (-1.5e-4, 3.5e-8),
+#     (-5.5e-4, 3.5e-8),
+#     (-5.5e-4, 0),
+#     (-5.5e-4, -3.5e-8),
+#     (-1.5e-4, -3.5e-8),
+# ]
+
 extrapolating_data = [
-    (-1.5e-4, 3.5e-8),
-    (-5.5e-4, 3.5e-8),
-    (-5.5e-4, 0),
-    (-5.5e-4, -3.5e-8),
-    (-1.5e-4, -3.5e-8),
+    (1.5e-4 * ρ_ref, 3.5e-8 * b_to_T),
+    (5.5e-4 * ρ_ref, 3.5e-8 * b_to_T),
+    (5.5e-4 * ρ_ref, 0 * b_to_T),
+    (5.5e-4 * ρ_ref, -3.5e-8 * b_to_T),
+    (1.5e-4 * ρ_ref, -3.5e-8 * b_to_T),
 ]
 
 extrapolating_files = [
@@ -97,9 +150,14 @@ extrapolating_files = [
     "wind_-1.5e-4_heating_-3.5e-8"
 ]
 
+# diurnal_data = [
+#     (-5.5e-4, 5.5e-8),
+#     (-1.5e-4, 5.5e-8),
+# ]
+
 diurnal_data = [
-    (-5.5e-4, 5.5e-8),
-    (-1.5e-4, 5.5e-8),
+    (5.5e-4 * ρ_ref, 5.5e-8 * b_to_T),
+    (1.5e-4 * ρ_ref, 5.5e-8 * b_to_T),
 ]
 
 diurnal_files = [
@@ -121,18 +179,25 @@ buoyancy_fluxes_diurnal = [data[2] for data in diurnal_data]
 
 fig = CairoMakie.Figure(resolution=(1000, 650))
 
-ax =fig[1,1] = CairoMakie.Axis(fig, xlabel="Buoyancy Flux / m² s⁻³", ylabel="Momentum Flux / m² s⁻²")
+# ax =fig[1,1] = CairoMakie.Axis(fig, xlabel="Buoyancy Flux / m² s⁻³", ylabel="Momentum Flux / m² s⁻²")
+ax =fig[1,1] = CairoMakie.Axis(fig, xlabel="Temperature Flux / K m s⁻¹", ylabel="Wind Stress / N m⁻²")
 color_palette = distinguishable_colors(4, [RGB(1,1,1), RGB(0,0,0)], dropseed=true)
 
 
-rectangle = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (3e-8, -5e-4), (3e-8, -2e-4)], color=("paleturquoise3", 0.5))
+# rectangle = CairoMakie.poly!(ax, Point2f0[(-3e-8, -2e-4), (-3e-8, -5e-4), (3e-8, -5e-4), (3e-8, -2e-4)], color=("paleturquoise3", 0.5))
+rectangle = CairoMakie.poly!(ax, Point2f0[(-3e-8 * b_to_T, 2e-4 * ρ_ref), (-3e-8 * b_to_T, 5e-4 * ρ_ref), (3e-8 * b_to_T, 5e-4 * ρ_ref), (3e-8 * b_to_T, 2e-4 * ρ_ref)], color=("paleturquoise3", 0.5))
+
 
 training_points = CairoMakie.scatter!(ax, buoyancy_fluxes_training, momentum_fluxes_training, color=color_palette[1])
 interpolating_points = CairoMakie.scatter!(ax, buoyancy_fluxes_interpolating, momentum_fluxes_interpolating, color=color_palette[2])
 extrapolating_points = CairoMakie.scatter!(ax, buoyancy_fluxes_extrapolating, momentum_fluxes_extrapolating, color=color_palette[3])
 
-diurnal_line_1 = CairoMakie.lines!(ax, [-5.5e-8, 5.5e-8], [-1.5e-4, -1.5e-4], color=color_palette[4])
-diurnal_line_2 = CairoMakie.lines!(ax, [-5.5e-8, 5.5e-8], [-5.5e-4, -5.5e-4], color=color_palette[4])
+
+# diurnal_line_1 = CairoMakie.lines!(ax, [-5.5e-8, 5.5e-8], [-1.5e-4, -1.5e-4], color=color_palette[4])
+# diurnal_line_2 = CairoMakie.lines!(ax, [-5.5e-8, 5.5e-8], [-5.5e-4, -5.5e-4], color=color_palette[4])
+
+diurnal_line_1 = CairoMakie.lines!(ax, [-5.5e-8 * b_to_T, 5.5e-8 * b_to_T], [1.5e-4 * ρ_ref, 1.5e-4 * ρ_ref], color=color_palette[4])
+diurnal_line_2 = CairoMakie.lines!(ax, [-5.5e-8 * b_to_T, 5.5e-8 * b_to_T], [5.5e-4 * ρ_ref, 5.5e-4 * ρ_ref], color=color_palette[4])
 
 # diurnal_points = CairoMakie.scatter!(ax, buoyancy_fluxes_diurnal, momentum_fluxes_diurnal, color=color_palette[4])
 
@@ -142,7 +207,9 @@ legend = fig[2,1] = CairoMakie.Legend(fig, [training_points, interpolating_point
 rowsize!(fig.layout, 1, CairoMakie.Relative(0.95))
 trim!(fig.layout)
 fig
-save("final_results/data_WCWH.png", fig, px_per_unit = 4)
+# save("final_results/data_WCWH.png", fig, px_per_unit = 4)
+save("final_results/test_training_region.png", fig, px_per_unit = 4)
+
 
 T_loss(data) = sum(data) / 1153
 
