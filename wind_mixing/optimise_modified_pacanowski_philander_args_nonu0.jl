@@ -17,10 +17,11 @@ T_fraction = parse(Float32, ARGS[1])
 N_sims = parse(Int, ARGS[2])
 train_gradient = parse(Bool, ARGS[3])
 optimizer_type = ARGS[4]
-# optimizer_type = "ADAM"
+
 # rate_str = ARGS[4]
 # rate = parse(Float64, rate_str)
 
+# optimizer_type = "ADAM"
 # T_fraction = 0.8f0
 # N_sims = 1
 # train_gradient = false
@@ -79,12 +80,13 @@ end
 
 tsteps = 1:20:1153
 maxiters = 200
-# maxiters = 2
+# maxiters = 10
 
 training_fractions = (T=T_fraction, profile=0.5f0, ∂T∂z=T_fraction)
 
 optimise_modified_pacanowski_philander_noν₀(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files),
-                                       train_gradient=train_gradient, training_fractions=training_fractions)
+                                       train_gradient=train_gradient, training_fractions=training_fractions,
+                                       ν₀ = 1f-5, ν₋ = 5.77f-1, ΔRi=2.65f-1, Riᶜ=-2.71f-1, Pr=1.65f0)
 
 extract_parameters_modified_pacanowski_philander_optimisation(OUTPUT_PATH, EXTRACTED_OUTPUT_PATH)
 
