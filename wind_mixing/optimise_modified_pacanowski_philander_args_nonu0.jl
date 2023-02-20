@@ -60,7 +60,7 @@ PATH = pwd()
 if train_gradient
     FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_grad_new"
 else
-    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_nograd_new_preopt"
+    FILE_NAME = "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_nonu0_var_nograd_new"
 end
 
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
@@ -85,8 +85,8 @@ maxiters = 200
 training_fractions = (T=T_fraction, profile=0.5f0, ∂T∂z=T_fraction)
 
 optimise_modified_pacanowski_philander_noν₀(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files),
-                                       train_gradient=train_gradient, training_fractions=training_fractions,
-                                       ν₀ = 1f-5, ν₋ = 5.77f-1, ΔRi=2.65f-1, Riᶜ=-2.71f-1, Pr=1.65f0)
+                                       train_gradient=train_gradient, training_fractions=training_fractions)
+                                    #    ν₀ = 1f-5, ν₋ = 5.77f-1, ΔRi=2.65f-1, Riᶜ=-2.71f-1, Pr=1.65f0)
 
 extract_parameters_modified_pacanowski_philander_optimisation(OUTPUT_PATH, EXTRACTED_OUTPUT_PATH)
 
