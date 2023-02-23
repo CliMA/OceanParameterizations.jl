@@ -26,6 +26,8 @@ rate_str = "2e-4"
 rate = parse(Float64, rate_str)
 params_type = "18simBFGST0.8nogradnoν0Pr"
 
+n_layers = 2
+
 # train_files_all = [
 #   "wind_-5e-4_diurnal_5e-8",  
 #   "wind_-3.5e-4_diurnal_5e-8",
@@ -74,7 +76,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_rate_2e-4_T$(T_fraction_str)_$(rate_str)"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_$(rate_str)"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
@@ -178,7 +180,11 @@ else
   activation = tanh
 end
 
-weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, N_outputs)))
+if n_layers == 1
+     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, N_outputs)))
+elseif n_layers == 2
+     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, hidden_units, activation), Dense(hidden_units, N_outputs)))
+end
 
 uw_NN = re(weights ./ 1f5)
 vw_NN = re(weights ./ 1f5)
