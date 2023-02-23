@@ -19,7 +19,8 @@ BLAS.set_num_threads(1)
 # params_type = ARGS[3]
 
 N_sims = 18
-T_fraction = parse(Float32, "0.8")
+T_fraction_str = "0.8"
+T_fraction = parse(Float32, T_fraction_str)
 NN_type = "leakyrelu"
 rate_str = "2e-4"
 rate = parse(Float64, rate_str)
@@ -370,7 +371,7 @@ test_files = [
   "wind_-2e-4_diurnal_4e-8",    
 
   "wind_-5.5e-4_new",            
-  
+
   "wind_-5.5e-4_heating_-3.5e-8",
   "wind_-1.5e-4_heating_-3.5e-8",
   "wind_-5.5e-4_cooling_3.5e-8", 
