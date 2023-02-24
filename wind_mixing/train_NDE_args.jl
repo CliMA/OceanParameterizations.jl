@@ -21,7 +21,7 @@ BLAS.set_num_threads(1)
 N_sims = 18
 T_fraction_str = "0.8"
 T_fraction = parse(Float32, T_fraction_str)
-NN_type = "leakyrelu"
+NN_type = "relu"
 rate_str = "2e-4"
 rate = parse(Float64, rate_str)
 params_type = "18simBFGST0.8nogradnoν0"
