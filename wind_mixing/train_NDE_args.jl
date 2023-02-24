@@ -24,7 +24,7 @@ T_fraction = parse(Float32, T_fraction_str)
 NN_type = "relu"
 rate_str = "2e-4"
 rate = parse(Float64, rate_str)
-params_type = "18simBFGST0.8nogradnoν0Pr"
+params_type = "18simBFGST0.8nogradnoν0"
 
 n_layers = 1
 
@@ -116,6 +116,13 @@ elseif params_type == "18simBFGST0.8nogradnoν0Pr"
 
   ν₀ = 1f-5
   Pr = 1
+elseif params_type == "18simBFGST0.8nogradnoν0"
+  PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nonu0_var_nograd_new_extracted.jld2")  
+  parameters_file = jldopen(PARAMETERS_PATH)
+  mpp_parameters = parameters_file["parameters"]
+  close(parameters_file)  
+  ν₋, ΔRi, Riᶜ, Pr = mpp_parameters  
+  ν₀ = 1f-5
 end
 
 # PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_$(N_sims)sim_windcooling_windheating_5params_ADAM1e-2_T$(T_fraction_str)_nograd_extracted.jld2")
