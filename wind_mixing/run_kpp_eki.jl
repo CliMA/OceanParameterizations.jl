@@ -116,21 +116,24 @@ function kpp_model(parameters, BCs, ICs)
         VW[Nz+1, n] = VW_flux
         WT[Nz+1, n] = WT_flux
     end
-    return U, V, T
+    return U, V, T, UW, VW, WT
 end
 
 ##
 params_final = mean(f["final_ensemble"], dims=2)[:]
 
-U, V, T = kpp_model(params_final, BCs_unscaled[1], ICs_unscaled[1])
+U, V, T, UW, VW, WT = kpp_model(params_final, BCs_unscaled[1], ICs_unscaled[1])
 
 for (i, train_file) in pairs(train_files)
-    U, V, T = kpp_model(params_final, BCs_unscaled[i], ICs_unscaled[i])
+    U, V, T, UW, VW, WT = kpp_model(params_final, BCs_unscaled[i], ICs_unscaled[i])
 
     jldopen("Data/kpp_eki_uvT_180ensemble_1000iters_18sim_timeseries.jld2", "a+") do file
         file["$(train_file)/u"] = U
         file["$(train_file)/v"] = V
         file["$(train_file)/T"] = T
+        file["$(train_file)/uw"] = UW
+        file["$(train_file)/vw"] = VW
+        file["$(train_file)/wT"] = WT
     end
 end
 
