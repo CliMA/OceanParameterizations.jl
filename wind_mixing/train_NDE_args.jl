@@ -26,7 +26,7 @@ rate_str = "2e-4"
 rate = parse(Float64, rate_str)
 params_type = "18simBFGST0.8nogradnoν0Pr"
 
-n_layers = 1
+n_layers = 2
 
 # train_files_all = [
 #   "wind_-5e-4_diurnal_5e-8",  
