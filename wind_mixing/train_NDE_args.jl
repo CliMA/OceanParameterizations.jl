@@ -26,7 +26,7 @@ rate_str = "2e-4"
 rate = parse(Float64, rate_str)
 params_type = "18simBFGST0.8nogradnoν0"
 
-n_layers = 2
+n_layers = 1
 
 # train_files_all = [
 #   "wind_-5e-4_diurnal_5e-8",  
@@ -220,8 +220,8 @@ train_parameters = Dict(
     )
 
 train_epochs = [1]
-train_tranges = [1:9:1153]
-train_iterations = [1000]
+train_tranges = [1:15:1153]
+train_iterations = [300]
 train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
