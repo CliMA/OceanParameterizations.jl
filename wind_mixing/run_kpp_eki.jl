@@ -6,33 +6,113 @@ using WindMixing
 using OceanTurb
 using Statistics
 ##
-f = load("Data/kpp_eki_uvT_180ensemble_1000iters_18sim.jld2")
+FILE_NAME = "kpp_eki_uvT_180ensemble_1000iters_18sim"
 
-train_files = [
+f = load("Data/$(FILE_NAME).jld2")
+
+files = [
     "wind_-5e-4_cooling_3e-8_new",   
-    "wind_-5e-4_cooling_2e-8_new",   
     "wind_-5e-4_cooling_1e-8_new",   
-    "wind_-3.5e-4_cooling_3e-8_new", 
-    "wind_-3.5e-4_cooling_2e-8_new", 
-    "wind_-3.5e-4_cooling_1e-8_new", 
     "wind_-2e-4_cooling_3e-8_new",   
-    "wind_-2e-4_cooling_2e-8_new",   
     "wind_-2e-4_cooling_1e-8_new",   
     "wind_-5e-4_heating_-3e-8_new",  
-    "wind_-5e-4_heating_-2e-8_new",  
-    "wind_-5e-4_heating_-1e-8_new",  
-    "wind_-3.5e-4_heating_-3e-8_new",
-    "wind_-3.5e-4_heating_-2e-8_new",
-    "wind_-3.5e-4_heating_-1e-8_new",
-    "wind_-2e-4_heating_-3e-8_new",  
-    "wind_-2e-4_heating_-2e-8_new",  
     "wind_-2e-4_heating_-1e-8_new",  
+    "wind_-2e-4_heating_-3e-8_new",  
+    "wind_-5e-4_heating_-1e-8_new",  
+  
+    "wind_-3.5e-4_cooling_2e-8_new", 
+    "wind_-3.5e-4_heating_-2e-8_new",
+  
+    "wind_-5e-4_cooling_2e-8_new",   
+    "wind_-3.5e-4_cooling_3e-8_new", 
+    "wind_-3.5e-4_cooling_1e-8_new", 
+    "wind_-2e-4_cooling_2e-8_new",   
+    "wind_-3.5e-4_heating_-3e-8_new",
+    "wind_-3.5e-4_heating_-1e-8_new",
+    "wind_-2e-4_heating_-2e-8_new",  
+    "wind_-5e-4_heating_-2e-8_new",
+    "wind_-5e-4_diurnal_5e-8",    
+    "wind_-5e-4_diurnal_3e-8",    
+    "wind_-5e-4_diurnal_1e-8",    
+       
+    "wind_-3.5e-4_diurnal_5e-8",  
+    "wind_-3.5e-4_diurnal_3e-8",  
+    "wind_-3.5e-4_diurnal_1e-8",  
+       
+    "wind_-2e-4_diurnal_5e-8",    
+    "wind_-2e-4_diurnal_3e-8",    
+  
+    "wind_-2e-4_diurnal_1e-8",    
+       
+    "wind_-2e-4_diurnal_2e-8",    
+    "wind_-2e-4_diurnal_3.5e-8", 
+    "wind_-3.5e-4_diurnal_2e-8",
+    "wind_-3.5e-4_diurnal_3.5e-8",
+    "wind_-5e-4_diurnal_2e-8",    
+    "wind_-5e-4_diurnal_3.5e-8",
+    
+    "cooling_5e-8_new",            
+    "cooling_4.5e-8_new",          
+    "cooling_4e-8_new",            
+    "cooling_3.5e-8_new",         
+    "cooling_3e-8_new",            
+    "cooling_2.5e-8_new",          
+    "cooling_2e-8_new",            
+    "cooling_1.5e-8_new",          
+    "cooling_1e-8_new",   
+  
+    "wind_-5e-4_new",              
+    "wind_-4.5e-4_new",            
+    "wind_-4e-4_new",              
+    "wind_-3.5e-4_new",            
+    "wind_-3e-4_new",              
+    "wind_-2.5e-4_new",            
+    "wind_-2e-4_new",       
+  
+    "wind_-4.5e-4_cooling_2.5e-8",
+    "wind_-2.5e-4_cooling_1.5e-8", 
+    "wind_-4.5e-4_cooling_1.5e-8", 
+    "wind_-2.5e-4_cooling_2.5e-8", 
+  
+    "wind_-4.5e-4_heating_-2.5e-8",
+    "wind_-2.5e-4_heating_-1.5e-8",
+    "wind_-4.5e-4_heating_-1.5e-8",
+    "wind_-2.5e-4_heating_-2.5e-8",
+  
+    "wind_-4.5e-4_diurnal_4e-8",   
+    "wind_-4.5e-4_diurnal_2e-8",   
+    "wind_-3e-4_diurnal_4e-8",     
+    "wind_-3e-4_diurnal_2e-8",     
+    "wind_-5.5e-4_diurnal_5.5e-8", 
+    "wind_-1.5e-4_diurnal_5.5e-8", 
+    "wind_-2e-4_diurnal_4e-8",    
+  
+    "wind_-5.5e-4_new",            
+  
+    "wind_-5.5e-4_heating_-3.5e-8",
+    "wind_-1.5e-4_heating_-3.5e-8",
+    "wind_-5.5e-4_cooling_3.5e-8", 
+    "wind_-1.5e-4_cooling_3.5e-8", 
 ]
 
-𝒟tests = [WindMixing.data(file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false) for file in train_files]
-BCs_unscaled = [(uw=(top=data.uw.coarse[end, 1], bottom=data.uw.coarse[1, 1]), 
-                 vw=(top=data.vw.coarse[end, 1], bottom=data.uw.coarse[1, 1]), 
-                 wT=(top=data.wT.coarse[end, 1], bottom=data.wT.coarse[1, 1])) for data in 𝒟tests]
+𝒟tests = [WindMixing.data(file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false) for file in files]
+
+function wT_top_BC(name, data)
+    diurnal = occursin("diurnal", name)
+    constants = (α=2f-4, g=9.80655f0)
+
+    if diurnal
+        wT_top = diurnal_fluxes([name], constants)[1]
+    else
+        wT_top = data.wT.coarse[end, 1]
+    end
+
+    return wT_top
+end
+
+BCs_unscaled = [(uw=(top=𝒟tests[i].uw.coarse[end, 1], bottom=𝒟tests[i].uw.coarse[1, 1]), 
+                 vw=(top=𝒟tests[i].vw.coarse[end, 1], bottom=𝒟tests[i].uw.coarse[1, 1]), 
+                 wT=(top=wT_top_BC(files[i], 𝒟tests[i]), bottom=𝒟tests[i].wT.coarse[1, 1])) for i in 1:length(files)]
 
 ICs_unscaled = [(u=data.u.coarse[:,1], v=data.v.coarse[:,1], T=data.T.coarse[:,1]) for data in 𝒟tests]
 ##
@@ -77,15 +157,20 @@ function kpp_model(parameters, BCs, ICs)
 
     model.bcs.U.top = OceanTurb.FluxBoundaryCondition(UW_flux)
     model.bcs.V.top = OceanTurb.FluxBoundaryCondition(VW_flux)
-    model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux)
+
+    if WT_flux isa Number
+        model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux)
+    else
+        model.bcs.T.top = OceanTurb.FluxBoundaryCondition(WT_flux(0))
+    end
 
     model.bcs.U.bottom = OceanTurb.GradientBoundaryCondition(∂U₀∂z)
     model.bcs.V.bottom = OceanTurb.GradientBoundaryCondition(∂V₀∂z)
     model.bcs.T.bottom = OceanTurb.GradientBoundaryCondition(∂T₀∂z)
 
-    # t = 𝒟test.t[1:1:1153]
-    t = range(0, step=600, length=1153)
-    Nt = length(t)
+    times = range(0, step=600, length=1153)
+
+    Nt = length(times)
     U = zeros(Nz, Nt)
     V = zeros(Nz, Nt)
     T = zeros(Nz, Nt)
@@ -95,14 +180,13 @@ function kpp_model(parameters, BCs, ICs)
     WT = zeros(Nz+1, Nt)
 
     # loop the model
-    Δt = t[2] - t[1]
+    Δt = times[2] - times[1]
     for n in 1:Nt
-        @info n
-        OceanTurb.run_until!(model, Δt, t[n])
+        OceanTurb.run_until!(model, Δt, times[n])
         
-        # if !isa(WT_flux, Number)
-        #     model.bcs.T.top.condition = WT_flux(model.clock.time)
-        # end
+        if !isa(WT_flux, Number)
+            model.bcs.T.top.condition = WT_flux(model.clock.time)
+        end
 
         U[:, n] .= model.solution.U[1:Nz]
         V[:, n] .= model.solution.V[1:Nz]
@@ -114,7 +198,12 @@ function kpp_model(parameters, BCs, ICs)
 
         UW[Nz+1, n] = UW_flux
         VW[Nz+1, n] = VW_flux
-        WT[Nz+1, n] = WT_flux
+
+        if WT_flux isa Number
+            WT[Nz+1, n] = WT_flux
+        else
+            WT[Nz+1, n] = WT_flux(model.clock.time)
+        end
     end
     return U, V, T, UW, VW, WT
 end
@@ -122,12 +211,13 @@ end
 ##
 params_final = mean(f["final_ensemble"], dims=2)[:]
 
-U, V, T, UW, VW, WT = kpp_model(params_final, BCs_unscaled[1], ICs_unscaled[1])
+# U, V, T, UW, VW, WT = kpp_model(params_final, BCs_unscaled[1], ICs_unscaled[1])
 
-for (i, train_file) in pairs(train_files)
+for (i, train_file) in pairs(files)
+    @info "$(train_file), $(i)/$(length(files))"
     U, V, T, UW, VW, WT = kpp_model(params_final, BCs_unscaled[i], ICs_unscaled[i])
 
-    jldopen("Data/kpp_eki_uvT_180ensemble_1000iters_18sim_timeseries.jld2", "a+") do file
+    jldopen("Data/$(FILE_NAME)_timeseries.jld2", "a+") do file
         file["$(train_file)/u"] = U
         file["$(train_file)/v"] = V
         file["$(train_file)/T"] = T
@@ -137,11 +227,11 @@ for (i, train_file) in pairs(train_files)
     end
 end
 
-jldopen("Data/kpp_eki_uvT_180ensemble_1000iters_18sim_timeseries.jld2", "a+") do file
+jldopen("Data/$(FILE_NAME)_timeseries.jld2", "a+") do file
     file["params"] = params_final
 end
 
 ##
 
-f_final = jldopen("Data/kpp_eki_uvT_180ensemble_1000iters_18sim_timeseries.jld2")
+f_final = jldopen("Data/$(FILE_NAME)_timeseries.jld2")
 close(f_final)
