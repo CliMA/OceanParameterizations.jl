@@ -21,12 +21,12 @@ BLAS.set_num_threads(1)
 N_sims = 18
 T_fraction_str = "0.8"
 T_fraction = parse(Float32, T_fraction_str)
-NN_type = "leakyrelu"
+NN_type = "relu"
 rate_str = "2e-4"
 rate = parse(Float64, rate_str)
-params_type = "18simBFGST0.8nogradnoν0Pr"
+params_type = "18simBFGST0.8nogradnonu0Pr"
 
-n_layers = 2
+n_layers = 1
 
 # train_files_all = [
 #   "wind_-5e-4_diurnal_5e-8",  
@@ -105,7 +105,7 @@ elseif params_type == "18simBFGST0.8nograd"
   close(parameters_file)
 
   ν₀, ν₋, ΔRi, Riᶜ, Pr = mpp_parameters
-elseif params_type == "18simBFGST0.8nogradnoν0Pr"
+elseif params_type == "18simBFGST0.8nogradnonu0Pr"
   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nonu0Pr_var_nograd_new_extracted.jld2")
 
   parameters_file = jldopen(PARAMETERS_PATH)
@@ -116,7 +116,7 @@ elseif params_type == "18simBFGST0.8nogradnoν0Pr"
 
   ν₀ = 1f-5
   Pr = 1
-elseif params_type == "18simBFGST0.8nogradnoν0"
+elseif params_type == "18simBFGST0.8nogradnonu0"
   PARAMETERS_PATH = joinpath(EXTRACTED_OUTPUT_PATH, "parameter_optimisation_18sim_windcooling_windheating_5params_BFGS_T0.8_nonu0_var_nograd_new_extracted.jld2")  
   parameters_file = jldopen(PARAMETERS_PATH)
   mpp_parameters = parameters_file["parameters"]
