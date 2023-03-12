@@ -3,7 +3,8 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
     if type == "NDE"
         train_files, train_parameters, losses, loss_scalings, uw_NN, vw_NN, wT_NN, optimizer = jldopen(FILE_PATH, "r") do file
             train_files = file["training_info/train_files"]
-            N_data = length(keys(file["training_data/neural_network/uw"]))
+            N_epoch = length(keys(file["training_data/neural_network/uw"]))
+            N_data = length(keys(file["training_data/neural_network/uw/$(N_epoch)"]))
 
             if "parameters" in keys(file["training_info"])
                 train_parameters = file["training_info/parameters"]
@@ -27,22 +28,22 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
                 @info "Loading Losses"
 
                 for i in 1:length(total_losses)
-                    total_losses[i] = file["training_data/loss/total/$i"]
-                    profile_losses[i] = file["training_data/loss/profile/$i"]
-                    gradient_losses[i] = file["training_data/loss/gradient/$i"]
-                    u_losses[i] = file["training_data/loss/u/$i"]
-                    v_losses[i] = file["training_data/loss/v/$i"]
-                    T_losses[i] = file["training_data/loss/T/$i"]
-                    ∂u∂z_losses[i] = file["training_data/loss/∂u∂z/$i"]
-                    ∂v∂z_losses[i] = file["training_data/loss/∂v∂z/$i"]
-                    ∂T∂z_losses[i] = file["training_data/loss/∂T∂z/$i"]
+                    total_losses[i] = file["training_data/loss/total/$(N_epoch)/$i"]
+                    profile_losses[i] = file["training_data/loss/profile/$(N_epoch)/$i"]
+                    gradient_losses[i] = file["training_data/loss/gradient/$(N_epoch)/$i"]
+                    u_losses[i] = file["training_data/loss/u/$(N_epoch)/$i"]
+                    v_losses[i] = file["training_data/loss/v/$(N_epoch)/$i"]
+                    T_losses[i] = file["training_data/loss/T/$(N_epoch)/$i"]
+                    ∂u∂z_losses[i] = file["training_data/loss/∂u∂z/$(N_epoch)/$i"]
+                    ∂v∂z_losses[i] = file["training_data/loss/∂v∂z/$(N_epoch)/$i"]
+                    ∂T∂z_losses[i] = file["training_data/loss/∂T∂z/$(N_epoch)/$i"]
                 end
 
             else
                 loss_scalings = nothing
                 @info "Loading Total Loss"
                 for i in 1:length(total_losses)
-                    total_losses[i] = file["training_data/loss/$i"]
+                    total_losses[i] = file["training_data/loss/$(N_epoch)/$i"]
                     profile_losses = nothing
                     gradient_losses = nothing
                     u_losses = nothing
@@ -68,16 +69,16 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
 
             @info "Loading NN"
             NN_index = argmin(total_losses)
-            uw_NN = file["training_data/neural_network/uw/$NN_index"]
-            vw_NN = file["training_data/neural_network/vw/$NN_index"]
-            wT_NN = file["training_data/neural_network/wT/$NN_index"]
+            uw_NN = file["training_data/neural_network/uw/$(N_epoch)/$NN_index"]
+            vw_NN = file["training_data/neural_network/vw/$(N_epoch)/$NN_index"]
+            wT_NN = file["training_data/neural_network/wT/$(N_epoch)/$NN_index"]
 
             
             if "optimizer" in keys(file["training_data"])
                 @info "Loading Optimizer State"
-                η = file["training_data/optimizer/η/$NN_index"]
-                β = file["training_data/optimizer/β/$NN_index"]
-                state = file["training_data/optimizer/state/$NN_index"]
+                η = file["training_data/optimizer/η/$(N_epoch)/$NN_index"]
+                β = file["training_data/optimizer/β/$(N_epoch)/$NN_index"]
+                state = file["training_data/optimizer/state/$(N_epoch)/$NN_index"]
                 optimizer = (; η, β, state)
             else
                 optimizer = nothing
@@ -88,12 +89,12 @@ function extract_NN(FILE_PATH, OUTPUT_PATH, type)
         train_files, train_parameters, losses, NN = jldopen(FILE_PATH, "r") do file
             train_files = file["training_info/train_files"]
             train_parameters = file["training_info/parameters"]
-            N_data = length(keys(file["training_data/loss"]))
+            N_data = length(keys(file["training_data/loss/$(N_epoch)"]))
             losses = zeros(N_data)
             
             @info "Loading Loss"
             for i in 1:length(losses)
-                losses[i] = file["training_data/loss/$i"]
+                losses[i] = file["training_data/loss/$(N_epoch)/$i"]
             end
 
             @info "Loading NN"
