@@ -642,8 +642,6 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
 
     train_files = extracted_training_file["training_info/train_files"]
 
-    diurnal = occursin("diurnal", test_files[1])
-
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
     u_scaling = 𝒟train.scalings["u"]
@@ -678,6 +676,8 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, EXTRACT
 
         uw_flux = ds["parameters/boundary_condition_u_top"]
         vw_flux = 0
+
+        diurnal = occursin("diurnal", test_file)
 
         if diurnal
             wT_flux = diurnal_fluxes([test_file], (; α, g))[1]
@@ -729,8 +729,6 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, uw_NN_P
 
     train_files = uw_file["training_info/train_files"]
 
-    diurnal = occursin("diurnal", test_files[1])
-
     𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
 
     u_scaling = 𝒟train.scalings["u"]
@@ -767,6 +765,8 @@ function solve_oceananigans_modified_pacanowski_philander_nn(test_files, uw_NN_P
 
         uw_flux = ds["parameters/boundary_condition_u_top"]
         vw_flux = 0
+
+        diurnal = occursin("diurnal", test_file)
 
         if diurnal
             wT_flux = diurnal_fluxes([test_file], (; α, g))[1]
