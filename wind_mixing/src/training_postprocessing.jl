@@ -410,7 +410,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
             BCs_flux = (
                 uw = (top=BCs.uw.top, bottom=top=BCs.uw.bottom),
                 vw = (top=BCs.vw.top, bottom=top=BCs.vw.bottom),
-                wT = (top=wT_scaling(wT_top_function(t[i])), bottom=BCs.wT.bottom),
+                wT = (top=scalings.wT(wT_top_function(t[i])), bottom=BCs.wT.bottom),
                 )
             test_uw[:,i], test_vw[:,i], test_wT[:,i] = predict_flux(uw_NN, vw_NN, wT_NN, @view(sol[:,i]), BCs_flux, conditions, scalings, constants, derivatives, filters)
         else
