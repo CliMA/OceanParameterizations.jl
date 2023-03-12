@@ -441,7 +441,7 @@ function NDE_profile(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange
                 BCs_flux = (
                     uw = (top=BCs.uw.top, bottom=top=BCs.uw.bottom),
                     vw = (top=BCs.vw.top, bottom=top=BCs.vw.bottom),
-                    wT = (top=wT_scaling(wT_top_function(t[i])), bottom=BCs.wT.bottom),
+                    wT = (top=scalings.wT(wT_top_function(t[i])), bottom=BCs.wT.bottom),
                     )
                 test_uw_mpp[:,i], test_vw_mpp[:,i], test_wT_mpp[:,i] = predict_flux(NN_constructions.uw(zeros(Float32, NN_sizes.uw)), 
                                                                             NN_constructions.vw(zeros(Float32, NN_sizes.vw)), 
