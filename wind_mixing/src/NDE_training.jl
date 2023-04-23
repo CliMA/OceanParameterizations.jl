@@ -66,6 +66,58 @@ function prepare_parameters_NDE_training(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, 
     return constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters
 end
 
+function prepare_parameters_NDE_training_nonlocal(𝒟train, uw_NN, vw_NN, wT_NN, f, Nz, g, α, ν₀, ν₁_conv, ν₁_en, ΔRi_conv, ΔRi_en, Riᶜ, Pr, κ, conditions)
+    H = abs(𝒟train.uw.z[end] - 𝒟train.uw.z[1])
+    τ = abs(𝒟train.t[:,1][end] - 𝒟train.t[:,1][1])
+    u_scaling = 𝒟train.scalings["u"]
+    v_scaling = 𝒟train.scalings["v"]
+    T_scaling = 𝒟train.scalings["T"]
+    uw_scaling = 𝒟train.scalings["uw"]
+    vw_scaling = 𝒟train.scalings["vw"]
+    wT_scaling = 𝒟train.scalings["wT"]
+
+    uw_weights, re_uw = Flux.destructure(uw_NN)
+    vw_weights, re_vw = Flux.destructure(vw_NN)
+    wT_weights, re_wT = Flux.destructure(wT_NN)
+
+    size_uw_NN = length(uw_weights)
+    size_vw_NN = length(vw_weights)
+    size_wT_NN = length(wT_weights)
+
+    uw_range = 1:size_uw_NN
+    vw_range = size_uw_NN + 1:size_uw_NN + size_vw_NN
+    wT_range = size_uw_NN + size_vw_NN + 1:size_uw_NN + size_vw_NN + size_wT_NN
+
+    if conditions.modified_pacanowski_philander
+        if conditions.convective_adjustment
+            constants = (H=H, τ=τ, f=f, Nz=Nz, g=g, α=α, ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr, κ=κ)
+        else
+            constants = (H=H, τ=τ, f=f, Nz=Nz, g=g, α=α, ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr)
+        end
+    elseif conditions.convective_adjustment
+        constants = (H=H, τ=τ, f=f, Nz=Nz, g=g, α=α, κ=κ)
+    else
+        constants = (H=H, τ=τ, f=f, Nz=Nz, g=g, α=α)
+    end
+
+    D_Ri_nonlocal = zeros(Float32, Nz+1, Nz+1)
+    for i in 1:Nz
+        D_Ri_nonlocal[i, i+1] = 1
+    end
+    D_Ri_nonlocal[Nz+1, Nz+1] = 1
+
+    scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
+    derivatives = (cell=Float32.(Dᶜ(Nz, 1 / Nz)), face=Float32.(Dᶠ(Nz, 1 / Nz)), Ri_nonlocal=D_Ri_nonlocal)
+    NN_constructions = (uw=re_uw, vw=re_vw, wT=re_wT)
+    weights = Float32[uw_weights; vw_weights; wT_weights]
+
+    NN_sizes = (uw=size_uw_NN, vw=size_vw_NN, wT=size_wT_NN)
+    NN_ranges = (uw=uw_range, vw=vw_range, wT=wT_range)
+
+    filters = (cell=WindMixing.smoothing_filter(Nz, 3), face=WindMixing.smoothing_filter(Nz+1, 3), interior=WindMixing.smoothing_filter(Nz-1, 3))
+    return constants, scalings, derivatives, NN_constructions, weights, NN_sizes, NN_ranges, filters
+end
+
 function local_richardson(∂u∂z, ∂v∂z, ∂T∂z, H, g, α, σ_u, σ_v, σ_T)
     # H, g, α = constants.H, constants.g, constants.α
     # σ_u, σ_v, σ_T = scalings.u.σ, scalings.v.σ, scalings.T.σ
@@ -274,6 +326,77 @@ function predict_flux(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constan
         ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi)
         # ν = constants.ν₀ .+ constants.ν₋ .* tanh_step.((Ri .- constants.Riᶜ) ./ constants.ΔRi) .+ 1f0 .* tanh_step.((Ri .+ constants.Riᶜ) ./ constants.ΔRi)
 
+
+        if conditions.zero_weights
+            ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
+            ν∂v∂z = [-(BCs.vw.bottom - scalings.vw(0f0)); σ_v / σ_vw / H .* ν[2:end-1] .* ∂v∂z[2:end-1]; -(BCs.vw.top - scalings.vw(0f0))]
+            ν∂T∂z = [-(BCs.wT.bottom - scalings.wT(0f0)); σ_T / σ_wT / H .* ν[2:end-1] ./ constants.Pr .* ∂T∂z[2:end-1]; -(BCs.wT.top - scalings.wT(0f0))]
+        else
+            ν∂u∂z = σ_u / σ_uw / H .* ν .* ∂u∂z
+            ν∂v∂z = σ_v / σ_vw / H .* ν .* ∂v∂z
+            ν∂T∂z = σ_T / σ_wT / H .* ν .* ∂T∂z ./ constants.Pr
+        end
+
+        return uw .- ν∂u∂z, vw .- ν∂v∂z, wT .- ν∂T∂z
+    elseif conditions.convective_adjustment
+        ∂T∂z = D_face * T
+        κ∂T∂z = σ_T / σ_wT / H .* κ .* min.(0f0, ∂T∂z)
+        return uw, vw, wT .- κ∂T∂z
+    else
+        return uw, vw, wT
+    end
+end
+
+function predict_flux_nonlocal(uw_NN, vw_NN, wT_NN, x, BCs, conditions, scalings, constants, derivatives, filters)
+    Nz, H, τ, f = constants.Nz, constants.H, constants.τ, constants.f
+    uw_scaling, vw_scaling, wT_scaling = scalings.uw, scalings.vw, scalings.wT
+    σ_uw, σ_vw, σ_wT = uw_scaling.σ, vw_scaling.σ, wT_scaling.σ
+    μ_u, μ_v, σ_u, σ_v, σ_T = scalings.u.μ, scalings.v.μ, scalings.u.σ, scalings.v.σ, scalings.T.σ
+    D_cell, D_face, D_Ri_nonlocal = derivatives.cell, derivatives.face, derivatives.Ri_nonlocal
+
+    u = @view x[1:Nz]
+    v = @view x[Nz + 1:2Nz]
+    T = @view x[2Nz + 1:3Nz]
+
+    uw_interior = uw_NN(x)
+    vw_interior = vw_NN(x)
+    wT_interior = wT_NN(x)
+
+    if conditions.smooth_NN
+        uw_interior = filters.interior * uw_interior
+        vw_interior = filters.interior * vw_interior
+        wT_interior = filters.interior * wT_interior
+    end
+    
+    if conditions.zero_weights
+        uw = [0f0; uw_interior; 0f0]
+        vw = [0f0; vw_interior; 0f0]
+        wT = [0f0; wT_interior; 0f0]
+    else
+        uw = [BCs.uw.bottom; uw_interior; BCs.uw.top]
+        vw = [BCs.vw.bottom; vw_interior; BCs.vw.top]
+        wT = [BCs.wT.bottom; wT_interior; BCs.wT.top]
+    end
+
+    if conditions.modified_pacanowski_philander
+        ϵ = 1f-7
+        ∂u∂z = D_face * u
+        ∂v∂z = D_face * v
+        ∂T∂z = D_face * T
+        Ri = local_richardson.(∂u∂z .+ ϵ, ∂v∂z .+ ϵ, ∂T∂z .+ ϵ, constants.H, constants.g, constants.α, scalings.u.σ, scalings.v.σ, scalings.T.σ)
+
+        if conditions.smooth_Ri
+            Ri = filters.face * Ri
+        end
+
+        Ri_nonlocal = D_Ri_nonlocal * Ri
+
+        ν₀, ν₁_conv, ν₁_en, Riᶜ, ΔRi_conv, ΔRi_en = constants.ν₀, constants.ν₁_conv, constants.ν₁_en, constants.Riᶜ, constants.ΔRi_conv, constants.ΔRi_en
+
+        ν_conv = ν₁_conv ./ 2 .* (1 .- tanh.((Ri .- Riᶜ) ./ ΔRi_conv))
+        ν_en = ν₁_en ./ 2 .* (tanh.((Ri .- Riᶜ) ./ ΔRi_en) .- tanh.((Ri_nonlocal .- Riᶜ) ./ ΔRi_en))
+
+        ν = ν₀ .+ ν_conv .+ ν_en
 
         if conditions.zero_weights
             ν∂u∂z = [-(BCs.uw.bottom - scalings.uw(0f0)); σ_u / σ_uw / H .* ν[2:end-1] .* ∂u∂z[2:end-1]; -(BCs.uw.top - scalings.uw(0f0))]
