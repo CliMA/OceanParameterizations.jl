@@ -58,15 +58,37 @@ PATH = pwd()
 
 
 if train_gradient
-    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new"
+    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new_2"
 else
-    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new"
+    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new_2"
 end
 
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 @assert !isfile(OUTPUT_PATH)
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
+
+if train_gradient
+    PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new"
+else
+    PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new"
+end
+
+PARAMS_PATH = joinpath(PATH, "extracted_training_output", "$(PARAMS_FILE_NAME)_extracted.jld2")
+
+file = jldopen(PARAMS_PATH, "r")
+mpp_parameters = file["parameters"]
+close(file)
+
+ν₁_conv, ν₁_en, ΔRi_conv, ΔRi_en, Riᶜ, Pr = mpp_parameters
+
+ν₀ = 1f-5
+# ν₁_conv = 1f-1
+# ν₁_en = 2f-2
+# ΔRi_conv=0.1f0
+# ΔRi_en=0.1f0
+# Riᶜ=0.25f0
+# Pr=1f0
 
 timestepper = ROCK4()
 
@@ -78,22 +100,21 @@ end
 
 # optimizers = [ADAM(rate)]
 
-tsteps = 1:20:1153
+tsteps = 1:13:1153
 maxiters = 200
 # maxiters = 3
 
 training_fractions = (T=T_fraction, profile=0.5f0, ∂T∂z=T_fraction)
 
 optimise_modified_pacanowski_philander_nonlocal(train_files, tsteps, timestepper, optimizers, maxiters, OUTPUT_PATH, n_simulations=length(train_files),
-                                       train_gradient=train_gradient, training_fractions=training_fractions)
-                                    #    ν₀ = 1f-5, ν₋ = 5.77f-1, ΔRi=2.65f-1, Riᶜ=-2.71f-1, Pr=1.65f0)
+                                       train_gradient=train_gradient, training_fractions=training_fractions,
+                                       ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr)
 
 extract_parameters_modified_pacanowski_philander_optimisation(OUTPUT_PATH, EXTRACTED_OUTPUT_PATH)
 
 PATH = joinpath(pwd(), "extracted_training_output")
 
 DATA_NAME = FILE_NAME
-
 DATA_PATH = joinpath(PATH, "$(DATA_NAME)_extracted.jld2")
 ispath(DATA_PATH)
 
