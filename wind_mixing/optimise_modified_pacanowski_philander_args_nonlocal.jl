@@ -21,11 +21,11 @@ BLAS.set_num_threads(1)
 # rate_str = ARGS[4]
 # rate = parse(Float64, rate_str)
 
-optimizer_type = "ADAM"
+# optimizer_type = "ADAM"
 T_fraction = 0.8f0
 N_sims = 18
 train_gradient = false
-optimizer_type = "LBFGS"
+optimizer_type = "BFGS"
 
 train_files_all = [       
     "wind_-5e-4_cooling_3e-8_new",   
