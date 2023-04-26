@@ -776,7 +776,7 @@ function optimise_modified_pacanowski_philander_nonlocal(train_files, tsteps, ti
         else
             unscaled_parameters = unscale_parameter.(scaled_parameters, scalings.parameters)
 
-            sols = [Array(solve(prob_NDEs[i], timestepper, p=unscaled_parameters, reltol=1f-3, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
+            sols = [Array(solve(prob_NDEs[i], timestepper, p=unscaled_parameters, reltol=1f-5, sensealg=InterpolatingAdjoint(autojacvec=ZygoteVJP()), saveat=t_train)) for i in 1:n_simulations]        
             u_sols, v_sols, T_sols = split_u.(sols, Nz), split_v.(sols, Nz), split_T.(sols, Nz)
 
             u_loss = mean(loss.(u_trains, u_sols))
