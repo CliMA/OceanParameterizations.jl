@@ -21,7 +21,6 @@ BLAS.set_num_threads(1)
 # rate_str = ARGS[4]
 # rate = parse(Float64, rate_str)
 
-# optimizer_type = "ADAM"
 T_fraction = 0.8f0
 N_sims = 18
 train_gradient = false
@@ -58,9 +57,9 @@ PATH = pwd()
 
 
 if train_gradient
-    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new_2"
+    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new_lowrel"
 else
-    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new_2"
+    FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new_lowrel"
 end
 
 OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
@@ -68,27 +67,27 @@ OUTPUT_PATH = joinpath(PATH, "training_output", "$(FILE_NAME).jld2")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output", "$(FILE_NAME)_extracted.jld2")
 
-if train_gradient
-    PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new"
-else
-    PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new"
-end
+# if train_gradient
+#     PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_grad_new"
+# else
+#     PARAMS_FILE_NAME = "parameter_optimisation_nonlocal_$(N_sims)sim_windcooling_windheating_5params_$(optimizer_type)_T$(T_fraction)_var_nograd_new"
+# end
 
-PARAMS_PATH = joinpath(PATH, "extracted_training_output", "$(PARAMS_FILE_NAME)_extracted.jld2")
+# PARAMS_PATH = joinpath(PATH, "extracted_training_output", "$(PARAMS_FILE_NAME)_extracted.jld2")
 
-file = jldopen(PARAMS_PATH, "r")
-mpp_parameters = file["parameters"]
-close(file)
+# file = jldopen(PARAMS_PATH, "r")
+# mpp_parameters = file["parameters"]
+# close(file)
 
-ν₁_conv, ν₁_en, ΔRi_conv, ΔRi_en, Riᶜ, Pr = mpp_parameters
+# ν₁_conv, ν₁_en, ΔRi_conv, ΔRi_en, Riᶜ, Pr = mpp_parameters
 
 ν₀ = 1f-5
-# ν₁_conv = 1f-1
-# ν₁_en = 2f-2
-# ΔRi_conv=0.1f0
-# ΔRi_en=0.1f0
-# Riᶜ=0.25f0
-# Pr=1f0
+ν₁_conv = 1f-1
+ν₁_en = 2f-2
+ΔRi_conv=0.1f0
+ΔRi_en=0.1f0
+Riᶜ=0.25f0
+Pr=1f0
 
 timestepper = ROCK4()
 
