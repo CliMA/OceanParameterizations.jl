@@ -1253,6 +1253,139 @@ function animate_training_results(test_files, FILE_NAME;
     end
 end
 
+function animate_training_results_nonlocal(test_files, FILE_NAME; 
+                                  EXTRACTED_DATA_DIR, OUTPUT_DIR,
+                                  timestep=60, trange=1:1:1153, 
+                                  fps=30, gif=false, mp4=true,
+                                  explicit_timestepper=ROCK4(), implicit_timestepper=RadauIIA5(autodiff=false),
+                                  convective_adjustment=false)
+
+    DATA_PATH = joinpath(EXTRACTED_DATA_DIR, "$(FILE_NAME)_extracted.jld2")
+    OUTPUT_PATH = joinpath(OUTPUT_DIR, FILE_NAME)
+
+    if !ispath(OUTPUT_PATH)
+        mkdir(OUTPUT_PATH)
+    end
+    
+    @info "Loading Data"
+    file = jldopen(DATA_PATH, "r")
+    if haskey(file, "losses/total")
+        losses = (
+            u = file["losses/u"],
+            v = file["losses/v"],
+            T = file["losses/T"],
+            ∂u∂z = file["losses/∂u∂z"],
+            ∂v∂z = file["losses/∂v∂z"],
+            ∂T∂z = file["losses/∂T∂z"],
+        )
+        @info "Training Loss = $(minimum(file["losses/total"]))"
+    else
+        losses = file["losses"]
+        @info "Training Loss = $(minimum(losses))"
+    end
+
+    train_files = file["training_info/train_files"]
+
+    diurnal = occursin("diurnal", train_files[1])
+
+    train_parameters = file["training_info/parameters"]
+    uw_NN = file["neural_network/uw"]
+    vw_NN = file["neural_network/vw"]
+    wT_NN = file["neural_network/wT"]
+
+    if haskey(file["training_info"], "loss_scalings")
+        loss_scalings = file["training_info/loss_scalings"]
+    elseif haskey(train_parameters, "gradient_scaling")
+        gradient_scaling = train_parameters["gradient_scaling"]
+        loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=gradient_scaling, ∂v∂z=gradient_scaling, ∂T∂z=gradient_scaling)
+    else
+        loss_scalings = (u=1f0, v=1f0, T=1f0, ∂u∂z=1f0, ∂v∂z=1f0, ∂T∂z=1f0)
+    end
+
+    close(file)
+
+    @info "Loading Training Data"
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+    training_types = generate_training_types_str(FILE_NAME)
+
+    ν₀ = train_parameters["ν₀"]
+    ν₁_conv = train_parameters["ν₁_conv"]
+    ν₁_en = train_parameters["ν₁_en"]
+    ΔRi_conv = train_parameters["ΔRi_conv"]
+    ΔRi_en = train_parameters["ΔRi_en"]
+    Riᶜ = train_parameters["Riᶜ"]
+    Pr = train_parameters["Pr"]
+
+    @info "Plotting Loss..."
+    plot_loss(losses, joinpath(OUTPUT_PATH, "loss.pdf"))
+
+    @info "Solving NDE: Oceananigans"
+    solve_oceananigans_modified_pacanowski_philander_nn_nonlocal(test_files, DATA_PATH, OUTPUT_PATH; timestep=timestep, convective_adjustment=convective_adjustment)
+
+    for test_file in test_files
+        @info "Generating Data: $test_file"
+        𝒟test = WindMixing.data(test_file, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+
+        @info "Processing $test_file solution"
+        if test_file in train_files
+            SOL_DIR = joinpath(OUTPUT_PATH, "train_$test_file")
+            animation_type = "Training"
+        else
+            SOL_DIR = joinpath(OUTPUT_PATH, "test_$test_file")
+            animation_type = "Testing"
+        end
+
+        @info "Solving NDE: $test_file, Explicit timestepper"
+        plot_data_explicit = NDE_profile_nonlocal(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
+                                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+                                ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr,
+                                convective_adjustment=false,
+                                smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+                                zero_weights=train_parameters["zero_weights"],
+                                loss_scalings=loss_scalings,
+                                timestepper=explicit_timestepper,
+                                OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_explicit.jld2"))
+
+        @info "Solving NDE: $test_file, Implicit timestepper"
+        plot_data_implicit = NDE_profile_nonlocal(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
+                                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+                                ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr,
+                                convective_adjustment=false,
+                                smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+                                zero_weights=train_parameters["zero_weights"],
+                                loss_scalings=loss_scalings,
+                                timestepper=implicit_timestepper,
+                                OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_implicit.jld2"))
+
+        @info "Solving NDE: $test_file, Oceananigans"
+
+        plot_data_oceananigans = NDE_profile_oceananigans_nonlocal(SOL_DIR, train_files, [test_file],
+                                            ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr,
+                                            loss_scalings=loss_scalings,
+                                            OUTPUT_PATH=joinpath(SOL_DIR, "solution_oceananigans.jld2"))
+        
+        if test_file in train_files
+            animation_type = "Training"
+        else
+            animation_type = "Testing"
+        end
+        n_trainings = length(train_files)
+
+        if animation_type == "Training"
+            VIDEO_NAME = "train_$test_file"
+        else
+            VIDEO_NAME = "test_$test_file"
+        end
+
+        VIDEO_PATH = joinpath(SOL_DIR, "$VIDEO_NAME")
+
+        @info "Animating $test_file Video"
+
+        animate_profiles_fluxes_comparison_nonlocal(plot_data_explicit, plot_data_implicit, plot_data_oceananigans, VIDEO_PATH, fps=fps, gif=gif, mp4=mp4, 
+                                                animation_type=animation_type, n_trainings=n_trainings, training_types=training_types)
+        @info "$test_file Animation Completed"
+    end
+end
 
 function animate_profiles_fluxes_final(data, axis_images, FILE_PATH; animation_type, n_trainings, training_types, fps=30, gif=false, mp4=true)
     times = data["t"] ./ 86400
