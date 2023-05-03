@@ -160,8 +160,7 @@ end
 # wT_NN = wT_file["neural_network"]
 
 FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-                        "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_extracted.jld2")
-
+                        "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_2e-4_extracted.jld2")
 @assert isfile(FILE_PATH_NN)
 
 file = jldopen(FILE_PATH_NN, "r")
