@@ -24,7 +24,7 @@ T_fraction = parse(Float32, T_fraction_str)
 NN_type = "leakyrelu"
 rate_str = "1e-4"
 rate = parse(Float64, rate_str)
-params_type = "18simBFGST0.8nogradnonlocal"
+params_type = "18simLBFGST0.8nogradnonlocal"
 
 n_layers = 1
 
