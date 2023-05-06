@@ -22,9 +22,9 @@ N_sims = 18
 T_fraction_str = "0.8"
 T_fraction = parse(Float32, T_fraction_str)
 NN_type = "leakyrelu"
-rate_str = "1e-4"
+rate_str = "2e-4"
 rate = parse(Float64, rate_str)
-params_type = "18simLBFGST0.8nogradnonlocal"
+params_type = "18simBFGST0.8nogradnonlocal"
 
 n_layers = 1
 
@@ -76,7 +76,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_$(rate_str)_2"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_$(rate_str)_3"
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
 @assert !isfile(FILE_PATH)
@@ -168,7 +168,7 @@ file = jldopen(FILE_PATH_NN, "r")
 uw_NN = file["neural_network/uw"]
 vw_NN = file["neural_network/vw"]
 wT_NN = file["neural_network/wT"]
-close(file)
+# close(file)
 
 # train_parameters = file["training_info/parameters"]
 
@@ -178,11 +178,11 @@ close(file)
 # Riᶜ = train_parameters["Riᶜ"]
 # Pr = train_parameters["Pr"]
 
-# train_optimizers = [[ADAM(rate)]]
-# train_optimizers[1][1].beta = file["optimizer/β"]
-# train_optimizers[1][1].state = file["optimizer/state"]
+train_optimizers = [[ADAM(rate)]]
+train_optimizers[1][1].beta = file["optimizer/β"]
+train_optimizers[1][1].state = file["optimizer/state"]
 
-# close(file)
+close(file)
 
 
 # N_inputs = 96
@@ -238,7 +238,7 @@ train_parameters = Dict(
 train_epochs = [1]
 train_tranges = [1:15:1153]
 train_iterations = [150]
-train_optimizers = [[ADAM(rate)]]
+# train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
 # train_tranges = [1:20:200]
