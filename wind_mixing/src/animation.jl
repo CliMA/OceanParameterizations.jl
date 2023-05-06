@@ -1345,17 +1345,19 @@ function animate_training_results_nonlocal(test_files, FILE_NAME;
                                 loss_scalings=loss_scalings,
                                 timestepper=explicit_timestepper,
                                 OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_explicit.jld2"))
+        
+        plot_data_implicit = plot_data_explicit
 
-        @info "Solving NDE: $test_file, Implicit timestepper"
-        plot_data_implicit = NDE_profile_nonlocal(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
-                                modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
-                                ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr,
-                                convective_adjustment=false,
-                                smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
-                                zero_weights=train_parameters["zero_weights"],
-                                loss_scalings=loss_scalings,
-                                timestepper=implicit_timestepper,
-                                OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_implicit.jld2"))
+        # @info "Solving NDE: $test_file, Implicit timestepper"
+        # plot_data_implicit = NDE_profile_nonlocal(uw_NN, vw_NN, wT_NN, test_file, 𝒟test, 𝒟train, trange,
+        #                         modified_pacanowski_philander=train_parameters["modified_pacanowski_philander"], 
+        #                         ν₀=ν₀, ν₁_conv=ν₁_conv, ν₁_en=ν₁_en, ΔRi_conv=ΔRi_conv, ΔRi_en=ΔRi_en, Riᶜ=Riᶜ, Pr=Pr,
+        #                         convective_adjustment=false,
+        #                         smooth_NN=train_parameters["smooth_NN"], smooth_Ri=train_parameters["smooth_Ri"],
+        #                         zero_weights=train_parameters["zero_weights"],
+        #                         loss_scalings=loss_scalings,
+        #                         timestepper=implicit_timestepper,
+        #                         OUTPUT_PATH=joinpath(SOL_DIR, "solution_diffeq_implicit.jld2"))
 
         @info "Solving NDE: $test_file, Oceananigans"
 
