@@ -1886,8 +1886,18 @@ function NDE_profile_oceananigans_nonlocal(FILE_DIR, train_files, test_files;
     t = 𝒟test.t[trange]
 
     @info "Solving k-profile parameterizations"
+    file_kpp = jldopen(joinpath(pwd(), "Data", "kpp_eki_180ensemble_1000iters_18sim_timeseries.jld2"))
+    kpp_params = file_kpp["params"]
+    close(file_kpp)
 
-    sol_kpp = column_model_1D_kpp(constants, BCs_unscaled, ICs_unscaled, t, OceanTurb.KPP.Parameters())
+    CSL, Cτ, CNL, Cstab, Cunst, Cn, Cmτ_U, Cmτ_T, Cmb_U, Cmb_T, Cd_U, Cd_T, Cb_U, Cb_T, CRi, CKE, KU₀, KT₀ = kpp_params
+
+    Cτb_U = (Cτ / Cb_U)^(1/Cmb_U) * (1 + Cunst*Cd_U)^(Cmτ_U/Cmb_U) - Cd_U
+    Cτb_T = (Cτ / Cb_T)^(1/Cmb_T) * (1 + Cunst*Cd_T)^(Cmτ_T/Cmb_T) - Cd_T
+
+    kpp_parameters = OceanTurb.KPP.Parameters(; CSL, Cτ, CNL, Cstab, Cunst, Cn, Cmτ_U, Cmτ_T, Cmb_U, Cmb_T, Cd_U, Cd_T, Cb_U, Cb_T, CRi, CKE, KU₀, KT₀, Cτb_U, Cτb_T)
+
+    sol_kpp = column_model_1D_kpp(constants, BCs_unscaled, ICs_unscaled, t, kpp_parameters)
 
     test_u_kpp = sol_kpp.U
     test_v_kpp = sol_kpp.V
