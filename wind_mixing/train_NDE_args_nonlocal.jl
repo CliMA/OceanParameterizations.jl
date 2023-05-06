@@ -238,7 +238,7 @@ train_parameters = Dict(
 
 train_epochs = [1]
 train_tranges = [1:15:1153]
-train_iterations = [150]
+train_iterations = [300]
 train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
