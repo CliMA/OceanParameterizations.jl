@@ -76,7 +76,7 @@ VIDEO_PATH = joinpath(PATH, "Output")
 
 EXTRACTED_OUTPUT_PATH = joinpath(PATH, "extracted_training_output")
 
-FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_$(rate_str)_300iter"
+FILE_NAME = "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_$(rate_str)"
 
 # FILE_NAME = "test_$(params_type)_$(T_fraction)_$(NN_type)"
 FILE_PATH = joinpath(OUTPUT_PATH, "$(FILE_NAME).jld2")
@@ -160,16 +160,16 @@ end
 # vw_NN = vw_file["neural_network"]
 # wT_NN = wT_file["neural_network"]
 
-# FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
-#                         "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_2e-4_extracted.jld2")
-# @assert isfile(FILE_PATH_NN)
+FILE_PATH_NN = joinpath(PATH, "extracted_training_output", 
+                        "NDE_$(N_sims)sim_windcooling_windheating_$(params_type)_divide1f5_gradient_smallNN_$(NN_type)_layers_$(n_layers)_rate_2e-4_T$(T_fraction_str)_2e-4_extracted.jld2")
+@assert isfile(FILE_PATH_NN)
 
-# file = jldopen(FILE_PATH_NN, "r")
+file = jldopen(FILE_PATH_NN, "r")
 
-# uw_NN = file["neural_network/uw"]
-# vw_NN = file["neural_network/vw"]
-# wT_NN = file["neural_network/wT"]
-# # close(file)
+uw_NN = file["neural_network/uw"]
+vw_NN = file["neural_network/vw"]
+wT_NN = file["neural_network/wT"]
+close(file)
 
 # # train_parameters = file["training_info/parameters"]
 
@@ -186,31 +186,31 @@ end
 # close(file)
 
 
-N_inputs = 96
-hidden_units = 400
-N_outputs = 31
+# N_inputs = 96
+# hidden_units = 400
+# N_outputs = 31
 
-if NN_type == "mish"
-  activation = mish
-elseif NN_type == "swish"
-  activation = swish
-elseif NN_type == "leakyrelu"
-  activation = leakyrelu
-elseif NN_type == "relu"
-  activation = relu
-else
-  activation = tanh
-end
+# if NN_type == "mish"
+#   activation = mish
+# elseif NN_type == "swish"
+#   activation = swish
+# elseif NN_type == "leakyrelu"
+#   activation = leakyrelu
+# elseif NN_type == "relu"
+#   activation = relu
+# else
+#   activation = tanh
+# end
 
-if n_layers == 1
-     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, N_outputs)))
-elseif n_layers == 2
-     weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, hidden_units, activation), Dense(hidden_units, N_outputs)))
-end
+# if n_layers == 1
+#      weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, N_outputs)))
+# elseif n_layers == 2
+#      weights, re = Flux.destructure(Chain(Dense(N_inputs, hidden_units, activation), Dense(hidden_units, hidden_units, activation), Dense(hidden_units, N_outputs)))
+# end
 
-uw_NN = re(weights ./ 1f5)
-vw_NN = re(weights ./ 1f5)
-wT_NN = re(weights ./ 1f5)
+# uw_NN = re(weights ./ 1f5)
+# vw_NN = re(weights ./ 1f5)
+# wT_NN = re(weights ./ 1f5)
 
 # gradient_scaling = 5f-3
 diurnal = occursin("diurnal", train_files[1])
@@ -238,7 +238,7 @@ train_parameters = Dict(
 
 train_epochs = [1]
 train_tranges = [1:15:1153]
-train_iterations = [300]
+train_iterations = [150]
 train_optimizers = [[ADAM(rate)]]
 
 # train_epochs = [1]
@@ -295,8 +295,8 @@ function train(FILE_PATH, train_files, train_epochs, train_tranges, train_parame
     return uw_NN, vw_NN, wT_NN
 end
 
-uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
-                                    uw_NN, vw_NN, wT_NN, timestepper)
+# uw_NN_res, vw_NN_res, wT_NN_res = train(FILE_PATH, train_files, train_epochs, train_tranges, train_parameters, train_optimizers, train_iterations, 
+#                                     uw_NN, vw_NN, wT_NN, timestepper)
 
 extract_NN(FILE_PATH, EXTRACTED_FILE_PATH, "NDE")
 
