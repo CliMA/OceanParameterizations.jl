@@ -14,7 +14,7 @@ using CairoMakie
 
 
 EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "NDE_18sim_windcooling_windheating_18simBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_extracted.jld2")
-OUTPUT_DIR = joinpath(pwd(), "new_nonlocal_NDE_BFGS")
+OUTPUT_DIR = joinpath(pwd(), "Output", "new_nonlocal_NDE_BFGS")
 timestep = 60
 stop_time = 60*11530
 times = range(0, step=timestep, stop=stop_time)
@@ -31,7 +31,7 @@ end
 
 for wT in wTs
     @info wT
-    bc = (uw=0, vw=0, wT=wT)
+    bc = (uw=-3f-5, vw=0, wT=wT)
     solve_oceananigans_modified_pacanowski_philander_nn_nonlocal_linear(bc, EXTRACTED_FILE_PATH, OUTPUT_DIR; 
                                                             timestep, stop_time, convective_adjustment=false)
 end
