@@ -16,7 +16,7 @@ using CairoMakie
 EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "NDE_18sim_windcooling_windheating_18simBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_extracted.jld2")
 OUTPUT_DIR = joinpath(pwd(), "Output", "new_nonlocal_NDE_BFGS")
 timestep = 60
-stop_time = 60*11530
+stop_time = 60*11530*2
 times = range(0, step=timestep, stop=stop_time)
 
 uws = -3f-4:-1f-4:-5f-4
@@ -41,11 +41,11 @@ for wT in wTs
                                                             timestep, stop_time, convective_adjustment=false)
 end
 
-f = jldopen("Output/new_nonlocal_NDE_BFGS/test_linear_uw0_vw0_wT5.0985814e-6/NN_oceananigans.jld2")
+f = jldopen("Output/new_nonlocal_NDE_BFGS/test_linear_uw0_vw0_wT1.5295744e-5/NN_oceananigans.jld2")
 
 fig = Figure()
 ax = fig[1,1] = Axis(fig)
-# lines!(ax, f["timeseries/T/$(length(times) - 1)"][1, 1, :], f["grid/zC"][2:end-1])
+lines!(ax, f["timeseries/T/$(length(times) - 1)"][1, 1, :], f["grid/zC"][2:end-1])
 lines!(ax, f["timeseries/T/10000"][1, 1, :], f["grid/zC"][2:end-1])
 
 display(fig)
