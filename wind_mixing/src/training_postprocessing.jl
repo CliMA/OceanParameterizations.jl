@@ -1300,6 +1300,75 @@ function solve_oceananigans_modified_pacanowski_philander_nn_nonlocal(test_files
     end
 end
 
+function solve_oceananigans_modified_pacanowski_philander_nn_nonlocal_linear(bc, EXTRACTED_FILE_PATH, OUTPUT_DIR; 
+                                                        timestep, stop_time, convective_adjustment=false)
+    @info "Loading Training Data..."
+    extracted_training_file = jldopen(EXTRACTED_FILE_PATH, "r")
+
+    uw_NN = extracted_training_file["neural_network/uw"]
+    vw_NN = extracted_training_file["neural_network/vw"]
+    wT_NN = extracted_training_file["neural_network/wT"]
+
+    train_files = extracted_training_file["training_info/train_files"]
+
+    𝒟train = WindMixing.data(train_files, scale_type=ZeroMeanUnitVarianceScaling, enforce_surface_fluxes=false)
+
+    u_scaling = 𝒟train.scalings["u"]
+    v_scaling = 𝒟train.scalings["v"]
+    T_scaling = 𝒟train.scalings["T"]
+    uw_scaling = 𝒟train.scalings["uw"]
+    vw_scaling = 𝒟train.scalings["vw"]
+    wT_scaling = 𝒟train.scalings["wT"]
+
+    scalings = (u=u_scaling, v=v_scaling, T=T_scaling, uw=uw_scaling, vw=vw_scaling, wT=wT_scaling)
+    diffusivity_params = extracted_training_file["training_info/parameters"]
+
+    close(extracted_training_file)
+
+    f = 1f-4
+    α = 2f-4
+    g = 9.80665f0
+    Nz = 32
+    Lz = 256
+    Δz = 8
+
+    uw_flux = bc.uw
+    vw_flux = bc.vw
+    wT_flux = bc.wT
+
+    diurnal = false
+
+    ΔT = 𝒟train.T.coarse[2, 1] - 𝒟train.T.coarse[1, 1]
+    T₀ = range(𝒟train.T.coarse[1, 1], step=ΔT, length=Nz)
+
+    ∂u₀∂z = 0
+    ∂v₀∂z = 0
+
+    if !ispath(OUTPUT_DIR)
+        mkdir(OUTPUT_DIR)
+    end
+
+    constants = (; f, α, g, Nz, Lz, T₀)
+    BCs = (top=(uw=uw_flux, vw=vw_flux, wT=wT_flux), bottom=(u=∂u₀∂z, v=∂v₀∂z))
+
+    dir_str = "test_linear_uw$(uw_flux)_vw$(vw_flux)_wT$(wT_flux)"
+
+    DIR_PATH = joinpath(OUTPUT_DIR, dir_str)
+
+    if !ispath(DIR_PATH)
+        mkdir(DIR_PATH)
+    end
+
+    BASELINE_RESULTS_PATH = joinpath(DIR_PATH, "baseline_oceananigans")
+    NN_RESULTS_PATH = joinpath(DIR_PATH, "NN_oceananigans")
+
+    oceananigans_modified_pacanowski_philander_nn_nonlocal(uw_NN, vw_NN, wT_NN, constants, BCs, scalings, diffusivity_params, 
+                                                    BASELINE_RESULTS_PATH=BASELINE_RESULTS_PATH,
+                                                    NN_RESULTS_PATH=NN_RESULTS_PATH,
+                                                    stop_time=stop_time, Δt=timestep,
+                                                    convective_adjustment=convective_adjustment)
+end
+
 function solve_oceananigans_modified_pacanowski_philander_nn(test_files, uw_NN_PATH, vw_NN_PATH, wT_NN_PATH, OUTPUT_DIR; 
                                                         timestep=60, convective_adjustment=false)
     @info "Loading Training Data..."
