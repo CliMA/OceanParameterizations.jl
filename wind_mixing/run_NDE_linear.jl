@@ -20,7 +20,12 @@ stop_time = 60*11530
 times = range(0, step=timestep, stop=stop_time)
 
 uws = -3f-4:-1f-4:-5f-4
-wTs = 1f-8:1f-8:3f-8
+wbs = 1f-8:1f-8:3f-8
+
+α = 2f-4
+g = 9.80665f0
+
+wTs = wbs ./ (α*g)
 
 for uw in uws
     @info uw
@@ -31,17 +36,17 @@ end
 
 for wT in wTs
     @info wT
-    bc = (uw=-3f-5, vw=0, wT=wT)
+    bc = (uw=0, vw=0, wT=wT)
     solve_oceananigans_modified_pacanowski_philander_nn_nonlocal_linear(bc, EXTRACTED_FILE_PATH, OUTPUT_DIR; 
                                                             timestep, stop_time, convective_adjustment=false)
 end
 
-f = jldopen("Output/test_linear_uw0_vw0_wT3.0e-8/NN_oceananigans.jld2")
+f = jldopen("Output/new_nonlocal_NDE_BFGS/test_linear_uw0_vw0_wT5.0985814e-6/NN_oceananigans.jld2")
 
 fig = Figure()
 ax = fig[1,1] = Axis(fig)
-lines!(ax, f["timeseries/T/$(length(times) - 1)"][1, 1, :], f["grid/zC"][2:end-1])
-# lines!(ax, f["timeseries/T/1000"][1, 1, :], f["grid/zC"][2:end-1])
+# lines!(ax, f["timeseries/T/$(length(times) - 1)"][1, 1, :], f["grid/zC"][2:end-1])
+lines!(ax, f["timeseries/T/10000"][1, 1, :], f["grid/zC"][2:end-1])
 
 display(fig)
 
