@@ -4,7 +4,7 @@ using JLD2
 using Colors
 using Printf
 
-NDE_DIR = "new_nonlocal_NDE_LBFGS"
+NDE_DIR = "new_nonlocal_NDE_BFGS2"
 
 train_files_all = [
   "wind_-5e-4_cooling_3e-8_new",   
@@ -129,7 +129,7 @@ for filename in test_files
     data = file["NDE_profile"]
     close(file)
 
-    f_kpp = jldopen("../Data/kpp_eki_uvT_180ensemble_1000iters_18sim_timeseries.jld2")
+    f_kpp = jldopen("../Data/kpp_eki_180ensemble_1000iters_18sim_timeseries.jld2")
     kpp_profiles = f_kpp[filename]
     times = data["t"] ./ 86400
 
