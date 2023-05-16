@@ -4,7 +4,7 @@ using JLD2
 using Colors
 using Printf
 
-NDE_DIR = "new_nonlocal_NDE_BFGS2"
+NDE_DIR = "NDE_18sim_windcooling_windheating_18simLBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_300iter"
 
 train_files_all = [
   "wind_-5e-4_cooling_3e-8_new",   
