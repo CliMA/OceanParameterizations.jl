@@ -13,8 +13,8 @@ using CairoMakie
 # bc = (; uw=-5f-4, vw=0, wT=0)
 
 
-EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "NDE_18sim_windcooling_windheating_18simBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_extracted.jld2")
-OUTPUT_DIR = joinpath(pwd(), "Output", "new_nonlocal_NDE_BFGS")
+EXTRACTED_FILE_PATH = joinpath(pwd(), "extracted_training_output", "NDE_18sim_windcooling_windheating_18simBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_300iter_extracted.jld2")
+OUTPUT_DIR = joinpath(pwd(), "Output", "NDE_18sim_windcooling_windheating_18simBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_300iter")
 timestep = 60
 stop_time = 60*11530*2
 times = range(0, step=timestep, stop=stop_time)
