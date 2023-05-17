@@ -17,8 +17,10 @@ T_uws = [zeros()]
 uw_dirs = ["test_linear_uw-0.0003_vw0_wT0", 
            "test_linear_uw-0.00040000002_vw0_wT0", 
            "test_linear_uw-0.0005_vw0_wT0"]
-uw_NN_files = [jldopen("../Output/new_nonlocal_NDE_BFGS/$(dir)/NN_oceananigans.jld2") for dir in uw_dirs]
-uw_baseline_files = [jldopen("../Output/new_nonlocal_NDE_BFGS/$(dir)/baseline_oceananigans.jld2") for dir in uw_dirs]
+
+NDE_DIR = "NDE_18sim_windcooling_windheating_18simLBFGST0.8nogradnonlocal_divide1f5_gradient_smallNN_leakyrelu_layers_1_rate_2e-4_T0.8_2e-4_300iter"
+uw_NN_files = [jldopen("../Output/$(NDE_DIR)/$(dir)/NN_oceananigans.jld2") for dir in uw_dirs]
+uw_baseline_files = [jldopen("../Output/$(NDE_DIR)/$(dir)/baseline_oceananigans.jld2") for dir in uw_dirs]
 
 
 # stop_time = (length(keys(uw_NN_files[1]["timeseries/T"])) - 2) * 10
@@ -77,8 +79,8 @@ wT_dirs = ["test_linear_uw0_vw0_wT5.0985814e-6",
            "test_linear_uw0_vw0_wT1.0197163e-5", 
            "test_linear_uw0_vw0_wT1.5295744e-5"]
 
-wT_NN_files = [jldopen("../Output/new_nonlocal_NDE_BFGS/$(dir)/NN_oceananigans.jld2") for dir in wT_dirs]
-wT_baseline_files = [jldopen("../Output/new_nonlocal_NDE_BFGS/$(dir)/baseline_oceananigans.jld2") for dir in wT_dirs]
+wT_NN_files = [jldopen("../Output/$(NDE_DIR)/$(dir)/NN_oceananigans.jld2") for dir in wT_dirs]
+wT_baseline_files = [jldopen("../Output/$(NDE_DIR)/$(dir)/baseline_oceananigans.jld2") for dir in wT_dirs]
 
 wT_NN_mlds = [zeros(length(times)) for file in wT_NN_files]
 wT_baseline_mlds = [zeros(length(times)) for file in wT_NN_files]
@@ -291,7 +293,7 @@ hideydecorations!(ax_NN, grid = false)
 axislegend(ax_NN, position=:rb)
 axislegend(ax_baseline, position=:rb)
 display(fig)
-save("plots/mld_scaling_uw.pdf", fig, px_per_unit=4, pt_per_unit=4)
+save("plots/mld_scaling_uw_300iter.pdf", fig, px_per_unit=4, pt_per_unit=4)
 
 #%%
 fig = Figure(resolution=(1920, 960), fontsize=30)
@@ -321,7 +323,7 @@ hideydecorations!(ax_NN, grid = false)
 axislegend(ax_NN, position=:rb)
 axislegend(ax_baseline, position=:rb)
 display(fig)
-save("plots/mld_scaling_wT.pdf", fig, px_per_unit=4, pt_per_unit=4)
+save("plots/mld_scaling_wT_300iter.pdf", fig, px_per_unit=4, pt_per_unit=4)
 
 #%%
 for file in uw_NN_files
